@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, ChangeEvent, DragEvent, useEffect, useMemo, useCallback } from 'react';
 import Script from 'next/script';
-import InstallPWA from '../components/InstallPWA';
+import InstallPWA from '../../components/InstallPWA';
 
 // 导入像素化工具和类型
 import {
@@ -14,12 +14,12 @@ import {
   hexToRgb,
   colorDistance,
   findClosestPaletteColor
-} from '../utils/pixelation';
+} from '../../utils/pixelation';
 
 // 导入新的类型和组件
-import { GridDownloadOptions } from '../types/downloadTypes';
-import DownloadSettingsModal, { gridLineColorOptions } from '../components/DownloadSettingsModal';
-import { downloadImage, importCsvData } from '../utils/imageDownloader';
+import { GridDownloadOptions } from '../../types/downloadTypes';
+import DownloadSettingsModal, { gridLineColorOptions } from '../../components/DownloadSettingsModal';
+import { downloadImage, importCsvData } from '../../utils/imageDownloader';
 
 import { 
   colorSystemOptions, 
@@ -28,7 +28,7 @@ import {
   getMardToHexMapping,
   sortColorsByHue,
   ColorSystem 
-} from '../utils/colorSystemUtils';
+} from '../../utils/colorSystemUtils';
 
 // 添加自定义动画样式
 const floatAnimation = `
@@ -83,19 +83,19 @@ const fullBeadPalette: PaletteColor[] = Object.entries(mardToHexMapping)
 // ++ Add definition for background color keys ++
 
 // 1. 导入新组件
-import PixelatedPreviewCanvas from '../components/PixelatedPreviewCanvas';
-import GridTooltip from '../components/GridTooltip';
-import CustomPaletteEditor from '../components/CustomPaletteEditor';
-import FloatingColorPalette from '../components/FloatingColorPalette';
-import FloatingToolbar from '../components/FloatingToolbar';
-import MagnifierTool from '../components/MagnifierTool';
-import MagnifierSelectionOverlay from '../components/MagnifierSelectionOverlay';
-import { loadPaletteSelections, savePaletteSelections, presetToSelections, PaletteSelections } from '../utils/localStorageUtils';
-import { TRANSPARENT_KEY, transparentColorData } from '../utils/pixelEditingUtils';
+import PixelatedPreviewCanvas from '../../components/PixelatedPreviewCanvas';
+import GridTooltip from '../../components/GridTooltip';
+import CustomPaletteEditor from '../../components/CustomPaletteEditor';
+import FloatingColorPalette from '../../components/FloatingColorPalette';
+import FloatingToolbar from '../../components/FloatingToolbar';
+import MagnifierTool from '../../components/MagnifierTool';
+import MagnifierSelectionOverlay from '../../components/MagnifierSelectionOverlay';
+import { loadPaletteSelections, savePaletteSelections, presetToSelections, PaletteSelections } from '../../utils/localStorageUtils';
+import { TRANSPARENT_KEY, transparentColorData } from '../../utils/pixelEditingUtils';
 
 // 1. 导入新的 DonationModal 组件
-import DonationModal from '../components/DonationModal';
-import FocusModePreDownloadModal from '../components/FocusModePreDownloadModal';
+import DonationModal from '../../components/DonationModal';
+import FocusModePreDownloadModal from '../../components/FocusModePreDownloadModal';
 
 export default function Home() {
   const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
@@ -1922,7 +1922,7 @@ export default function Home() {
               {/* Brand name - 七卡瓦 with ultra fancy effects */}
               <div className="relative">
                 <h1 className="relative text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 to-cyan-400 tracking-wider drop-shadow-2xl transform hover:scale-105 transition-transform duration-300 animate-bounce">
-                  七卡瓦
+                  小瓜
                 </h1>
                 
                 {/* Super fancy geometric decorations */}
@@ -1998,18 +1998,6 @@ export default function Home() {
           <p className="mt-4 text-base sm:text-lg font-light text-gray-600 dark:text-gray-300 max-w-lg mx-auto text-center tracking-[0.1em] leading-relaxed">
             致力打造更好用的拼豆生成器
           </p>
-
-          <div className="mt-5 flex items-center justify-center">
-            <a
-              href="/workstation"
-              className="inline-flex items-center gap-2 rounded-full border border-blue-200 dark:border-blue-700 bg-white/90 dark:bg-gray-800/90 px-6 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>点击开始创作</span>
-            </a>
-          </div>
         </div>
       </header>
 
