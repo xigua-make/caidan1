@@ -2000,20 +2000,15 @@ export default function Home() {
           </p>
 
           <div className="mt-5 flex items-center justify-center">
-            <a
-              href="https://perlerbeadsnew.zippland.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-blue-200 dark:border-blue-700 bg-white/90 dark:bg-gray-800/90 px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            <button
+              onClick={isMounted ? triggerFileInput : undefined}
+              className="inline-flex items-center gap-2 rounded-full border border-blue-200 dark:border-blue-700 bg-white/90 dark:bg-gray-800/90 px-6 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
             >
-              <span>点击开始创作</span>
-              <span className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
-                beta
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M3 10a1 1 0 011-1h9.586L11.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L13.586 11H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-            </a>
+              <span>点击开始创作</span>
+            </button>
           </div>
         </div>
       </header>
