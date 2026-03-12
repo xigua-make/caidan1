@@ -2189,8 +2189,52 @@ export default function Workstation() {
         {/* 左侧画布区域 */}
         <main ref={mainRef} className="relative flex flex-col min-h-0 h-full overflow-hidden">
           {!originalImageSrc ? (
-            /* 预览区域 - 西瓜Logo */
-            <WatermelonPreview />
+            <>
+              {/* 桌面端：西瓜Logo预览 */}
+              <div className="hidden lg:block h-full">
+                <WatermelonPreview />
+              </div>
+              
+              {/* 移动端：两个大按钮 */}
+              <div className="lg:hidden flex-1 flex flex-col items-center justify-center px-4 gap-3 bg-gradient-to-br from-pink-50 via-white to-green-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
+                <button
+                  onClick={triggerFileInput}
+                  className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
+                >
+                  <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">上传图片开始生成</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">支持 JPG / PNG，点击或拖拽到画布</p>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    // 创建 100x100 空白画布
+                    const newPixelData: MappedPixel[][] = [];
+                    for (let i = 0; i < 100; i++) {
+                      const row: MappedPixel[] = [];
+                      for (let j = 0; j < 100; j++) {
+                        row.push({ key: TRANSPARENT_KEY, color: transparentColorData.color, isExternal: false });
+                      }
+                      newPixelData.push(row);
+                    }
+                    setMappedPixelData(newPixelData);
+                    setGridDimensions({ N: 100, M: 100 });
+                    setGridWidth(100);
+                    setGridHeight(100);
+                    setGridWidthInput('100');
+                    setGridHeightInput('100');
+                    setWorkstationMode('manual');
+                    setIsManualColoringMode(true);
+                    // 初始化历史记录
+                    setHistory([newPixelData]);
+                    setHistoryIndex(0);
+                  }}
+                  className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
+                >
+                  <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">手动空白画板编辑</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">创建 100×100 空白画布，使用画笔自由设计</p>
+                </button>
+              </div>
+            </>
           ) : (
             /* 画布显示区域 */
             <div className="h-full flex flex-col p-2 sm:p-4">
@@ -2243,11 +2287,11 @@ export default function Workstation() {
           <canvas ref={originalCanvasRef} className="hidden" />
         </main>
 
-        {/* 右侧功能面板 */}
-        <aside className="h-full overflow-y-auto bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700">
+        {/* 右侧功能面板 - 移动端在底部，桌面端在右侧 */}
+        <aside className="h-full overflow-y-auto bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 lg:w-80">
           {workstationMode === 'auto' ? (
             /* 自动优化模式右侧栏 */
-            <div className="p-4 space-y-4">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
               {/* 处理参数模块 */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">处理参数</h3>
