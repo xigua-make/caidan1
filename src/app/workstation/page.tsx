@@ -256,6 +256,10 @@ export default function Workstation() {
   // 矩形填充模式
   const [rectangleFilled, setRectangleFilled] = useState<boolean>(false);
   
+  // 显示色号和坐标
+  const [showColorKey, setShowColorKey] = useState<boolean>(false);
+  const [showCoordinates, setShowCoordinates] = useState<boolean>(false);
+  
   // 绘制状态（用于拖拽绘制）
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [drawStartPos, setDrawStartPos] = useState<{ row: number; col: number } | null>(null);
@@ -2304,6 +2308,9 @@ export default function Workstation() {
                   previewEndPos={drawEndPos}
                   isDrawing={isDrawing}
                   selection={selection}
+                  showColorKey={showColorKey}
+                  showCoordinates={showCoordinates}
+                  selectedColorSystem={selectedColorSystem}
                 />
               </div>
             </div>
@@ -2683,6 +2690,32 @@ export default function Workstation() {
                     onChange={(e) => setBrushSize(parseInt(e.target.value))}
                     className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                   />
+                </div>
+                
+                {/* 显示选项 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setShowColorKey(!showColorKey)}
+                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      showColorKey
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    }`}
+                    title="在画布上显示每个格子的色号"
+                  >
+                    显示色号
+                  </button>
+                  <button
+                    onClick={() => setShowCoordinates(!showCoordinates)}
+                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      showCoordinates
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    }`}
+                    title="在画布上显示每个格子的坐标"
+                  >
+                    显示坐标
+                  </button>
                 </div>
                 
                 {/* 形状与镜像工具 */}
