@@ -57,7 +57,13 @@ const drawPixelatedCanvas = (
   selectedColorSystem?: ColorSystem
 ) => {
   if (!canvas || !dims || !dataToDraw) {
-    console.warn("drawPixelatedCanvas: Missing required parameters");
+    console.warn("drawPixelatedCanvas: Missing required parameters", { canvas: !!canvas, dims: !!dims, dataToDraw: !!dataToDraw });
+    return;
+  }
+  
+  // 检查画布尺寸
+  if (canvas.width === 0 || canvas.height === 0) {
+    console.warn("drawPixelatedCanvas: Canvas size is zero", { width: canvas.width, height: canvas.height });
     return;
   }
   
@@ -125,20 +131,25 @@ const drawPixelatedCanvas = (
         const b = parseInt(hex.substr(4, 2), 16);
         const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
         
+        // 重置阴影设置
+        pixelatedCtx.shadowColor = 'transparent';
+        pixelatedCtx.shadowBlur = 0;
+        pixelatedCtx.shadowOffsetX = 0;
+        pixelatedCtx.shadowOffsetY = 0;
+        
         pixelatedCtx.font = `bold ${colorKeyFontSize}px Arial`;
         pixelatedCtx.textAlign = 'center';
         pixelatedCtx.textBaseline = 'middle';
         pixelatedCtx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
         
         // 添加文字阴影增强可读性
-        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
-        pixelatedCtx.shadowBlur = 2;
-        pixelatedCtx.shadowOffsetX = 1;
-        pixelatedCtx.shadowOffsetY = 1;
+        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+        pixelatedCtx.shadowBlur = 1;
         pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2);
+        
+        // 重置阴影设置
+        pixelatedCtx.shadowColor = 'transparent';
         pixelatedCtx.shadowBlur = 0;
-        pixelatedCtx.shadowOffsetX = 0;
-        pixelatedCtx.shadowOffsetY = 0;
       }
     }
   }
@@ -479,7 +490,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // Draw main canvas
   useEffect(() => {
-    if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
+    if (mappedPixelData && gridDimensions && canvasRef.current) {
       drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem);
     }
   }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem]);
@@ -973,7 +984,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onClick={(e) => e.stopPropagation()}
-        className="border border-gray-300 dark:border-gray-600 rounded block relative z-10"
+        className="absolute top-0 left-0 border border-gray-300 dark:border-gray-600 rounded z-10"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
