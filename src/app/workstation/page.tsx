@@ -838,6 +838,10 @@ export default function Workstation() {
     const currentExcluded = excludedColorKeys;
     const isExcluding = !currentExcluded.has(hexKey);
 
+    console.log(`---------\nhandleColorClick: ${hexKey}, isExcluding: ${isExcluding}`);
+    console.log("Initial Grid Color Keys:", Array.from(initialGridColorKeys));
+    console.log("Current Excluded Keys:", Array.from(currentExcluded));
+
     if (isExcluding) {
       // 排除颜色
       if (initialGridColorKeys.size === 0) {
@@ -851,17 +855,21 @@ export default function Workstation() {
       // --- 使用初始颜色键进行重映射目标逻辑 ---
       // 1. 从初始网格颜色集合开始（hex值）
       const potentialRemapHexKeys = new Set(initialGridColorKeys);
+      console.log("Step 1: Potential Hex Keys (from initial):", Array.from(potentialRemapHexKeys));
 
       // 2. 移除当前要排除的hex键
       potentialRemapHexKeys.delete(hexKey);
+      console.log(`Step 2: Potential Hex Keys (after removing ${hexKey}):`, Array.from(potentialRemapHexKeys));
 
       // 3. 移除任何*其他*当前也被排除的hex键
       currentExcluded.forEach(excludedHexKey => {
         potentialRemapHexKeys.delete(excludedHexKey);
       });
+      console.log("Step 3: Potential Hex Keys (after removing other exclusions):", Array.from(potentialRemapHexKeys));
 
       // 4. 基于剩余的hex值创建重映射调色板
       const remapTargetPalette = fullBeadPalette.filter(color => potentialRemapHexKeys.has(color.hex.toUpperCase()));
+      console.log("Step 4: Remap Target Palette Hex Keys:", remapTargetPalette.map(p => p.hex));
 
       // 5. 关键检查：如果在考虑所有排除项后，没有初始颜色可供映射，则阻止此次排除
       if (remapTargetPalette.length === 0) {
@@ -913,6 +921,7 @@ export default function Workstation() {
           newTotalCount++;
         }
       });
+      console.log("New Counts:", Object.keys(newCounts));
       setColorCounts(newCounts);
       setTotalBeadCount(newTotalCount);
       
@@ -926,6 +935,7 @@ export default function Workstation() {
 
     setIsManualColoringMode(false);
     setSelectedColor(null);
+    console.log("---------");
   }, [excludedColorKeys, initialGridColorKeys, mappedPixelData, gridDimensions]);
 
   // 获取排序后的颜色列表
