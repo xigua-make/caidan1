@@ -122,18 +122,23 @@ const drawPixelatedCanvas = (
         const b = parseInt(hex.substr(4, 2), 16);
         const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
         
-        // 根据格子大小调整字体
-        const fontSize = Math.min(cellWidthOutput, cellHeightOutput) * 0.5;
+        // 根据格子大小调整字体，最小8px确保可读性
+        const fontSize = Math.max(8, Math.min(cellWidthOutput, cellHeightOutput) * 0.6);
         pixelatedCtx.font = `bold ${fontSize}px Arial`;
         pixelatedCtx.textAlign = 'center';
         pixelatedCtx.textBaseline = 'middle';
         pixelatedCtx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
         
         // 添加文字阴影增强可读性
-        pixelatedCtx.shadowColor = isLightColor ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-        pixelatedCtx.shadowBlur = 2;
+        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+        pixelatedCtx.shadowBlur = 1;
+        pixelatedCtx.shadowOffsetX = 1;
+        pixelatedCtx.shadowOffsetY = 1;
         pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2);
+        // 重置阴影
         pixelatedCtx.shadowBlur = 0;
+        pixelatedCtx.shadowOffsetX = 0;
+        pixelatedCtx.shadowOffsetY = 0;
       }
     }
   }
@@ -800,7 +805,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // 坐标轴 Canvas 引用
   const coordinateCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // 绘制坐标轴
+  // 绘制坐标轴 - 四周都显示
   useEffect(() => {
     if (!showCoordinates || !gridDimensions || !canvasRef.current || !coordinateCanvasRef.current) {
       // 清空坐标轴画布
@@ -817,10 +822,12 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const mainCanvas = canvasRef.current;
     const { N, M } = gridDimensions;
 
-    // 设置坐标轴画布大小
-    const axisSize = 30; // 坐标轴宽度/高度
-    coordinateCanvas.width = mainCanvas.width + axisSize;
-    coordinateCanvas.height = mainCanvas.height + axisSize;
+    const axisSize = 24; // 坐标轴宽度/高度
+    const padding = 2; // 内边距
+    
+    // 设置坐标轴画布大小（四周都有坐标轴）
+    coordinateCanvas.width = mainCanvas.width + axisSize * 2;
+    coordinateCanvas.height = mainCanvas.height + axisSize * 2;
 
     const ctx = coordinateCanvas.getContext('2d');
     if (!ctx) return;
@@ -832,43 +839,93 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     ctx.clearRect(0, 0, coordinateCanvas.width, coordinateCanvas.height);
 
     // 绘制顶部坐标轴背景
-    ctx.fillStyle = '#E5E7EB';
+    ctx.fillStyle = '#D1D5DB';
     ctx.fillRect(axisSize, 0, mainCanvas.width, axisSize);
 
     // 绘制左侧坐标轴背景
-    ctx.fillStyle = '#E5E7EB';
     ctx.fillRect(0, axisSize, axisSize, mainCanvas.height);
+    
+    // 绘制右侧坐标轴背景
+    ctx.fillRect(axisSize + mainCanvas.width, axisSize, axisSize, mainCanvas.height);
+    
+    // 绘制底部坐标轴背景
+    ctx.fillRect(axisSize, axisSize + mainCanvas.height, mainCanvas.width, axisSize);
+
+    // 绘制角落背景
+    ctx.fillRect(0, 0, axisSize, axisSize);
+    ctx.fillRect(axisSize + mainCanvas.width, 0, axisSize, axisSize);
+    ctx.fillRect(0, axisSize + mainCanvas.height, axisSize, axisSize);
+    ctx.fillRect(axisSize + mainCanvas.width, axisSize + mainCanvas.height, axisSize, axisSize);
 
     // 设置字体样式
-    ctx.font = '10px Arial';
+    ctx.font = 'bold 9px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#374151';
 
-    // 绘制顶部列号
-    for (let i = 0; i < N; i++) {
-      const x = axisSize + i * cellWidth + cellWidth / 2;
-      // 在 1, 10, 20... 位置显示数字
-      if ((i + 1) === 1 || (i + 1) % 10 === 0) {
-        ctx.fillText(String(i + 1), x, axisSize / 2);
+    // 计算刻度显示位置
+    const getTickPositions = (max: number) => {
+      const positions: number[] = [1]; // 始终显示1
+      for (let i = 10; i <= max; i += 10) {
+        positions.push(i);
       }
-    }
+      return positions;
+    };
+
+    const colPositions = getTickPositions(N);
+    const rowPositions = getTickPositions(M);
+
+    // 绘制顶部列号
+    colPositions.forEach((col) => {
+      const x = axisSize + (col - 1) * cellWidth + cellWidth / 2;
+      ctx.fillText(String(col), x, axisSize / 2);
+    });
 
     // 绘制左侧行号
-    ctx.textAlign = 'center';
-    for (let j = 0; j < M; j++) {
-      const y = axisSize + j * cellHeight + cellHeight / 2;
-      // 在 1, 10, 20... 位置显示数字
-      if ((j + 1) === 1 || (j + 1) % 10 === 0) {
-        ctx.fillText(String(j + 1), axisSize / 2, y);
-      }
-    }
+    rowPositions.forEach((row) => {
+      const y = axisSize + (row - 1) * cellHeight + cellHeight / 2;
+      ctx.fillText(String(row), axisSize / 2, y);
+    });
+
+    // 绘制右侧列号
+    colPositions.forEach((col) => {
+      const x = axisSize + (col - 1) * cellWidth + cellWidth / 2;
+      ctx.fillText(String(col), x, axisSize + mainCanvas.height + axisSize / 2);
+    });
+
+    // 绘制底部行号
+    rowPositions.forEach((row) => {
+      const y = axisSize + (row - 1) * cellHeight + cellHeight / 2;
+      ctx.fillText(String(row), axisSize + mainCanvas.width + axisSize / 2, y);
+    });
 
     // 绘制边框
     ctx.strokeStyle = '#9CA3AF';
     ctx.lineWidth = 1;
-    ctx.strokeRect(axisSize, 0, mainCanvas.width, axisSize);
-    ctx.strokeRect(0, axisSize, axisSize, mainCanvas.height);
+    
+    // 顶部边框
+    ctx.beginPath();
+    ctx.moveTo(axisSize, axisSize);
+    ctx.lineTo(axisSize + mainCanvas.width, axisSize);
+    ctx.stroke();
+    
+    // 左侧边框
+    ctx.beginPath();
+    ctx.moveTo(axisSize, axisSize);
+    ctx.lineTo(axisSize, axisSize + mainCanvas.height);
+    ctx.stroke();
+    
+    // 右侧边框
+    ctx.beginPath();
+    ctx.moveTo(axisSize + mainCanvas.width, axisSize);
+    ctx.lineTo(axisSize + mainCanvas.width, axisSize + mainCanvas.height);
+    ctx.stroke();
+    
+    // 底部边框
+    ctx.beginPath();
+    ctx.moveTo(axisSize, axisSize + mainCanvas.height);
+    ctx.lineTo(axisSize + mainCanvas.width, axisSize + mainCanvas.height);
+    ctx.stroke();
 
   }, [showCoordinates, gridDimensions, canvasRef, mappedPixelData]);
 
@@ -886,13 +943,13 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         touchAction: 'none'
       }}
     >
-      {/* 坐标轴画布 - 在最上层 */}
+      {/* 坐标轴画布 - 在最上层，跟随缩放 */}
       {showCoordinates && (
         <canvas
           ref={coordinateCanvasRef}
           className="absolute pointer-events-none z-30"
           style={{
-            transform: `translate(${offsetX - 30}px, ${offsetY - 30}px) scale(${scale})`,
+            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
             transformOrigin: '0 0',
             transition: isDragging ? 'none' : 'transform 0.1s ease-out'
           }}
@@ -904,7 +961,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="absolute top-0 left-0 pointer-events-none"
         style={{
           imageRendering: 'auto',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transform: showCoordinates
+            ? `translate(${offsetX + 24}px, ${offsetY + 24}px) scale(${scale})`
+            : `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
@@ -921,7 +980,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: showCoordinates 
-            ? `translate(${offsetX + 30}px, ${offsetY + 30}px) scale(${scale})`
+            ? `translate(${offsetX + 24}px, ${offsetY + 24}px) scale(${scale})`
             : `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
@@ -934,7 +993,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: showCoordinates 
-            ? `translate(${offsetX + 30}px, ${offsetY + 30}px) scale(${scale})`
+            ? `translate(${offsetX + 24}px, ${offsetY + 24}px) scale(${scale})`
             : `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
