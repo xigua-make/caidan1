@@ -399,9 +399,10 @@ export default function Workstation() {
       let totalCount = 0;
       mergedData.flat().forEach(cell => {
         if (cell && cell.key && !cell.isExternal) {
-          const hexKey = cell.color;
+          // 统一使用大写的hex值作为键
+          const hexKey = cell.color.toUpperCase();
           if (!counts[hexKey]) {
-            counts[hexKey] = { count: 0, color: cell.color };
+            counts[hexKey] = { count: 0, color: hexKey };
           }
           counts[hexKey].count++;
           totalCount++;
@@ -833,8 +834,10 @@ export default function Workstation() {
 
   // 颜色点击移除 - 完整的重映射逻辑
   const handleColorClick = useCallback((hexKey: string) => {
+    // 统一转换为大写
+    const normalizedHexKey = hexKey.toUpperCase();
     const currentExcluded = excludedColorKeys;
-    const isExcluding = !currentExcluded.has(hexKey);
+    const isExcluding = !currentExcluded.has(normalizedHexKey);
 
     if (isExcluding) {
       // 排除颜色
@@ -844,25 +847,27 @@ export default function Workstation() {
       }
 
       const nextExcludedKeys = new Set(currentExcluded);
-      nextExcludedKeys.add(hexKey);
+      nextExcludedKeys.add(normalizedHexKey);
 
-      // 从初始网格颜色集合开始
-      const potentialRemapHexKeys = new Set(initialGridColorKeys);
-      potentialRemapHexKeys.delete(hexKey);
-      currentExcluded.forEach(excludedHexKey => {
-        potentialRemapHexKeys.delete(excludedHexKey);
+      // 从初始网格颜色集合开始，确保大小写一致
+      const potentialRemapHexKeys = new Set<string>();
+      initialGridColorKeys.forEach(key => {
+        const upperKey = key.toUpperCase();
+        if (upperKey !== normalizedHexKey && !currentExcluded.has(upperKey)) {
+          potentialRemapHexKeys.add(upperKey);
+        }
       });
 
       // 创建重映射调色板
       const remapTargetPalette = fullBeadPalette.filter(color => potentialRemapHexKeys.has(color.hex.toUpperCase()));
 
       if (remapTargetPalette.length === 0) {
-        alert(`无法排除颜色 ${hexKey}，因为图中最初存在的其他可用颜色也已被排除。请先恢复部分其他颜色。`);
+        alert(`无法排除颜色 ${normalizedHexKey}，因为图中最初存在的其他可用颜色也已被排除。请先恢复部分其他颜色。`);
         return;
       }
 
       // 查找被排除颜色的RGB值用于重映射
-      const excludedColorData = fullBeadPalette.find(p => p.hex.toUpperCase() === hexKey);
+      const excludedColorData = fullBeadPalette.find(p => p.hex.toUpperCase() === normalizedHexKey);
       if (!excludedColorData || !mappedPixelData || !gridDimensions) {
         alert("无法排除颜色，缺少必要数据。");
         return;
@@ -875,7 +880,7 @@ export default function Workstation() {
       for (let j = 0; j < M; j++) {
         for (let i = 0; i < N; i++) {
           const cell = newMappedData[j]?.[i];
-          if (cell && !cell.isExternal && cell.color.toUpperCase() === hexKey) {
+          if (cell && !cell.isExternal && cell.color.toUpperCase() === normalizedHexKey) {
             const replacementColor = findClosestPaletteColor(excludedColorData.rgb, remapTargetPalette);
             newMappedData[j][i] = { 
               ...cell, 
@@ -910,7 +915,7 @@ export default function Workstation() {
     } else {
       // 恢复颜色 - 触发完全重映射
       const nextExcludedKeys = new Set(currentExcluded);
-      nextExcludedKeys.delete(hexKey);
+      nextExcludedKeys.delete(normalizedHexKey);
       setExcludedColorKeys(nextExcludedKeys);
       setRemapTrigger(prev => prev + 1);
     }
