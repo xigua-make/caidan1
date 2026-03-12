@@ -290,6 +290,12 @@ export default function Workstation() {
   const [isCustomPaletteEditorOpen, setIsCustomPaletteEditorOpen] = useState<boolean>(false);
   const [isCustomPalette, setIsCustomPalette] = useState<boolean>(false);
   
+  // 移动端面板状态
+  const [isMobilePanelOpen, setIsMobilePanelOpen] = useState<boolean>(false);
+  
+  // 移动端底部抽屉状态
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  
   // 下载设置状态
   const [isDownloadSettingsOpen, setIsDownloadSettingsOpen] = useState<boolean>(false);
   const [downloadOptions, setDownloadOptions] = useState<GridDownloadOptions>({
@@ -2026,7 +2032,8 @@ export default function Workstation() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
       {/* 顶部导航栏 */}
       <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-2">
+        {/* 桌面端布局 */}
+        <div className="hidden md:flex items-center justify-between px-4 py-2">
           {/* 左侧 Logo - 西瓜图标 */}
           <div className="flex items-center gap-3">
             <a href="/" className="relative w-10 h-10 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-lg border-2 border-green-700 dark:border-green-800 overflow-hidden hover:scale-105 transition-transform">
@@ -2110,12 +2117,97 @@ export default function Workstation() {
             </button>
           </div>
         </div>
+
+        {/* 移动端布局 */}
+        <div className="md:hidden">
+          {/* 第一行：Logo + 品牌名 + 导入/下载按钮 */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center gap-2">
+              <a href="/" className="relative w-8 h-8 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-lg border-2 border-green-700 dark:border-green-800 overflow-hidden flex-shrink-0">
+                <div className="absolute bottom-0.5 left-0.5 right-0.5 h-5 bg-gradient-to-b from-red-400 to-red-500 rounded-b-full">
+                  <div className="absolute top-1 left-1 w-0.5 h-1 bg-gray-900 rounded-full"></div>
+                  <div className="absolute top-2 right-1 w-0.5 h-1 bg-gray-900 rounded-full"></div>
+                </div>
+              </a>
+              <div className="flex flex-col">
+                <span className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+                  小瓜
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400">拼豆底稿生成器</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={triggerFileInput}
+                className="px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 border border-gray-300 dark:border-gray-600 rounded-lg"
+              >
+                导入
+              </button>
+              <button
+                onClick={() => setIsDownloadSettingsOpen(true)}
+                disabled={!mappedPixelData}
+                className="px-2.5 py-1.5 text-sm font-medium text-white bg-blue-500 rounded-lg disabled:opacity-50"
+              >
+                下载
+              </button>
+            </div>
+          </div>
+          {/* 第二行：模式切换 + 颜色系统按钮 + 设置按钮 */}
+          <div className="flex items-center justify-between px-3 pb-2 gap-2">
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 flex-1">
+              <button
+                onClick={() => setWorkstationMode('auto')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  workstationMode === 'auto'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                自动
+              </button>
+              <button
+                onClick={() => setWorkstationMode('manual')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  workstationMode === 'manual'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                手动
+              </button>
+              <button
+                onClick={() => setWorkstationMode('focus')}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  workstationMode === 'focus'
+                    ? 'bg-green-500 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                拼豆
+              </button>
+            </div>
+            <button
+              onClick={() => setIsCustomPaletteEditorOpen(true)}
+              className="px-2 py-1 text-[10px] font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full whitespace-nowrap"
+            >
+              {selectedColorSystem} {activeBeadPalette.length}
+            </button>
+            <button
+              onClick={() => setIsMobilePanelOpen(true)}
+              className="p-2 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* 主内容区域 */}
       <div className="flex flex-1 overflow-hidden">
         {/* 左侧画布区域 */}
-        <main ref={mainRef} className="flex-1 overflow-auto p-4">
+        <main ref={mainRef} className="flex-1 overflow-auto p-2 sm:p-4 md:pb-20">
           {!originalImageSrc ? (
             /* 预览区域 - 西瓜Logo */
             <WatermelonPreview />
@@ -2171,8 +2263,8 @@ export default function Workstation() {
           <canvas ref={originalCanvasRef} className="hidden" />
         </main>
 
-        {/* 右侧功能面板 */}
-        <aside className="w-72 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
+        {/* 右侧功能面板 - 桌面端侧边栏 */}
+        <aside className="hidden md:block w-72 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
           {workstationMode === 'auto' ? (
             /* 自动优化模式右侧栏 */
             <div className="p-4 space-y-4">
@@ -2701,6 +2793,376 @@ export default function Workstation() {
             </div>
           )}
         </aside>
+      </div>
+
+      {/* 移动端底部抽屉 */}
+      <div className="md:hidden">
+        {/* 底部操作按钮 */}
+        <button
+          onClick={() => setMobileDrawerOpen(true)}
+          className="fixed bottom-4 left-4 right-4 z-50 py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span className="font-medium">打开工具面板</span>
+        </button>
+
+        {/* 抽屉遮罩 */}
+        {mobileDrawerOpen && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+        )}
+
+        {/* 底部抽屉内容 */}
+        <div 
+          className={`fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 rounded-t-2xl shadow-2xl transform transition-transform duration-300 max-h-[80vh] overflow-y-auto ${
+            mobileDrawerOpen ? 'translate-y-0' : 'translate-y-full'
+          }`}
+        >
+          {/* 抽屉头部 */}
+          <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+              {workstationMode === 'auto' ? '自动优化' : workstationMode === 'manual' ? '手动编辑' : '专心拼豆'}
+            </h3>
+            <button
+              onClick={() => setMobileDrawerOpen(false)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* 抽屉内容 - 复用右侧面板的内容 */}
+          <div className="p-4">
+            {workstationMode === 'auto' ? (
+              /* 自动优化模式内容 */
+              <div className="space-y-4">
+                {/* 处理参数模块 */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">处理参数</h3>
+                  
+                  <div>
+                    <label className="text-xs text-gray-600 dark:text-gray-400">图纸尺寸 (10-300):</label>
+                    <div className="flex gap-2 mt-1">
+                      <div className="flex-1">
+                        <input
+                          type="number"
+                          value={gridWidthInput}
+                          onChange={handleGridWidthInputChange}
+                          placeholder="宽"
+                          className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          min="10"
+                          max="300"
+                        />
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">宽</span>
+                      </div>
+                      <span className="flex items-center text-gray-400">×</span>
+                      <div className="flex-1">
+                        <input
+                          type="number"
+                          value={gridHeightInput}
+                          onChange={handleGridHeightInputChange}
+                          placeholder="高"
+                          className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          min="10"
+                          max="300"
+                        />
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">高</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-600 dark:text-gray-400">颜色合并阈值 (0-100):</label>
+                    <input
+                      type="number"
+                      value={similarityThresholdInput}
+                      onChange={handleSimilarityThresholdInputChange}
+                      className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleConfirmParameters}
+                      className="flex-1 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+                    >
+                      应用数字
+                    </button>
+                    <button
+                      onClick={handleAutoRemoveBackground}
+                      disabled={!mappedPixelData || !gridDimensions}
+                      className="flex-1 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-800/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      一键去背景
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-600 dark:text-gray-400">处理模式:</label>
+                    <select
+                      value={pixelationMode}
+                      onChange={handlePixelationModeChange}
+                      className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value={PixelationMode.Dominant}>卡通 (主色)</option>
+                      <option value={PixelationMode.Average}>真实 (平均)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 分隔线 */}
+                <hr className="border-gray-200 dark:border-gray-700" />
+
+                {/* 去除杂色模块 */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">去除杂色</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">点击颜色可移除。总计: {totalBeadCount} 颗</p>
+                  
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {sortedColorCounts.slice(0, 20).map(({ key, color, count }) => {
+                      const displayKey = getColorKeyByHex(key, selectedColorSystem);
+                      const isExcluded = excludedColorKeys.has(key);
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => handleColorClick(key)}
+                          className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                            isExcluded
+                              ? 'opacity-40 bg-gray-100 dark:bg-gray-700 line-through'
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-5 h-5 rounded border border-gray-300 dark:border-gray-600"
+                              style={{ backgroundColor: color }}
+                            ></div>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{displayKey}</span>
+                          </div>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{count}颗</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : workstationMode === 'manual' ? (
+              /* 手动编辑模式内容 */
+              <div className="space-y-3">
+                {/* 工具按钮矩阵 */}
+                <div className="bg-white dark:bg-gray-700 rounded-xl p-3 space-y-3 shadow-sm border border-gray-100 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">工具</h4>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">当前: {currentTool === 'brush' ? '画笔' : currentTool === 'eraser' ? '橡皮' : currentTool === 'picker' ? '取色' : currentTool === 'fill' ? '填充' : currentTool === 'line' ? '直线' : currentTool === 'rectangle' ? '矩形' : currentTool === 'select' ? '选择' : currentTool === 'move' ? '移动' : '拖拽'}</span>
+                  </div>
+                  
+                  {/* 工具按钮矩阵 3x3 */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => {
+                        setCurrentTool('brush');
+                        setIsManualColoringMode(true);
+                        setIsEraseMode(false);
+                        if (!selectedColor && fullBeadPalette.length > 0) {
+                          setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                        }
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'brush'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      画笔(B)
+                    </button>
+                    <button
+                      onClick={() => { setCurrentTool('eraser'); setIsManualColoringMode(true); setIsEraseMode(false); }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'eraser'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      橡皮(E)
+                    </button>
+                    <button
+                      onClick={() => { setCurrentTool('picker'); setIsManualColoringMode(true); setIsEraseMode(false); }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'picker'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      取色(I)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentTool('fill');
+                        setIsManualColoringMode(true);
+                        setIsEraseMode(false);
+                        if (!selectedColor && fullBeadPalette.length > 0) {
+                          setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                        }
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'fill'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      填充(F)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentTool('line');
+                        setIsManualColoringMode(true);
+                        setIsEraseMode(false);
+                        if (!selectedColor && fullBeadPalette.length > 0) {
+                          setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                        }
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'line'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      直线(L)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentTool('rectangle');
+                        setIsManualColoringMode(true);
+                        setIsEraseMode(false);
+                        if (!selectedColor && fullBeadPalette.length > 0) {
+                          setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                        }
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'rectangle'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      矩形(R)
+                    </button>
+                    <button
+                      onClick={() => { setCurrentTool('select'); setIsManualColoringMode(true); setIsEraseMode(false); }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'select'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      选择(S)
+                    </button>
+                    <button
+                      onClick={() => { setCurrentTool('move'); setIsManualColoringMode(true); setIsEraseMode(false); }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'move'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      移动(M)
+                    </button>
+                    <button
+                      onClick={() => { setCurrentTool('hand'); setIsManualColoringMode(false); setIsEraseMode(false); }}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                        currentTool === 'hand'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                      }`}
+                    >
+                      拖拽(H)
+                    </button>
+                  </div>
+                </div>
+
+                {/* 色板区块 */}
+                <div className="bg-white dark:bg-gray-700 rounded-xl p-3 space-y-3 shadow-sm border border-gray-100 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {showFullPalette ? `完整色板(${fullBeadPalette.length})` : `当前色板(${sortedColorCounts.length})`}
+                    </h4>
+                    <button
+                      onClick={() => setShowFullPalette(!showFullPalette)}
+                      className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      {showFullPalette ? '切换当前' : '切换完整'}
+                    </button>
+                  </div>
+                  
+                  {/* 色板网格 */}
+                  <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto p-1">
+                    {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => ({ hex: c.color, key: c.key }))).map((colorItem) => {
+                      const hexColor = colorItem.hex;
+                      const isSelected = selectedColor && selectedColor.color.toUpperCase() === hexColor.toUpperCase();
+                      return (
+                        <button
+                          key={hexColor}
+                          onClick={() => {
+                            if (colorReplaceState.isActive && colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
+                              handleColorReplace(colorReplaceState.sourceColor, { key: colorItem.key, color: hexColor });
+                            } else {
+                              setSelectedColor({ key: colorItem.key, color: hexColor, isExternal: false });
+                              setIsEraseMode(false);
+                              handleHighlightColor(hexColor);
+                            }
+                          }}
+                          className={`group relative w-7 h-7 rounded border-2 transition-all hover:scale-110 ${
+                            isSelected && currentTool !== 'eraser'
+                              ? 'border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700'
+                              : 'border-gray-200 dark:border-gray-500 hover:border-gray-300 dark:hover:border-gray-400'
+                          }`}
+                          style={{ backgroundColor: hexColor }}
+                          title={`${colorItem.key} - ${hexColor}`}
+                        >
+                          {isSelected && currentTool !== 'eraser' && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 bg-white rounded-full shadow-lg"></div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 快捷操作 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleUndo}
+                    disabled={historyIndex <= 0}
+                    className="py-2 px-3 rounded-lg text-xs font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    撤销 (Ctrl+Z)
+                  </button>
+                  <button
+                    onClick={handleRedo}
+                    disabled={historyIndex >= history.length - 1}
+                    className="py-2 px-3 rounded-lg text-xs font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    重做 (Ctrl+Y)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* 专心拼豆模式内容 */
+              <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
+                专心拼豆模式
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 工具提示 */}
