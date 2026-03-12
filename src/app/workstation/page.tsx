@@ -505,10 +505,23 @@ export default function Workstation() {
       const M = heightCells;
       if (N <= 0 || M <= 0) return;
 
-      // 设置画布尺寸 - 参考网站使用固定的格子大小
-      const cellSize = 6; // 每个格子的固定大小（像素）
-      const outputWidth = N * cellSize;
-      const outputHeight = M * cellSize;
+      // 设置画布尺寸
+      const baseWidth = 500;
+      const minCellSize = 4;
+      const recommendedCellSize = 6;
+      
+      let outputWidth = baseWidth;
+      
+      if (N > 100) {
+        const requiredWidthForMinSize = N * minCellSize;
+        const requiredWidthForRecommendedSize = N * recommendedCellSize;
+        const maxWidth = Math.min(1200, typeof window !== 'undefined' ? window.innerWidth * 0.9 : 1200);
+        outputWidth = Math.min(maxWidth, Math.max(baseWidth, requiredWidthForRecommendedSize));
+        outputWidth = Math.max(outputWidth, requiredWidthForMinSize);
+      }
+      
+      // 根据用户指定的网格比例计算输出高度
+      const outputHeight = Math.round(outputWidth * (M / N));
       
       originalCanvas.width = img.width;
       originalCanvas.height = img.height;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback } from 'react';
 import { MappedPixel } from '../utils/pixelation';
 import { getColorKeyByHex, ColorSystem } from '../utils/colorSystemUtils';
 
@@ -168,7 +168,8 @@ const drawColorLabels = (
   dataToDraw: MappedPixel[][],
   labelCanvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
-  colorSystem: ColorSystem
+  colorSystem: ColorSystem,
+  currentScale: number
 ) => {
   if (!labelCanvas || !dims || !dataToDraw) return;
   
@@ -183,6 +184,14 @@ const drawColorLabels = (
 
   // 清除色号层
   ctx.clearRect(0, 0, outputWidth, outputHeight);
+  
+  // 计算缩放后的实际格子大小（参考网站逻辑）
+  const actualCellWidth = cellWidthOutput * currentScale;
+  const actualCellHeight = cellHeightOutput * currentScale;
+  const minCellSize = Math.min(actualCellWidth, actualCellHeight);
+  
+  // 参考网站：如果格子实际大小小于6px就不显示色号
+  if (minCellSize < 6) return;
 
   // 计算字体缩放因子（参考网站逻辑：根据纵横比调整）
   let fontScale = 1;
@@ -214,19 +223,19 @@ const drawColorLabels = (
       const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
       const isLightColor = luminance > 0.6;
       
-      // 字体大小固定为基础大小（CSS scale 会负责放大）
-      let fontSize = Math.floor(Math.min(4, 0.8 * cellHeightOutput * fontScale, 0.7 * cellWidthOutput * fontScale));
+      // 参考网站的字体大小计算逻辑
+      let fontSize = Math.floor(Math.min(14, 0.8 * cellHeightOutput * fontScale, 0.7 * minCellSize * fontScale));
       
       // 确保字体能放下色号文本
       const maxWidth = 0.9 * cellWidthOutput;
       ctx.font = `bold ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif`;
-      while (fontSize >= 3 && ctx.measureText(colorKey).width > maxWidth) {
+      while (fontSize >= 5 && ctx.measureText(colorKey).width > maxWidth) {
         fontSize -= 1;
         ctx.font = `bold ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif`;
       }
       
       // 如果字体太小就不显示
-      if (fontSize < 3) continue;
+      if (fontSize < 5) continue;
       
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -553,13 +562,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       rafRef.current = requestAnimationFrame(flushUpdate);
     }
   }, [flushUpdate]);
-  
-  // 基础格子大小（参考网站使用固定值，缩放时画布尺寸变化）
-  const baseCellSize = 6; // 每个格子的基础大小（像素）
-  
-  // 计算缩放后的画布尺寸
-  const scaledWidth = gridDimensions ? gridDimensions.N * baseCellSize * scale : 0;
-  const scaledHeight = gridDimensions ? gridDimensions.M * baseCellSize * scale : 0;
 
   const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   
@@ -623,19 +625,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas - 只在数据变化时重绘，不在缩放时重绘
+  // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      const canvas = canvasRef.current;
-      // 画布尺寸固定为基础尺寸，不随 scale 变化
-      const baseWidth = gridDimensions.N * baseCellSize;
-      const baseHeight = gridDimensions.M * baseCellSize;
-      
-      if (canvas.width !== baseWidth || canvas.height !== baseHeight) {
-        canvas.width = baseWidth;
-        canvas.height = baseHeight;
-      }
-      
       drawPixelatedCanvas(
         mappedPixelData, 
         canvasRef.current, 
@@ -649,33 +641,30 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         gridLineColor
       );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, baseCellSize]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor]);
 
-  // Initialize preview canvas size - 固定为基础尺寸
+  // Initialize preview canvas size
   useEffect(() => {
-    if (canvasRef.current && previewCanvasRef.current && gridDimensions) {
-      const baseWidth = gridDimensions.N * baseCellSize;
-      const baseHeight = gridDimensions.M * baseCellSize;
-      previewCanvasRef.current.width = baseWidth;
-      previewCanvasRef.current.height = baseHeight;
+    if (canvasRef.current && previewCanvasRef.current) {
+      previewCanvasRef.current.width = canvasRef.current.width;
+      previewCanvasRef.current.height = canvasRef.current.height;
     }
     // Initialize color label canvas size
-    if (canvasRef.current && colorLabelCanvasRef.current && gridDimensions) {
-      const baseWidth = gridDimensions.N * baseCellSize;
-      const baseHeight = gridDimensions.M * baseCellSize;
-      colorLabelCanvasRef.current.width = baseWidth;
-      colorLabelCanvasRef.current.height = baseHeight;
+    if (canvasRef.current && colorLabelCanvasRef.current) {
+      colorLabelCanvasRef.current.width = canvasRef.current.width;
+      colorLabelCanvasRef.current.height = canvasRef.current.height;
     }
-  }, [gridDimensions, baseCellSize]);
+  }, [mappedPixelData, gridDimensions]);
 
-  // Draw color labels when showColorLabels changes
+  // Draw color labels when scale or showColorLabels changes
   useEffect(() => {
     if (mappedPixelData && gridDimensions && colorLabelCanvasRef.current && showColorLabels) {
       drawColorLabels(
         mappedPixelData,
         colorLabelCanvasRef.current,
         gridDimensions,
-        selectedColorSystem
+        selectedColorSystem,
+        scale
       );
     } else if (colorLabelCanvasRef.current) {
       // Clear color labels when disabled
@@ -684,7 +673,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
       }
     }
-  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem]);
+  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem, scale]);
 
   // Initialize reference canvas size
   useEffect(() => {
@@ -785,12 +774,11 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // Reset zoom and offset - only when grid dimensions change (not on pixel data changes)
   useEffect(() => {
-    if (gridDimensions && containerRef.current) {
+    if (gridDimensions && canvasRef.current && containerRef.current) {
+      const canvas = canvasRef.current;
       const container = containerRef.current;
-      const canvasWidth = gridDimensions.N * baseCellSize; // 初始尺寸（scale=1）
-      const canvasHeight = gridDimensions.M * baseCellSize;
-      const newOffsetX = (container.clientWidth - canvasWidth) / 2;
-      const newOffsetY = (container.clientHeight - canvasHeight) / 2;
+      const newOffsetX = (container.clientWidth - canvas.width) / 2;
+      const newOffsetY = (container.clientHeight - canvas.height) / 2;
       
       // 更新 ref 值
       scaleRef.current = 1;
@@ -1032,26 +1020,16 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const headerSize = 20; // 坐标轴宽度/高度
   const coordinateBgColor = '#9CA3AF'; // 参考网站使用的颜色
   
-  // 画布尺寸使用基础尺寸（不包含缩放）
-  const canvasBaseWidth = gridDimensions ? gridDimensions.N * baseCellSize : 0;
-  const canvasBaseHeight = gridDimensions ? gridDimensions.M * baseCellSize : 0;
+  // 计算画布的实际显示尺寸
+  const canvasDisplayWidth = canvasRef.current ? canvasRef.current.width * scale : 0;
+  const canvasDisplayHeight = canvasRef.current ? canvasRef.current.height * scale : 0;
   
-  // 每个格子的基础大小
-  const cellBaseSize = baseCellSize;
+  // 计算每个格子的实际显示大小
+  const cellDisplayWidth = gridDimensions ? canvasDisplayWidth / gridDimensions.N : 0;
+  const cellDisplayHeight = gridDimensions ? canvasDisplayHeight / gridDimensions.M : 0;
   
-  // 坐标轴字体大小（固定基础大小）
-  const coordinateFontSize = Math.max(4, Math.min(6, cellBaseSize * 0.5));
-  
-  // 使用 useMemo 缓存坐标数组，避免每次渲染都重新创建
-  const colCoordinates = useMemo(() => {
-    if (!gridDimensions) return [];
-    return Array.from({ length: gridDimensions.N }, (_, i) => i + 1);
-  }, [gridDimensions]);
-  
-  const rowCoordinates = useMemo(() => {
-    if (!gridDimensions) return [];
-    return Array.from({ length: gridDimensions.M }, (_, i) => i + 1);
-  }, [gridDimensions]);
+  // 计算坐标轴字体大小（根据格子大小调整）
+  const coordinateFontSize = Math.max(8, Math.min(10, cellDisplayWidth * 0.4));
 
   return (
     <div
@@ -1067,24 +1045,21 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         touchAction: 'none'
       }}
     >
-      {/* 坐标轴层 - 使用 CSS transform scale 实现缩放 */}
+      {/* 坐标轴层 - 在所有画布下面 */}
       {showCoordinates && gridDimensions && (
         <>
           {/* 左上角尺寸信息 */}
           <div
-            className="absolute rounded-sm flex items-center justify-center text-white font-medium select-none z-0"
+            className="absolute rounded-sm flex items-center justify-center text-white text-[8px] font-medium select-none z-0"
             style={{
               backgroundColor: coordinateBgColor,
-              width: headerSize,
-              height: headerSize,
-              left: -headerSize,
-              top: -headerSize,
-              fontSize: 8,
-              transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-              transformOrigin: '0 0',
+              width: headerSize * scale,
+              height: headerSize * scale,
+              left: offsetX - headerSize * scale,
+              top: offsetY - headerSize * scale,
             }}
           >
-            <span>
+            <span style={{ fontSize: Math.max(6, 8 * scale) }}>
               {gridDimensions.N}×{gridDimensions.M}
             </span>
           </div>
@@ -1093,20 +1068,18 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           <div
             className="absolute grid text-white text-center select-none z-0"
             style={{
-              gridTemplateColumns: `repeat(${gridDimensions.N}, ${cellBaseSize}px)`,
+              gridTemplateColumns: `repeat(${gridDimensions.N}, ${cellDisplayWidth}px)`,
               backgroundColor: coordinateBgColor,
-              width: canvasBaseWidth,
-              height: headerSize,
-              left: 0,
-              top: -headerSize,
+              width: canvasDisplayWidth,
+              height: headerSize * scale,
+              left: offsetX,
+              top: offsetY - headerSize * scale,
               fontSize: coordinateFontSize,
-              transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-              transformOrigin: '0 0',
             }}
           >
-            {colCoordinates.map((num) => (
-              <div key={`col-${num}`} className="flex items-center justify-center">
-                {num}
+            {Array.from({ length: gridDimensions.N }, (_, i) => (
+              <div key={`col-${i}`} className="flex items-center justify-center">
+                {i + 1}
               </div>
             ))}
           </div>
@@ -1115,20 +1088,18 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           <div
             className="absolute grid text-white text-center select-none z-0"
             style={{
-              gridTemplateRows: `repeat(${gridDimensions.M}, ${cellBaseSize}px)`,
+              gridTemplateRows: `repeat(${gridDimensions.M}, ${cellDisplayHeight}px)`,
               backgroundColor: coordinateBgColor,
-              width: headerSize,
-              height: canvasBaseHeight,
-              left: -headerSize,
-              top: 0,
+              width: headerSize * scale,
+              height: canvasDisplayHeight,
+              left: offsetX - headerSize * scale,
+              top: offsetY,
               fontSize: coordinateFontSize,
-              transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-              transformOrigin: '0 0',
             }}
           >
-            {rowCoordinates.map((num) => (
-              <div key={`row-${num}`} className="flex items-center justify-center">
-                {num}
+            {Array.from({ length: gridDimensions.M }, (_, i) => (
+              <div key={`row-${i}`} className="flex items-center justify-center">
+                {i + 1}
               </div>
             ))}
           </div>
@@ -1140,12 +1111,13 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         ref={referenceCanvasRef}
         className="absolute top-0 left-0 pointer-events-none"
         style={{
-          imageRendering: 'pixelated',
+          imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       />
-      {/* 主画布 - 使用 CSS transform scale 实现缩放，不改变画布尺寸 */}
+      {/* 主画布 */}
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
@@ -1155,9 +1127,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         onClick={(e) => e.stopPropagation()}
         className="border border-gray-300 dark:border-gray-600 rounded block relative z-10"
         style={{
-          imageRendering: 'pixelated',
+          imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       />
       {/* 预览画布 - 叠加在主画布上 */}
@@ -1165,9 +1138,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         ref={previewCanvasRef}
         className="absolute top-0 left-0 pointer-events-none z-20"
         style={{
-          imageRendering: 'pixelated',
+          imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       />
       {/* 色号标签画布 - 叠加在预览画布上 */}
@@ -1177,6 +1151,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         style={{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       />
     </div>
