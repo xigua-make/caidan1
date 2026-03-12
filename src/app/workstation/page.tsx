@@ -117,6 +117,10 @@ export default function Workstation() {
   const [selectedColor, setSelectedColor] = useState<MappedPixel | null>(null);
   const [isEraseMode, setIsEraseMode] = useState<boolean>(false);
   
+  // 参考图层状态
+  const [referenceOpacity, setReferenceOpacity] = useState<number>(25);
+  const [showReferenceLayer, setShowReferenceLayer] = useState<boolean>(true);
+  
   // 自定义色板状态
   const [customPaletteSelections, setCustomPaletteSelections] = useState<PaletteSelections>({});
   const [isCustomPaletteEditorOpen, setIsCustomPaletteEditorOpen] = useState<boolean>(false);
@@ -816,8 +820,37 @@ export default function Workstation() {
     if (i >= 0 && i < N && j >= 0 && j < M) {
       const cellData = mappedPixelData[j][i];
 
+      // 手动上色模式
+      if (isClick && isManualColoringMode && selectedColor) {
+        const newPixelData = mappedPixelData.map(row => row.map(cell => ({ ...cell })));
+        const currentCell = newPixelData[j]?.[i];
+
+        if (!currentCell) return;
+
+        const previousKey = currentCell.key;
+        const wasExternal = currentCell.isExternal;
+        
+        let newCellData: MappedPixel;
+        
+        if (selectedColor.key === TRANSPARENT_KEY || isEraseMode) {
+          newCellData = { ...transparentColorData };
+        } else {
+          newCellData = { ...selectedColor, isExternal: false };
+        }
+
+        // 只有状态变化时才更新
+        if (newCellData.key !== previousKey || newCellData.isExternal !== wasExternal) {
+          newPixelData[j][i] = newCellData;
+          setMappedPixelData(newPixelData);
+          recalculateColorCounts(newPixelData);
+        }
+        
+        setTooltipData(null);
+        return;
+      }
+
+      // 擦除模式
       if (isClick && isEraseMode) {
-        // 擦除模式
         const newMappedPixelData = [...mappedPixelData];
         newMappedPixelData[j] = [...newMappedPixelData[j]];
         newMappedPixelData[j][i] = { ...cellData, isExternal: true };
@@ -841,7 +874,7 @@ export default function Workstation() {
     } else {
       setTooltipData(null);
     }
-  }, [mappedPixelData, gridDimensions, isEraseMode, recalculateColorCounts]);
+  }, [mappedPixelData, gridDimensions, isEraseMode, isManualColoringMode, selectedColor, recalculateColorCounts]);
 
   // 高亮完成处理
   const handleHighlightComplete = useCallback(() => {
@@ -1073,119 +1106,266 @@ export default function Workstation() {
 
         {/* 右侧功能面板 */}
         <aside className="w-72 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <div className="p-4 space-y-4">
-            {/* 处理参数模块 */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">处理参数</h3>
-              
-              <div>
-                <label className="text-xs text-gray-600 dark:text-gray-400">图纸尺寸 (10-300):</label>
-                <div className="flex gap-2 mt-1">
-                  <div className="flex-1">
-                    <input
-                      type="number"
-                      value={gridWidthInput}
-                      onChange={handleGridWidthInputChange}
-                      placeholder="宽"
-                      className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      min="10"
-                      max="300"
-                    />
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">宽</span>
-                  </div>
-                  <span className="flex items-center text-gray-400">×</span>
-                  <div className="flex-1">
-                    <input
-                      type="number"
-                      value={gridHeightInput}
-                      onChange={handleGridHeightInputChange}
-                      placeholder="高"
-                      className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      min="10"
-                      max="300"
-                    />
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">高</span>
+          {workstationMode === 'auto' ? (
+            /* 自动优化模式右侧栏 */
+            <div className="p-4 space-y-4">
+              {/* 处理参数模块 */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">处理参数</h3>
+                
+                <div>
+                  <label className="text-xs text-gray-600 dark:text-gray-400">图纸尺寸 (10-300):</label>
+                  <div className="flex gap-2 mt-1">
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        value={gridWidthInput}
+                        onChange={handleGridWidthInputChange}
+                        placeholder="宽"
+                        className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        min="10"
+                        max="300"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">宽</span>
+                    </div>
+                    <span className="flex items-center text-gray-400">×</span>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        value={gridHeightInput}
+                        onChange={handleGridHeightInputChange}
+                        placeholder="高"
+                        className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        min="10"
+                        max="300"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">高</span>
+                    </div>
                   </div>
                 </div>
+                
+                <div>
+                  <label className="text-xs text-gray-600 dark:text-gray-400">颜色合并阈值 (0-100):</label>
+                  <input
+                    type="number"
+                    value={similarityThresholdInput}
+                    onChange={handleSimilarityThresholdInputChange}
+                    className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleConfirmParameters}
+                    className="flex-1 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+                  >
+                    应用数字
+                  </button>
+                  <button
+                    onClick={handleAutoRemoveBackground}
+                    disabled={!mappedPixelData || !gridDimensions}
+                    className="flex-1 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-800/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    一键去背景
+                  </button>
+                </div>
+                
+                <div>
+                  <label className="text-xs text-gray-600 dark:text-gray-400">处理模式:</label>
+                  <select
+                    value={pixelationMode}
+                    onChange={handlePixelationModeChange}
+                    className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value={PixelationMode.Dominant}>卡通 (主色)</option>
+                    <option value={PixelationMode.Average}>真实 (平均)</option>
+                  </select>
+                </div>
               </div>
-              
-              <div>
-                <label className="text-xs text-gray-600 dark:text-gray-400">颜色合并阈值 (0-100):</label>
-                <input
-                  type="number"
-                  value={similarityThresholdInput}
-                  onChange={handleSimilarityThresholdInputChange}
-                  className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  min="0"
-                  max="100"
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleConfirmParameters}
-                  className="flex-1 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
-                >
-                  应用数字
-                </button>
-                <button
-                  onClick={handleAutoRemoveBackground}
-                  disabled={!mappedPixelData || !gridDimensions}
-                  className="flex-1 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-800/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  一键去背景
-                </button>
-              </div>
-              
-              <div>
-                <label className="text-xs text-gray-600 dark:text-gray-400">处理模式:</label>
-                <select
-                  value={pixelationMode}
-                  onChange={handlePixelationModeChange}
-                  className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value={PixelationMode.Dominant}>卡通 (主色)</option>
-                  <option value={PixelationMode.Average}>真实 (平均)</option>
-                </select>
+
+              {/* 分隔线 */}
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              {/* 去除杂色模块 */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">去除杂色</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">点击颜色可移除。总计: {totalBeadCount} 颗</p>
+                
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {sortedColorCounts.slice(0, 20).map(({ key, color, count }) => {
+                    const displayKey = getColorKeyByHex(key, selectedColorSystem);
+                    const isExcluded = excludedColorKeys.has(key);
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => handleColorClick(key)}
+                        className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                          isExcluded
+                            ? 'opacity-40 bg-gray-100 dark:bg-gray-700 line-through'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-5 h-5 rounded border border-gray-300 dark:border-gray-600"
+                            style={{ backgroundColor: color }}
+                          ></div>
+                          <span className="text-sm text-gray-700 dark:text-gray-300">{displayKey}</span>
+                        </div>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{count}颗</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
+          ) : workstationMode === 'manual' ? (
+            /* 手动编辑模式右侧栏 */
+            <div className="p-4 space-y-4">
+              {/* 参考图层模块 */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">参考图层</h3>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={showReferenceLayer}
+                      onChange={(e) => setShowReferenceLayer(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">显示</span>
+                  </label>
+                </div>
+                
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">透明度</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{referenceOpacity}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={referenceOpacity}
+                    onChange={(e) => setReferenceOpacity(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  />
+                </div>
+              </div>
 
-            {/* 分隔线 */}
-            <hr className="border-gray-200 dark:border-gray-700" />
+              {/* 分隔线 */}
+              <hr className="border-gray-200 dark:border-gray-700" />
 
-            {/* 去除杂色模块 */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">去除杂色</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">点击颜色可移除。总计: {totalBeadCount} 颗</p>
-              
-              <div className="max-h-48 overflow-y-auto space-y-1">
-                {sortedColorCounts.slice(0, 20).map(({ key, color, count }) => {
-                  const displayKey = getColorKeyByHex(key, selectedColorSystem);
-                  const isExcluded = excludedColorKeys.has(key);
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => handleColorClick(key)}
-                      className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
-                        isExcluded
-                          ? 'opacity-40 bg-gray-100 dark:bg-gray-700 line-through'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-5 h-5 rounded border border-gray-300 dark:border-gray-600"
-                          style={{ backgroundColor: color }}
-                        ></div>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{displayKey}</span>
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">{count}颗</span>
-                    </button>
-                  );
-                })}
+              {/* 完整色板模块 */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    完整色板({fullBeadPalette.length})
+                  </h3>
+                </div>
+                
+                {/* 橡皮擦选项 */}
+                <button
+                  onClick={() => {
+                    setSelectedColor({ key: TRANSPARENT_KEY, color: '#FFFFFF', isExternal: false });
+                    setIsEraseMode(true);
+                  }}
+                  className={`w-full p-2 rounded-lg border-2 transition-colors flex items-center gap-2 ${
+                    isEraseMode
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  }`}
+                >
+                  <div className="w-6 h-6 rounded border-2 border-dashed border-gray-400 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">橡皮擦</span>
+                </button>
+                
+                {/* 色板网格 */}
+                <div className="grid grid-cols-6 gap-1.5 max-h-64 overflow-y-auto p-1">
+                  {fullBeadPalette.map((colorItem) => {
+                    const isSelected = selectedColor && selectedColor.color.toUpperCase() === colorItem.hex.toUpperCase();
+                    const displayKey = getColorKeyByHex(colorItem.hex, selectedColorSystem);
+                    return (
+                      <button
+                        key={colorItem.hex}
+                        onClick={() => {
+                          setSelectedColor({ key: displayKey, color: colorItem.hex, isExternal: false });
+                          setIsEraseMode(false);
+                        }}
+                        className={`w-8 h-8 rounded border-2 transition-all hover:scale-110 ${
+                          isSelected
+                            ? 'border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                        style={{ backgroundColor: colorItem.hex }}
+                        title={`${displayKey} - ${colorItem.hex}`}
+                      />
+                    );
+                  })}
+                </div>
+                
+                {/* 当前选中颜色显示 */}
+                {selectedColor && !isEraseMode && (
+                  <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div
+                      className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600"
+                      style={{ backgroundColor: selectedColor.color }}
+                    ></div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      当前: {selectedColor.key}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 分隔线 */}
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              {/* 社区与支持模块 */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">社区与支持</h3>
+                
+                <button
+                  onClick={() => window.open('https://www.buymeacoffee.com', '_blank')}
+                  className="w-full py-2.5 text-sm font-medium text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 rounded-lg transition-colors shadow-md"
+                >
+                  请作者喝一杯奶茶
+                </button>
+                
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  发布平台请标注来源或保留图片水印及标识。
+                </p>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => window.open('https://xiaohongshu.com', '_blank')}
+                    className="flex-1 py-2 text-xs font-medium text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                  >
+                    小红书
+                  </button>
+                  <button
+                    onClick={() => window.open('https://github.com', '_blank')}
+                    className="flex-1 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    GitHub
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* 专心拼豆模式右侧栏 */
+            <div className="p-4 space-y-4">
+              <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
+                专心拼豆模式
+              </div>
+            </div>
+          )}
         </aside>
       </div>
 
