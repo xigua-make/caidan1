@@ -69,7 +69,8 @@ const drawPixelatedCanvas = (
     return;
   }
   
-  const pixelatedCtx = canvas.getContext('2d');
+  // 使用 willReadFrequently: false 优化性能
+  const pixelatedCtx = canvas.getContext('2d', { willReadFrequently: false });
   if (!pixelatedCtx) {
     console.error("Failed to get 2D context for pixelated canvas");
     return;
@@ -87,30 +88,46 @@ const drawPixelatedCanvas = (
   const cellHeightOutput = outputHeight / M;
 
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
-  pixelatedCtx.lineWidth = 1;
 
+  // 性能优化：按颜色批量绘制格子
+  const colorGroups = new Map<string, Array<{ i: number; j: number }>>();
+  
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
       const cellData = dataToDraw[j]?.[i];
       if (!cellData) continue;
-
+      
+      const color = cellData.isExternal ? externalBackgroundColor : cellData.color;
+      if (!colorGroups.has(color)) {
+        colorGroups.set(color, []);
+      }
+      colorGroups.get(color)!.push({ i, j });
+    }
+  }
+  
+  // 批量绘制相同颜色的格子
+  colorGroups.forEach((cells, color) => {
+    pixelatedCtx.fillStyle = color;
+    cells.forEach(({ i, j }) => {
       const drawX = i * cellWidthOutput;
       const drawY = j * cellHeightOutput;
-
-      if (cellData.isExternal) {
-        pixelatedCtx.fillStyle = externalBackgroundColor;
-      } else {
-        pixelatedCtx.fillStyle = cellData.color;
-      }
       pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+    });
+  });
 
-      if (isHighlighting && highlightColorKey) {
-        let shouldDim = false;
-        if (cellData.isExternal) {
-          shouldDim = true;
-        } else {
-          shouldDim = cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
-        }
+  // 高亮处理
+  if (isHighlighting && highlightColorKey) {
+    for (let j = 0; j < M; j++) {
+      for (let i = 0; i < N; i++) {
+        const cellData = dataToDraw[j]?.[i];
+        if (!cellData) continue;
+        
+        const drawX = i * cellWidthOutput;
+        const drawY = j * cellHeightOutput;
+        
+        const shouldDim = cellData.isExternal || 
+          cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
+        
         if (shouldDim) {
           pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
           pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
@@ -119,47 +136,44 @@ const drawPixelatedCanvas = (
     }
   }
   
-  // 绘制细网格线（每个格子之间）- 参考网站使用 #AAAAAA
+  // 性能优化：使用 Path2D 批量绘制细网格线
   const thinGridLineColor = '#AAAAAA';
   pixelatedCtx.strokeStyle = thinGridLineColor;
   pixelatedCtx.lineWidth = 1;
+  
+  const thinLinesPath = new Path2D();
   for (let j = 0; j <= M; j++) {
     const y = j * cellHeightOutput;
-    pixelatedCtx.beginPath();
-    pixelatedCtx.moveTo(0, y);
-    pixelatedCtx.lineTo(outputWidth, y);
-    pixelatedCtx.stroke();
+    thinLinesPath.moveTo(0, y);
+    thinLinesPath.lineTo(outputWidth, y);
   }
   for (let i = 0; i <= N; i++) {
     const x = i * cellWidthOutput;
-    pixelatedCtx.beginPath();
-    pixelatedCtx.moveTo(x, 0);
-    pixelatedCtx.lineTo(x, outputHeight);
-    pixelatedCtx.stroke();
+    thinLinesPath.moveTo(x, 0);
+    thinLinesPath.lineTo(x, outputHeight);
   }
+  pixelatedCtx.stroke(thinLinesPath);
   
   // 绘制分组网格线（每N格一条粗线）- 参考网站使用 2-2.5px
   if (showGridLines && gridLineInterval && gridLineInterval > 1) {
     pixelatedCtx.strokeStyle = gridLineColor;
     pixelatedCtx.lineWidth = 2.5; // 参考网站使用 2-2.5px
     
+    const thickLinesPath = new Path2D();
     // 垂直线
     for (let i = 0; i <= N; i += gridLineInterval) {
       const x = i * cellWidthOutput;
-      pixelatedCtx.beginPath();
-      pixelatedCtx.moveTo(x, 0);
-      pixelatedCtx.lineTo(x, outputHeight);
-      pixelatedCtx.stroke();
+      thickLinesPath.moveTo(x, 0);
+      thickLinesPath.lineTo(x, outputHeight);
     }
     
     // 水平线
     for (let j = 0; j <= M; j += gridLineInterval) {
       const y = j * cellHeightOutput;
-      pixelatedCtx.beginPath();
-      pixelatedCtx.moveTo(0, y);
-      pixelatedCtx.lineTo(outputWidth, y);
-      pixelatedCtx.stroke();
+      thickLinesPath.moveTo(0, y);
+      thickLinesPath.lineTo(outputWidth, y);
     }
+    pixelatedCtx.stroke(thickLinesPath);
   }
 };
 
@@ -535,6 +549,12 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const rafRef = useRef<number | null>(null);
   const pendingUpdateRef = useRef<{ scale?: number; offsetX?: number; offsetY?: number } | null>(null);
   
+  // 防抖定时器 - 用于缩放时的性能优化
+  const scaleDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastDrawScaleRef = useRef(1);
+  const drawRafRef = useRef<number | null>(null);
+  const pendingDrawRef = useRef<boolean>(false);
+  
   // 批量更新状态的函数
   const flushUpdate = useCallback(() => {
     if (pendingUpdateRef.current) {
@@ -632,31 +652,51 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas
+  // Draw main canvas - 使用 requestAnimationFrame 节流
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      // 缩放时重新设置画布尺寸
-      const canvas = canvasRef.current;
-      const newWidth = gridDimensions.N * baseCellSize * scale;
-      const newHeight = gridDimensions.M * baseCellSize * scale;
+      // 标记需要绘制
+      pendingDrawRef.current = true;
       
-      if (canvas.width !== newWidth || canvas.height !== newHeight) {
-        canvas.width = newWidth;
-        canvas.height = newHeight;
+      // 使用 requestAnimationFrame 节流绘制
+      if (drawRafRef.current === null) {
+        drawRafRef.current = requestAnimationFrame(() => {
+          if (!pendingDrawRef.current || !canvasRef.current) return;
+          
+          const canvas = canvasRef.current;
+          const newWidth = gridDimensions.N * baseCellSize * scale;
+          const newHeight = gridDimensions.M * baseCellSize * scale;
+          
+          // 只在尺寸真正变化时才重新设置
+          if (canvas.width !== newWidth || canvas.height !== newHeight) {
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+          }
+          
+          drawPixelatedCanvas(
+            mappedPixelData, 
+            canvasRef.current, 
+            gridDimensions, 
+            highlightColorKey, 
+            isHighlighting,
+            showColorLabels,
+            selectedColorSystem,
+            showGridLines,
+            gridLineInterval,
+            gridLineColor
+          );
+          
+          pendingDrawRef.current = false;
+          drawRafRef.current = null;
+        });
       }
       
-      drawPixelatedCanvas(
-        mappedPixelData, 
-        canvasRef.current, 
-        gridDimensions, 
-        highlightColorKey, 
-        isHighlighting,
-        showColorLabels,
-        selectedColorSystem,
-        showGridLines,
-        gridLineInterval,
-        gridLineColor
-      );
+      return () => {
+        if (drawRafRef.current !== null) {
+          cancelAnimationFrame(drawRafRef.current);
+          drawRafRef.current = null;
+        }
+      };
     }
   }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize]);
 
