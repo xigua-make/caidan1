@@ -467,9 +467,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   }, [highlightColorKey, mappedPixelData, gridDimensions, onHighlightComplete]);
 
-  // Reset zoom and offset
+  // Reset zoom and offset - only when grid dimensions change (not on pixel data changes)
   useEffect(() => {
-    if (mappedPixelData && gridDimensions && canvasRef.current && containerRef.current) {
+    if (gridDimensions && canvasRef.current && containerRef.current) {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       const newOffsetX = (container.clientWidth - canvas.width) / 2;
@@ -479,7 +479,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       setOffsetY(newOffsetY);
       setIsInitialized(true);
     }
-  }, [mappedPixelData, gridDimensions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridDimensions]);
 
   // --- Mouse event handlers ---
   

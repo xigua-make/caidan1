@@ -43,12 +43,6 @@ type WorkstationMode = 'auto' | 'manual' | 'focus';
 // 工具类型
 type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
 
-// 镜像模式类型
-interface MirrorMode {
-  horizontal: boolean;
-  vertical: boolean;
-}
-
 // 选区类型
 interface Selection {
   startRow: number;
@@ -154,9 +148,6 @@ export default function Workstation() {
   // 选区状态
   const [selection, setSelection] = useState<Selection | null>(null);
   const [clipboard, setClipboard] = useState<Clipboard | null>(null);
-  
-  // 镜像模式
-  const [mirrorMode, setMirrorMode] = useState<MirrorMode>({ horizontal: false, vertical: false });
   
   // 矩形填充模式
   const [rectangleFilled, setRectangleFilled] = useState<boolean>(false);
@@ -669,50 +660,52 @@ export default function Workstation() {
   }, [gridWidthInput, gridHeightInput, similarityThresholdInput, gridWidth, gridHeight, similarityThreshold]);
 
   // 像素化模式变更
-  // 绘制单个像素（带镜像模式支持）
-  const drawPixelWithMirror = useCallback((pixelData: MappedPixel[][], row: number, col: number, color: string | null) => {
+  // 绘制单个像素
+  const drawPixel = useCallback((pixelData: MappedPixel[][], row: number, col: number, color: string | null) => {
     const newPixelData = [...pixelData];
     const height = pixelData.length;
     const width = pixelData[0]?.length || 0;
     
-    // 应用颜色
-    const applyColor = (r: number, c: number) => {
-      if (r >= 0 && r < height && c >= 0 && c < width) {
-        newPixelData[r] = [...newPixelData[r]];
-        if (color === null) {
-          // 删除像素（透明）
-          newPixelData[r][c] = { ...transparentColorData };
-        } else {
-          const key = getColorKeyByHex(color, selectedColorSystem);
-          newPixelData[r][c] = {
-            ...newPixelData[r][c],
-            color,
-            key
-          };
-        }
+    if (row >= 0 && row < height && col >= 0 && col < width) {
+      newPixelData[row] = [...newPixelData[row]];
+      if (color === null) {
+        // 删除像素（透明）
+        newPixelData[row][col] = { ...transparentColorData };
+      } else {
+        const key = getColorKeyByHex(color, selectedColorSystem);
+        newPixelData[row][col] = {
+          ...newPixelData[row][col],
+          color,
+          key
+        };
       }
-    };
-    
-    // 原始位置
-    applyColor(row, col);
-    
-    // 水平镜像
-    if (mirrorMode.horizontal) {
-      applyColor(row, width - 1 - col);
-    }
-    
-    // 垂直镜像
-    if (mirrorMode.vertical) {
-      applyColor(height - 1 - row, col);
-    }
-    
-    // 对角镜像（同时开启水平和垂直）
-    if (mirrorMode.horizontal && mirrorMode.vertical) {
-      applyColor(height - 1 - row, width - 1 - col);
     }
     
     return newPixelData;
-  }, [selectedColorSystem, mirrorMode]);
+  }, [selectedColorSystem]);
+
+  // 水平镜像翻转整个图纸
+  const flipHorizontal = useCallback(() => {
+    if (!mappedPixelData) return;
+    
+    saveToHistory(mappedPixelData);
+    
+    const height = mappedPixelData.length;
+    const width = mappedPixelData[0]?.length || 0;
+    
+    const newPixelData: MappedPixel[][] = [];
+    
+    for (let row = 0; row < height; row++) {
+      newPixelData[row] = [];
+      for (let col = 0; col < width; col++) {
+        // 水平镜像：左右翻转
+        newPixelData[row][col] = { ...mappedPixelData[row][width - 1 - col] };
+      }
+    }
+    
+    setMappedPixelData(newPixelData);
+    recalculateColorCounts(newPixelData);
+  }, [mappedPixelData, saveToHistory, recalculateColorCounts]);
 
   // 绘制直线（Bresenham算法）
   const drawLine = useCallback((
@@ -733,7 +726,7 @@ export default function Workstation() {
     let currentRow = startRow;
 
     while (true) {
-      newPixelData = drawPixelWithMirror(newPixelData, currentRow, currentCol, color);
+      newPixelData = drawPixel(newPixelData, currentRow, currentCol, color);
       
       if (currentCol === endCol && currentRow === endRow) break;
       
@@ -749,7 +742,7 @@ export default function Workstation() {
     }
     
     return newPixelData;
-  }, [drawPixelWithMirror]);
+  }, [drawPixel]);
 
   // 绘制矩形
   const drawRectangle = useCallback((
@@ -771,23 +764,23 @@ export default function Workstation() {
       // 实心矩形：填充整个区域
       for (let row = minRow; row <= maxRow; row++) {
         for (let col = minCol; col <= maxCol; col++) {
-          newPixelData = drawPixelWithMirror(newPixelData, row, col, color);
+          newPixelData = drawPixel(newPixelData, row, col, color);
         }
       }
     } else {
       // 空心矩形：绘制四条边
       for (let col = minCol; col <= maxCol; col++) {
-        newPixelData = drawPixelWithMirror(newPixelData, minRow, col, color);
-        newPixelData = drawPixelWithMirror(newPixelData, maxRow, col, color);
+        newPixelData = drawPixel(newPixelData, minRow, col, color);
+        newPixelData = drawPixel(newPixelData, maxRow, col, color);
       }
       for (let row = minRow; row <= maxRow; row++) {
-        newPixelData = drawPixelWithMirror(newPixelData, row, minCol, color);
-        newPixelData = drawPixelWithMirror(newPixelData, row, maxCol, color);
+        newPixelData = drawPixel(newPixelData, row, minCol, color);
+        newPixelData = drawPixel(newPixelData, row, maxCol, color);
       }
     }
     
     return newPixelData;
-  }, [drawPixelWithMirror]);
+  }, [drawPixel]);
 
   // 处理手动绘制
   const handleManualDraw = useCallback((row: number, col: number) => {
@@ -809,7 +802,7 @@ export default function Workstation() {
             const nr = row + dr;
             const nc = col + dc;
             if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-              newPixelData = drawPixelWithMirror(newPixelData, nr, nc, selectedColor?.color || null);
+              newPixelData = drawPixel(newPixelData, nr, nc, selectedColor?.color || null);
             }
           }
         }
@@ -822,7 +815,7 @@ export default function Workstation() {
             const nr = row + dr;
             const nc = col + dc;
             if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-              newPixelData = drawPixelWithMirror(newPixelData, nr, nc, null);
+              newPixelData = drawPixel(newPixelData, nr, nc, null);
             }
           }
         }
@@ -891,7 +884,7 @@ export default function Workstation() {
     
     setMappedPixelData(newPixelData);
     recalculateColorCounts(newPixelData);
-  }, [mappedPixelData, currentTool, brushSize, selectedColor, selectedColorSystem, mirrorMode, drawPixelWithMirror, recalculateColorCounts, saveToHistory]);
+  }, [mappedPixelData, currentTool, brushSize, selectedColor, selectedColorSystem, drawPixel, recalculateColorCounts, saveToHistory]);
 
   // 处理形状绘制（鼠标释放时）
   const handleShapeDraw = useCallback((startRow: number, startCol: number, endRow: number, endCol: number) => {
@@ -2453,24 +2446,12 @@ export default function Workstation() {
                     矩形实心
                   </button>
                   <button
-                    onClick={() => setMirrorMode(prev => ({ ...prev, horizontal: !prev.horizontal }))}
-                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                      mirrorMode.horizontal
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
-                    }`}
+                    onClick={flipHorizontal}
+                    disabled={!mappedPixelData}
+                    className="py-2 px-2 rounded-lg text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="水平镜像翻转整个图纸"
                   >
                     水平镜像
-                  </button>
-                  <button
-                    onClick={() => setMirrorMode(prev => ({ ...prev, vertical: !prev.vertical }))}
-                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                      mirrorMode.vertical
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
-                    }`}
-                  >
-                    垂直镜像
                   </button>
                 </div>
               </div>
