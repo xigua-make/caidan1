@@ -1619,28 +1619,11 @@ export default function Workstation() {
     setSelectedColor(null);
   }, [excludedColorKeys, mappedPixelData, gridDimensions]);
 
-  // 获取画布坐标对应的网格坐标
-  const getGridPosition = useCallback((canvasX: number, canvasY: number): { row: number; col: number } | null => {
-    if (!gridDimensions || !pixelatedCanvasRef.current) return null;
+  // 绘制开始 - 接收网格坐标
+  const handleDrawStart = useCallback((gridCol: number, gridRow: number) => {
+    if (!mappedPixelData) return;
     
-    const { N, M } = gridDimensions;
-    const canvas = pixelatedCanvasRef.current;
-    const cellWidth = canvas.width / N;
-    const cellHeight = canvas.height / M;
-    
-    const col = Math.floor(canvasX / cellWidth);
-    const row = Math.floor(canvasY / cellHeight);
-    
-    if (col >= 0 && col < N && row >= 0 && row < M) {
-      return { row, col };
-    }
-    return null;
-  }, [gridDimensions]);
-
-  // 绘制开始
-  const handleDrawStart = useCallback((canvasX: number, canvasY: number) => {
-    const pos = getGridPosition(canvasX, canvasY);
-    if (!pos || !mappedPixelData) return;
+    const pos = { row: gridRow, col: gridCol };
     
     // 保存历史记录
     saveToHistory(mappedPixelData);
@@ -1678,15 +1661,13 @@ export default function Workstation() {
       const color = currentTool === 'brush' ? (selectedColor?.color || defaultColor) : null;
       applyBrushStroke(pos.row, pos.col, color, brushSize);
     }
-  }, [getGridPosition, currentTool, selectedColor, defaultColor, brushSize, mappedPixelData, saveToHistory, selection]);
+  }, [currentTool, selectedColor, defaultColor, brushSize, mappedPixelData, saveToHistory, selection]);
 
-  // 绘制移动
-  const handleDrawMove = useCallback((canvasX: number, canvasY: number) => {
+  // 绘制移动 - 接收网格坐标
+  const handleDrawMove = useCallback((gridCol: number, gridRow: number) => {
     if (!isDrawing) return;
     
-    const pos = getGridPosition(canvasX, canvasY);
-    if (!pos) return;
-    
+    const pos = { row: gridRow, col: gridCol };
     setDrawEndPos(pos);
     
     // 对于画笔和橡皮擦，实时绘制
@@ -1694,21 +1675,18 @@ export default function Workstation() {
       const color = currentTool === 'brush' ? (selectedColor?.color || defaultColor) : null;
       applyBrushStroke(pos.row, pos.col, color, brushSize);
     }
-  }, [isDrawing, getGridPosition, currentTool, selectedColor, defaultColor, brushSize]);
+  }, [isDrawing, currentTool, selectedColor, defaultColor, brushSize]);
 
-  // 绘制结束
-  const handleDrawEnd = useCallback((canvasX: number, canvasY: number) => {
-    if (!isDrawing || !drawStartPos || !drawEndPos || !mappedPixelData) {
+  // 绘制结束 - 接收网格坐标
+  const handleDrawEnd = useCallback((gridCol: number, gridRow: number) => {
+    if (!isDrawing || !drawStartPos || !mappedPixelData) {
       setIsDrawing(false);
+      setDrawStartPos(null);
+      setDrawEndPos(null);
       return;
     }
     
-    const pos = getGridPosition(canvasX, canvasY);
-    if (!pos) {
-      setIsDrawing(false);
-      return;
-    }
-    
+    const pos = { row: gridRow, col: gridCol };
     setDrawEndPos(pos);
     
     // 根据工具类型执行最终操作
@@ -1719,10 +1697,12 @@ export default function Workstation() {
       case 'line':
         newPixelData = drawLine(newPixelData, drawStartPos.row, drawStartPos.col, pos.row, pos.col, color);
         setMappedPixelData(newPixelData);
+        recalculateColorCounts(newPixelData);
         break;
       case 'rectangle':
         newPixelData = drawRectangle(newPixelData, drawStartPos.row, drawStartPos.col, pos.row, pos.col, color);
         setMappedPixelData(newPixelData);
+        recalculateColorCounts(newPixelData);
         break;
       case 'select':
         createSelection(drawStartPos.row, drawStartPos.col, pos.row, pos.col);
@@ -1775,7 +1755,7 @@ export default function Workstation() {
     setIsDrawing(false);
     setDrawStartPos(null);
     setDrawEndPos(null);
-  }, [isDrawing, drawStartPos, drawEndPos, getGridPosition, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, selection, clipboard, recalculateColorCounts]);
+  }, [isDrawing, drawStartPos, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, selection, clipboard, recalculateColorCounts]);
 
   // 应用画笔/橡皮擦笔触
   const applyBrushStroke = useCallback((row: number, col: number, color: string | null, size: number) => {
@@ -1969,6 +1949,13 @@ export default function Workstation() {
                   onDrawStart={handleDrawStart}
                   onDrawMove={handleDrawMove}
                   onDrawEnd={handleDrawEnd}
+                  currentTool={currentTool}
+                  selectedColor={selectedColor?.color}
+                  brushSize={brushSize}
+                  previewStartPos={drawStartPos}
+                  previewEndPos={drawEndPos}
+                  isDrawing={isDrawing}
+                  selection={selection}
                 />
               </div>
             </div>

@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent } from 'react';
+import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback } from 'react';
 import { MappedPixel } from '../utils/pixelation';
+
+// 工具类型
+type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
 
 interface PixelatedPreviewCanvasProps {
   mappedPixelData: MappedPixel[][] | null;
@@ -18,10 +21,19 @@ interface PixelatedPreviewCanvasProps {
   ) => void;
   highlightColorKey?: string | null;
   onHighlightComplete?: () => void;
-  // 绘制事件回调
+  // 绘制事件回调 - 传递网格坐标
   onDrawStart?: (gridX: number, gridY: number) => void;
   onDrawMove?: (gridX: number, gridY: number) => void;
   onDrawEnd?: (gridX: number, gridY: number) => void;
+  // 预览相关
+  currentTool?: ToolType;
+  selectedColor?: string | null;
+  brushSize?: number;
+  // 预览状态
+  previewStartPos?: { row: number; col: number } | null;
+  previewEndPos?: { row: number; col: number } | null;
+  isDrawing?: boolean;
+  selection?: { startRow: number; startCol: number; endRow: number; endCol: number } | null;
 }
 
 // 绘制像素化画布的函数
@@ -43,12 +55,9 @@ const drawPixelatedCanvas = (
     return;
   }
 
-  // Respect current dark mode preference
   const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
-
-  // Define colors based on mode
-  const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6'; // gray-700 : gray-100
-  const gridLineColor = isDarkMode ? '#4B5563' : '#DDDDDD'; // gray-600 : lighter gray
+  const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6';
+  const gridLineColor = isDarkMode ? '#4B5563' : '#DDDDDD';
 
   const { N, M } = dims;
   const outputWidth = canvas.width;
@@ -57,7 +66,7 @@ const drawPixelatedCanvas = (
   const cellHeightOutput = outputHeight / M;
 
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
-  pixelatedCtx.lineWidth = 0.5; // Keep line width thin
+  pixelatedCtx.lineWidth = 0.5;
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
@@ -67,7 +76,6 @@ const drawPixelatedCanvas = (
       const drawX = i * cellWidthOutput;
       const drawY = j * cellHeightOutput;
 
-      // Fill cell color using mode-specific background for external cells
       if (cellData.isExternal) {
         pixelatedCtx.fillStyle = externalBackgroundColor;
       } else {
@@ -75,28 +83,249 @@ const drawPixelatedCanvas = (
       }
       pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
 
-      // 如果正在高亮且当前单元格不是目标颜色，添加半透明黑色蒙版
       if (isHighlighting && highlightColorKey) {
         let shouldDim = false;
-        
         if (cellData.isExternal) {
-          // 外部单元格总是变深色（因为它们不是要高亮的颜色）
           shouldDim = true;
         } else {
-          // 内部单元格：如果颜色不匹配则变深色
           shouldDim = cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
         }
-        
         if (shouldDim) {
-          pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // 60% 透明度的黑色蒙版
+          pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
           pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
         }
       }
 
-      // Draw grid lines using mode-specific color
       pixelatedCtx.strokeStyle = gridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
     }
+  }
+};
+
+// 绘制预览层
+const drawPreviewLayer = (
+  previewCanvas: HTMLCanvasElement | null,
+  mainCanvas: HTMLCanvasElement | null,
+  dims: { N: number; M: number } | null,
+  tool: ToolType,
+  color: string | null | undefined,
+  brushSize: number,
+  startPos: { row: number; col: number } | null | undefined,
+  endPos: { row: number; col: number } | null | undefined,
+  isDrawing: boolean,
+  selection: { startRow: number; startCol: number; endRow: number; endCol: number } | null | undefined
+) => {
+  if (!previewCanvas || !dims || !mainCanvas) return;
+  
+  const ctx = previewCanvas.getContext('2d');
+  if (!ctx) return;
+
+  // 清除预览层
+  ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+  
+  if (!isDrawing) {
+    // 如果不在绘制状态，只显示选区（如果有）
+    if (selection) {
+      const { N, M } = dims;
+      const cellWidth = mainCanvas.width / N;
+      const cellHeight = mainCanvas.height / M;
+      
+      const minRow = Math.min(selection.startRow, selection.endRow);
+      const maxRow = Math.max(selection.startRow, selection.endRow);
+      const minCol = Math.min(selection.startCol, selection.endCol);
+      const maxCol = Math.max(selection.startCol, selection.endCol);
+      
+      const x = minCol * cellWidth;
+      const y = minRow * cellHeight;
+      const width = (maxCol - minCol + 1) * cellWidth;
+      const height = (maxRow - minRow + 1) * cellHeight;
+      
+      // 绘制选区边框（蚂蚁线效果）
+      ctx.strokeStyle = '#FF0000';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.strokeRect(x, y, width, height);
+      ctx.setLineDash([]);
+    }
+    return;
+  }
+  
+  const { N, M } = dims;
+  const cellWidth = mainCanvas.width / N;
+  const cellHeight = mainCanvas.height / M;
+  
+  switch (tool) {
+    case 'brush':
+      // 画笔预览：显示笔刷范围
+      if (endPos && color) {
+        const halfSize = Math.floor(brushSize / 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.6;
+        
+        for (let dy = -halfSize; dy <= halfSize; dy++) {
+          for (let dx = -halfSize; dx <= halfSize; dx++) {
+            const row = endPos.row + dy;
+            const col = endPos.col + dx;
+            if (row >= 0 && row < M && col >= 0 && col < N) {
+              ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth, cellHeight);
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+      break;
+      
+    case 'eraser':
+      // 橡皮擦预览：显示擦除范围
+      if (endPos) {
+        const halfSize = Math.floor(brushSize / 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.globalAlpha = 0.5;
+        
+        for (let dy = -halfSize; dy <= halfSize; dy++) {
+          for (let dx = -halfSize; dx <= halfSize; dx++) {
+            const row = endPos.row + dy;
+            const col = endPos.col + dx;
+            if (row >= 0 && row < M && col >= 0 && col < N) {
+              ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth, cellHeight);
+              // 绘制 X 标记
+              ctx.strokeStyle = '#FF0000';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(col * cellWidth, row * cellHeight);
+              ctx.lineTo((col + 1) * cellWidth, (row + 1) * cellHeight);
+              ctx.moveTo((col + 1) * cellWidth, row * cellHeight);
+              ctx.lineTo(col * cellWidth, (row + 1) * cellHeight);
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+      break;
+      
+    case 'line':
+      // 直线预览
+      if (startPos && endPos && color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.8;
+        
+        // Bresenham 直线
+        const dx = Math.abs(endPos.col - startPos.col);
+        const dy = Math.abs(endPos.row - startPos.row);
+        const sx = startPos.col < endPos.col ? 1 : -1;
+        const sy = startPos.row < endPos.row ? 1 : -1;
+        let err = dx - dy;
+        let col = startPos.col;
+        let row = startPos.row;
+        
+        ctx.beginPath();
+        let first = true;
+        
+        while (true) {
+          if (row >= 0 && row < M && col >= 0 && col < N) {
+            const x = col * cellWidth + cellWidth / 2;
+            const y = row * cellHeight + cellHeight / 2;
+            if (first) {
+              ctx.moveTo(x, y);
+              first = false;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          
+          if (row === endPos.row && col === endPos.col) break;
+          
+          const e2 = 2 * err;
+          if (e2 > -dy) {
+            err -= dy;
+            col += sx;
+          }
+          if (e2 < dx) {
+            err += dx;
+            row += sy;
+          }
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      break;
+      
+    case 'rectangle':
+      // 矩形预览
+      if (startPos && endPos && color) {
+        const minRow = Math.min(startPos.row, endPos.row);
+        const maxRow = Math.max(startPos.row, endPos.row);
+        const minCol = Math.min(startPos.col, endPos.col);
+        const maxCol = Math.max(startPos.col, endPos.col);
+        
+        const x = minCol * cellWidth;
+        const y = minRow * cellHeight;
+        const width = (maxCol - minCol + 1) * cellWidth;
+        const height = (maxRow - minRow + 1) * cellHeight;
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.8;
+        ctx.strokeRect(x, y, width, height);
+        ctx.globalAlpha = 1;
+      }
+      break;
+      
+    case 'select':
+      // 选区预览
+      if (startPos && endPos) {
+        const minRow = Math.min(startPos.row, endPos.row);
+        const maxRow = Math.max(startPos.row, endPos.row);
+        const minCol = Math.min(startPos.col, endPos.col);
+        const maxCol = Math.max(startPos.col, endPos.col);
+        
+        const x = minCol * cellWidth;
+        const y = minRow * cellHeight;
+        const width = (maxCol - minCol + 1) * cellWidth;
+        const height = (maxRow - minRow + 1) * cellHeight;
+        
+        // 半透明蓝色背景
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+        ctx.fillRect(x, y, width, height);
+        
+        // 蚂蚁线边框
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(x, y, width, height);
+        ctx.setLineDash([]);
+      }
+      break;
+      
+    case 'move':
+      // 移动预览：显示选区和新位置
+      if (selection && startPos && endPos) {
+        const dx = endPos.col - startPos.col;
+        const dy = endPos.row - startPos.row;
+        
+        const newMinRow = Math.min(selection.startRow, selection.endRow) + dy;
+        const newMaxRow = Math.max(selection.startRow, selection.endRow) + dy;
+        const newMinCol = Math.min(selection.startCol, selection.endCol) + dx;
+        const newMaxCol = Math.max(selection.startCol, selection.endCol) + dx;
+        
+        const x = newMinCol * cellWidth;
+        const y = newMinRow * cellHeight;
+        const width = (newMaxCol - newMinCol + 1) * cellWidth;
+        const height = (newMaxRow - newMinRow + 1) * cellHeight;
+        
+        // 新位置（半透明绿色）
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+        ctx.fillRect(x, y, width, height);
+        
+        ctx.strokeStyle = '#22C55E';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(x, y, width, height);
+        ctx.setLineDash([]);
+      }
+      break;
   }
 };
 
@@ -111,6 +340,13 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   onDrawStart,
   onDrawMove,
   onDrawEnd,
+  currentTool = 'brush',
+  selectedColor,
+  brushSize = 1,
+  previewStartPos,
+  previewEndPos,
+  isDrawing: isDrawingProp = false,
+  selection,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -122,11 +358,14 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false); // 绘制状态
+  const [isLocalDrawing, setIsLocalDrawing] = useState(false);
 
   const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   
-  // 容器引用，用于计算居中位置
+  // 预览画布引用
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  
+  // 容器引用
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   
@@ -134,68 +373,95 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const touchDistanceRef = useRef<number | null>(null);
   const touchCenterRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Effect to detect dark mode changes and update state
+  // 获取网格坐标
+  const getGridPosition = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
+    if (!gridDimensions || !canvasRef.current) return null;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (clientX - rect.left) * scaleX;
+    const canvasY = (clientY - rect.top) * scaleY;
+    
+    const { N, M } = gridDimensions;
+    const cellWidth = canvas.width / N;
+    const cellHeight = canvas.height / M;
+    
+    const col = Math.floor(canvasX / cellWidth);
+    const row = Math.floor(canvasY / cellHeight);
+    
+    if (col >= 0 && col < N && row >= 0 && row < M) {
+      return { row, col };
+    }
+    return null;
+  }, [gridDimensions, canvasRef]);
+
+  // Dark mode detection
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
     const checkDarkMode = () => {
-        const isDark = document.documentElement.classList.contains('dark');
-        // Only update state if it actually changes
-        if (isDark !== darkModeState) {
-            setDarkModeState(isDark);
-        }
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark !== darkModeState) {
+        setDarkModeState(isDark);
+      }
     };
-
-    // Initial check
     checkDarkMode();
-
-    // Use MutationObserver to watch for class changes on <html>
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    // Cleanup observer on component unmount
     return () => observer.disconnect();
+  }, [darkModeState]);
 
-  }, [darkModeState]); // Depend on darkModeState to re-run if needed externally
-
-  // Update useEffect for drawing to depend on darkModeState as well
+  // Draw main canvas
   useEffect(() => {
-    // Ensure darkModeState is not null before drawing
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      console.log(`Redrawing canvas, dark mode: ${darkModeState}`); // Log redraw trigger
       drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting);
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]); // Add darkModeState dependency
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]);
 
-  // 处理高亮效果
+  // Initialize preview canvas size
+  useEffect(() => {
+    if (canvasRef.current && previewCanvasRef.current) {
+      previewCanvasRef.current.width = canvasRef.current.width;
+      previewCanvasRef.current.height = canvasRef.current.height;
+    }
+  }, [mappedPixelData, gridDimensions]);
+
+  // Draw preview layer
+  useEffect(() => {
+    drawPreviewLayer(
+      previewCanvasRef.current,
+      canvasRef.current,
+      gridDimensions,
+      currentTool,
+      selectedColor,
+      brushSize,
+      previewStartPos,
+      previewEndPos,
+      isDrawingProp,
+      selection
+    );
+  }, [gridDimensions, currentTool, selectedColor, brushSize, previewStartPos, previewEndPos, isDrawingProp, selection]);
+
+  // Handle highlight
   useEffect(() => {
     if (highlightColorKey && mappedPixelData && gridDimensions) {
       setIsHighlighting(true);
-      // 0.3秒后结束高亮
       const timer = setTimeout(() => {
         setIsHighlighting(false);
         onHighlightComplete?.();
       }, 300);
-
       return () => clearTimeout(timer);
     }
   }, [highlightColorKey, mappedPixelData, gridDimensions, onHighlightComplete]);
 
-  // 重置缩放和偏移（当图片改变时）- 居中显示
+  // Reset zoom and offset
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && containerRef.current) {
       const canvas = canvasRef.current;
       const container = containerRef.current;
-      
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // 计算居中偏移
-      const newOffsetX = (containerWidth - canvasWidth) / 2;
-      const newOffsetY = (containerHeight - canvasHeight) / 2;
-      
+      const newOffsetX = (container.clientWidth - canvas.width) / 2;
+      const newOffsetY = (container.clientHeight - canvas.height) / 2;
       setScale(1);
       setOffsetX(newOffsetX);
       setOffsetY(newOffsetY);
@@ -203,60 +469,46 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   }, [mappedPixelData, gridDimensions]);
 
-  // --- 鼠标事件处理 ---
+  // --- Mouse event handlers ---
   
-  // 鼠标移动时显示提示或拖拽
   const handleMouseMove = (event: MouseEvent<HTMLCanvasElement>) => {
     if (isDragging && dragStartRef.current) {
-      // 拖拽模式：更新偏移量
       const dx = event.clientX - dragStartRef.current.x;
       const dy = event.clientY - dragStartRef.current.y;
       setOffsetX(dragStartRef.current.offsetX + dx);
       setOffsetY(dragStartRef.current.offsetY + dy);
-    } else if (isManualColoringMode && isDrawing) {
-      // 手动模式正在绘制：调用绘制移动回调
-      if (onDrawMove && canvasRef.current) {
-        const rect = canvasRef.current.getBoundingClientRect();
-        const scaleX = canvasRef.current.width / rect.width;
-        const scaleY = canvasRef.current.height / rect.height;
-        const canvasX = (event.clientX - rect.left) * scaleX;
-        const canvasY = (event.clientY - rect.top) * scaleY;
-        
-        // 这里我们需要知道网格尺寸才能计算网格坐标
-        // 暂时传递画布坐标，让父组件处理
-        onDrawMove(canvasX, canvasY);
+    } else if (isManualColoringMode && isLocalDrawing) {
+      const pos = getGridPosition(event.clientX, event.clientY);
+      if (pos && onDrawMove) {
+        onDrawMove(pos.col, pos.row);
       }
     } else {
-      // 非手动模式下：显示tooltip
       onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
     }
   };
 
-  // 鼠标离开时隐藏提示
   const handleMouseLeave = () => {
     setIsDragging(false);
     dragStartRef.current = null;
+    if (isLocalDrawing) {
+      setIsLocalDrawing(false);
+      if (onDrawEnd && previewEndPos) {
+        onDrawEnd(previewEndPos.col, previewEndPos.row);
+      }
+    }
     onInteraction(0, 0, 0, 0, false, true);
   };
 
-  // 鼠标按下
   const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
     if (event.button === 0) {
       if (isManualColoringMode) {
-        // 手动模式下，开始绘制
-        setIsDrawing(true);
-        if (onDrawStart && canvasRef.current) {
-          const rect = canvasRef.current.getBoundingClientRect();
-          const scaleX = canvasRef.current.width / rect.width;
-          const scaleY = canvasRef.current.height / rect.height;
-          const canvasX = (event.clientX - rect.left) * scaleX;
-          const canvasY = (event.clientY - rect.top) * scaleY;
-          onDrawStart(canvasX, canvasY);
+        setIsLocalDrawing(true);
+        const pos = getGridPosition(event.clientX, event.clientY);
+        if (pos && onDrawStart) {
+          onDrawStart(pos.col, pos.row);
         }
-        // 同时调用原有的交互（用于颜色替换等）
         onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
       } else {
-        // 非手动模式下，开始拖拽
         setIsDragging(true);
         dragStartRef.current = {
           x: event.clientX,
@@ -268,153 +520,113 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   };
 
-  // 鼠标释放：结束拖拽或绘制
   const handleMouseUp = (event: MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
       setIsDragging(false);
       dragStartRef.current = null;
     }
-    if (isDrawing) {
-      setIsDrawing(false);
-      if (onDrawEnd && canvasRef.current) {
-        const rect = canvasRef.current.getBoundingClientRect();
-        const scaleX = canvasRef.current.width / rect.width;
-        const scaleY = canvasRef.current.height / rect.height;
-        const canvasX = (event.clientX - rect.left) * scaleX;
-        const canvasY = (event.clientY - rect.top) * scaleY;
-        onDrawEnd(canvasX, canvasY);
+    if (isLocalDrawing) {
+      setIsLocalDrawing(false);
+      const pos = getGridPosition(event.clientX, event.clientY);
+      if (pos && onDrawEnd) {
+        onDrawEnd(pos.col, pos.row);
       }
     }
   };
 
-  // 鼠标滚轮缩放
+  // --- Wheel zoom ---
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    
-    const container = event.currentTarget;
-    const rect = container.getBoundingClientRect();
+    const rect = event.currentTarget.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    
-    // 计算鼠标在缩放前相对于画布的位置
     const beforeX = (mouseX - offsetX) / scale;
     const beforeY = (mouseY - offsetY) / scale;
-    
-    // 计算新的缩放比例
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
     const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 10);
-    
-    // 调整偏移量，使鼠标位置保持不变
-    const newOffsetX = mouseX - beforeX * newScale;
-    const newOffsetY = mouseY - beforeY * newScale;
-    
+    setOffsetX(mouseX - beforeX * newScale);
+    setOffsetY(mouseY - beforeY * newScale);
     setScale(newScale);
-    setOffsetX(newOffsetX);
-    setOffsetY(newOffsetY);
   };
 
-  // --- 触摸事件处理 ---
-  
+  // --- Touch event handlers ---
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length === 1) {
       const touch = event.touches[0];
-      
-      // 记录起始位置并重置移动标志
-      touchStartPosRef.current = {
-        x: touch.clientX,
-        y: touch.clientY,
-        pageX: touch.pageX,
-        pageY: touch.pageY
-      };
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY, pageX: touch.pageX, pageY: touch.pageY };
       touchMovedRef.current = false;
       
-      // 开始拖拽
       if (!isManualColoringMode) {
-        dragStartRef.current = {
-          x: touch.clientX,
-          y: touch.clientY,
-          offsetX: offsetX,
-          offsetY: offsetY
-        };
+        dragStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX, offsetY };
+      } else {
+        // 开始触摸绘制
+        const pos = getGridPosition(touch.clientX, touch.clientY);
+        if (pos && onDrawStart) {
+          onDrawStart(pos.col, pos.row);
+        }
       }
     } else if (event.touches.length === 2) {
-      // 双指缩放：记录初始距离和中心点
       const touch1 = event.touches[0];
       const touch2 = event.touches[1];
-      
       const dx = touch2.clientX - touch1.clientX;
       const dy = touch2.clientY - touch1.clientY;
       touchDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
-      
-      touchCenterRef.current = {
-        x: (touch1.clientX + touch2.clientX) / 2,
-        y: (touch1.clientY + touch2.clientY) / 2
-      };
+      touchCenterRef.current = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
     }
   };
 
   const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
-    
     if (event.touches.length === 1 && dragStartRef.current) {
-      // 单指拖拽
       const touch = event.touches[0];
       const dx = touch.clientX - dragStartRef.current.x;
       const dy = touch.clientY - dragStartRef.current.y;
-      
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         touchMovedRef.current = true;
       }
       
-      setOffsetX(dragStartRef.current.offsetX + dx);
-      setOffsetY(dragStartRef.current.offsetY + dy);
+      if (isManualColoringMode) {
+        const pos = getGridPosition(touch.clientX, touch.clientY);
+        if (pos && onDrawMove) {
+          onDrawMove(pos.col, pos.row);
+        }
+      } else {
+        setOffsetX(dragStartRef.current.offsetX + dx);
+        setOffsetY(dragStartRef.current.offsetY + dy);
+      }
     } else if (event.touches.length === 2 && touchDistanceRef.current && touchCenterRef.current) {
-      // 双指缩放
       const touch1 = event.touches[0];
       const touch2 = event.touches[1];
-      
       const dx = touch2.clientX - touch1.clientX;
       const dy = touch2.clientY - touch1.clientY;
       const newDistance = Math.sqrt(dx * dx + dy * dy);
-      
-      // 计算新的缩放比例
       const zoomFactor = newDistance / touchDistanceRef.current;
       const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 10);
-      
-      // 计算新的中心点
-      const newCenter = {
-        x: (touch1.clientX + touch2.clientX) / 2,
-        y: (touch1.clientY + touch2.clientY) / 2
-      };
-      
-      // 调整偏移量
-      const centerX = touchCenterRef.current.x;
-      const centerY = touchCenterRef.current.y;
+      const newCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
       const scaleRatio = newScale / scale;
-      
       setOffsetX(newCenter.x - (newCenter.x - offsetX) * scaleRatio);
       setOffsetY(newCenter.y - (newCenter.y - offsetY) * scaleRatio);
       setScale(newScale);
-      
-      // 更新参考值
       touchDistanceRef.current = newDistance;
       touchCenterRef.current = newCenter;
     }
   };
 
   const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
-    // 结束拖拽
+    // 结束触摸绘制
+    if (isManualColoringMode && onDrawEnd) {
+      onDrawEnd(previewEndPos?.col || 0, previewEndPos?.row || 0);
+    }
+    
     dragStartRef.current = null;
     touchDistanceRef.current = null;
     touchCenterRef.current = null;
     
-    // 检查是否是手动模式，并且触摸没有移动（判定为点击）
     if (isManualColoringMode && !touchMovedRef.current && touchStartPosRef.current) {
       const { x, y, pageX, pageY } = touchStartPosRef.current;
       onInteraction(x, y, pageX, pageY, true);
     }
 
-    // 重置触摸状态
     touchStartPosRef.current = null;
     touchMovedRef.current = false;
   };
@@ -428,8 +640,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
       className="w-full h-full overflow-hidden relative"
-      style={{ cursor: isDragging ? 'grabbing' : (isManualColoringMode ? 'pointer' : 'grab') }}
+      style={{ cursor: isDragging ? 'grabbing' : (isManualColoringMode ? 'crosshair' : 'grab') }}
     >
+      {/* 主画布 */}
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
@@ -445,8 +658,19 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       />
+      {/* 预览画布 - 叠加在主画布上 */}
+      <canvas
+        ref={previewCanvasRef}
+        className="absolute top-0 left-0 pointer-events-none"
+        style={{
+          imageRendering: scale > 1 ? 'pixelated' : 'auto',
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+        }}
+      />
     </div>
   );
 };
 
-export default PixelatedPreviewCanvas; 
+export default PixelatedPreviewCanvas;
