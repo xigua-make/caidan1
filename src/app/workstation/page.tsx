@@ -2027,8 +2027,8 @@ export default function Workstation() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
-      {/* 顶部导航栏 */}
-      <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      {/* 顶部导航栏 - 始终显示，不隐藏 */}
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200/70 dark:border-gray-700/70 shadow-sm">
         {/* 桌面端布局 */}
         <div className="hidden md:flex items-center justify-between px-4 py-2">
           {/* 左侧 Logo - 西瓜图标 */}
@@ -2116,22 +2116,22 @@ export default function Workstation() {
         </div>
 
         {/* 移动端布局 */}
-        <div className="md:hidden">
-          {/* 第一行：Logo + 品牌名 + 模式切换 + 导入/下载按钮 */}
-          <div className="flex items-center justify-between px-3 py-2 gap-2">
-            {/* Logo + 品牌名 */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <a href="/" className="w-8 h-8 rounded-lg border border-gray-200/70 dark:border-gray-700/70 shadow-sm overflow-hidden bg-white flex items-center justify-center">
-                <img src="/logo.png" alt="小瓜拼豆" className="w-7 h-7 object-contain" />
-              </a>
-              <div className="leading-tight">
-                <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">小瓜</div>
-                <div className="text-[10px] text-gray-500 dark:text-gray-400">拼豆底稿生成器</div>
-              </div>
+        <div className="md:hidden px-3 py-2.5 flex items-center justify-between gap-3">
+          {/* Logo + 品牌名 */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a href="/" className="w-9 h-9 rounded-lg border border-gray-200/70 dark:border-gray-700/70 shadow-sm overflow-hidden bg-white flex items-center justify-center">
+              <img src="/logo.png" alt="小瓜拼豆" className="w-8 h-8 object-contain" />
+            </a>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">小瓜</div>
+              <div className="text-[10px] text-gray-500 dark:text-gray-400">拼豆底稿生成器</div>
             </div>
-            
+          </div>
+          
+          {/* 右侧：模式切换 + 按钮 */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* 模式切换 */}
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 flex-shrink-0">
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5">
               <button
                 onClick={() => setWorkstationMode('auto')}
                 className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all ${
@@ -2165,7 +2165,7 @@ export default function Workstation() {
             </div>
             
             {/* 导入/下载按钮 */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={triggerFileInput}
                 className="px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 rounded-lg hover:border-blue-400"
