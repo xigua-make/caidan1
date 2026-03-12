@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback } from 'react';
 import { MappedPixel } from '../utils/pixelation';
+import { getColorKeyByHex, ColorSystem } from '../utils/colorSystemUtils';
 
 // 工具类型
 type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
@@ -39,6 +40,10 @@ interface PixelatedPreviewCanvasProps {
   previewEndPos?: { row: number; col: number } | null;
   isDrawing?: boolean;
   selection?: { startRow: number; startCol: number; endRow: number; endCol: number } | null;
+  // 显示选项
+  showColorKey?: boolean;
+  showCoordinates?: boolean;
+  selectedColorSystem?: ColorSystem;
 }
 
 // 绘制像素化画布的函数
@@ -47,7 +52,9 @@ const drawPixelatedCanvas = (
   canvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
   highlightColorKey?: string | null,
-  isHighlighting?: boolean
+  isHighlighting?: boolean,
+  showColorKey?: boolean,
+  selectedColorSystem?: ColorSystem
 ) => {
   if (!canvas || !dims || !dataToDraw) {
     console.warn("drawPixelatedCanvas: Missing required parameters");
@@ -103,6 +110,31 @@ const drawPixelatedCanvas = (
 
       pixelatedCtx.strokeStyle = gridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
+      
+      // 显示色号
+      if (showColorKey && !cellData.isExternal && cellData.color) {
+        const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem || 'MARD');
+        
+        // 判断颜色深浅来决定文字颜色
+        const hex = cellData.color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        
+        // 根据格子大小调整字体
+        const fontSize = Math.min(cellWidthOutput, cellHeightOutput) * 0.5;
+        pixelatedCtx.font = `bold ${fontSize}px Arial`;
+        pixelatedCtx.textAlign = 'center';
+        pixelatedCtx.textBaseline = 'middle';
+        pixelatedCtx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
+        
+        // 添加文字阴影增强可读性
+        pixelatedCtx.shadowColor = isLightColor ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+        pixelatedCtx.shadowBlur = 2;
+        pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2);
+        pixelatedCtx.shadowBlur = 0;
+      }
     }
   }
 };
@@ -365,6 +397,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   previewEndPos,
   isDrawing: isDrawingProp = false,
   selection,
+  showColorKey = false,
+  showCoordinates = false,
+  selectedColorSystem = 'MARD',
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -440,9 +475,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting);
+      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem);
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem]);
 
   // Initialize preview canvas size
   useEffect(() => {
@@ -762,6 +797,81 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     touchMovedRef.current = false;
   };
 
+  // 坐标轴 Canvas 引用
+  const coordinateCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // 绘制坐标轴
+  useEffect(() => {
+    if (!showCoordinates || !gridDimensions || !canvasRef.current || !coordinateCanvasRef.current) {
+      // 清空坐标轴画布
+      if (coordinateCanvasRef.current) {
+        const ctx = coordinateCanvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, coordinateCanvasRef.current.width, coordinateCanvasRef.current.height);
+        }
+      }
+      return;
+    }
+
+    const coordinateCanvas = coordinateCanvasRef.current;
+    const mainCanvas = canvasRef.current;
+    const { N, M } = gridDimensions;
+
+    // 设置坐标轴画布大小
+    const axisSize = 30; // 坐标轴宽度/高度
+    coordinateCanvas.width = mainCanvas.width + axisSize;
+    coordinateCanvas.height = mainCanvas.height + axisSize;
+
+    const ctx = coordinateCanvas.getContext('2d');
+    if (!ctx) return;
+
+    const cellWidth = mainCanvas.width / N;
+    const cellHeight = mainCanvas.height / M;
+
+    // 清空画布
+    ctx.clearRect(0, 0, coordinateCanvas.width, coordinateCanvas.height);
+
+    // 绘制顶部坐标轴背景
+    ctx.fillStyle = '#E5E7EB';
+    ctx.fillRect(axisSize, 0, mainCanvas.width, axisSize);
+
+    // 绘制左侧坐标轴背景
+    ctx.fillStyle = '#E5E7EB';
+    ctx.fillRect(0, axisSize, axisSize, mainCanvas.height);
+
+    // 设置字体样式
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#374151';
+
+    // 绘制顶部列号
+    for (let i = 0; i < N; i++) {
+      const x = axisSize + i * cellWidth + cellWidth / 2;
+      // 在 1, 10, 20... 位置显示数字
+      if ((i + 1) === 1 || (i + 1) % 10 === 0) {
+        ctx.fillText(String(i + 1), x, axisSize / 2);
+      }
+    }
+
+    // 绘制左侧行号
+    ctx.textAlign = 'center';
+    for (let j = 0; j < M; j++) {
+      const y = axisSize + j * cellHeight + cellHeight / 2;
+      // 在 1, 10, 20... 位置显示数字
+      if ((j + 1) === 1 || (j + 1) % 10 === 0) {
+        ctx.fillText(String(j + 1), axisSize / 2, y);
+      }
+    }
+
+    // 绘制边框
+    ctx.strokeStyle = '#9CA3AF';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(axisSize, 0, mainCanvas.width, axisSize);
+    ctx.strokeRect(0, axisSize, axisSize, mainCanvas.height);
+
+  }, [showCoordinates, gridDimensions, canvasRef, mappedPixelData]);
+
   return (
     <div
       ref={containerRef}
@@ -776,6 +886,18 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         touchAction: 'none'
       }}
     >
+      {/* 坐标轴画布 - 在最上层 */}
+      {showCoordinates && (
+        <canvas
+          ref={coordinateCanvasRef}
+          className="absolute pointer-events-none z-30"
+          style={{
+            transform: `translate(${offsetX - 30}px, ${offsetY - 30}px) scale(${scale})`,
+            transformOrigin: '0 0',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+          }}
+        />
+      )}
       {/* 参考图层画布 - 在主画布下面 */}
       <canvas
         ref={referenceCanvasRef}
@@ -798,7 +920,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="border border-gray-300 dark:border-gray-600 rounded block relative z-10"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transform: showCoordinates 
+            ? `translate(${offsetX + 30}px, ${offsetY + 30}px) scale(${scale})`
+            : `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
@@ -809,7 +933,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="absolute top-0 left-0 pointer-events-none z-20"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transform: showCoordinates 
+            ? `translate(${offsetX + 30}px, ${offsetY + 30}px) scale(${scale})`
+            : `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
