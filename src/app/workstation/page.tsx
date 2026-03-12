@@ -34,6 +34,7 @@ import GridTooltip from '../../components/GridTooltip';
 import CustomPaletteEditor from '../../components/CustomPaletteEditor';
 import FloatingColorPalette from '../../components/FloatingColorPalette';
 import FloatingToolbar from '../../components/FloatingToolbar';
+import ReplaceColorsPanel from '../../components/ReplaceColorsPanel';
 import { loadPaletteSelections, savePaletteSelections, presetToSelections, PaletteSelections } from '../../utils/localStorageUtils';
 import { TRANSPARENT_KEY, transparentColorData } from '../../utils/pixelEditingUtils';
 
@@ -303,6 +304,9 @@ export default function Workstation() {
     isActive: false,
     step: 'select-source'
   });
+  
+  // 替换历史（用于恢复功能）
+  const [replaceHistory, setReplaceHistory] = useState<Array<{ sourceColor: string; targetColor: string; timestamp: number }>>([]);
   
   // 高亮颜色状态
   const [highlightColorKey, setHighlightColorKey] = useState<string | null>(null);
@@ -1671,6 +1675,9 @@ export default function Workstation() {
   // 执行颜色替换
   const handleColorReplace = useCallback((sourceColor: { key: string; color: string }, targetColor: { key: string; color: string }) => {
     if (!mappedPixelData || !gridDimensions) return;
+    
+    // 保存历史记录用于撤销
+    saveToHistory(mappedPixelData);
 
     const newMappedData = mappedPixelData.map(row => 
       row.map(cell => {
@@ -1688,7 +1695,45 @@ export default function Workstation() {
     setMappedPixelData(newMappedData);
     recalculateColorCounts(newMappedData);
     setColorReplaceState({ isActive: false, step: 'select-source' });
-  }, [mappedPixelData, gridDimensions, recalculateColorCounts]);
+    
+    // 保存替换历史（用于恢复功能）
+    setReplaceHistory(prev => [...prev, {
+      sourceColor: sourceColor.color,
+      targetColor: targetColor.color,
+      timestamp: Date.now()
+    }]);
+  }, [mappedPixelData, gridDimensions, recalculateColorCounts, saveToHistory]);
+
+  // 恢复颜色替换
+  const handleRestoreReplace = useCallback((sourceColor: string, targetColor: string) => {
+    if (!mappedPixelData || !gridDimensions) return;
+    
+    // 保存历史记录用于撤销
+    saveToHistory(mappedPixelData);
+
+    // 将目标颜色恢复为源颜色
+    const newMappedData = mappedPixelData.map(row => 
+      row.map(cell => {
+        if (!cell.isExternal && cell.color.toUpperCase() === targetColor.toUpperCase()) {
+          const sourceKey = getColorKeyByHex(sourceColor, selectedColorSystem);
+          return {
+            ...cell,
+            key: sourceKey,
+            color: sourceColor
+          };
+        }
+        return cell;
+      })
+    );
+
+    setMappedPixelData(newMappedData);
+    recalculateColorCounts(newMappedData);
+    
+    // 从历史记录中移除
+    setReplaceHistory(prev => prev.filter(item => 
+      !(item.sourceColor === sourceColor && item.targetColor === targetColor)
+    ));
+  }, [mappedPixelData, gridDimensions, recalculateColorCounts, saveToHistory, selectedColorSystem]);
 
   // 高亮颜色
   const handleHighlightColor = useCallback((colorHex: string) => {
@@ -2899,68 +2944,86 @@ export default function Workstation() {
                 </div>
               </div>
 
-              {/* 色板区块 */}
-              <div className="bg-white dark:bg-gray-700 rounded-xl p-3 space-y-3 shadow-sm border border-gray-100 dark:border-gray-600">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    {showFullPalette ? `完整色板(${fullBeadPalette.length})` : `当前色板(${sortedColorCounts.length})`}
+              {/* 色板区块 - 参考网站样式 */}
+              <div className="bg-white dark:bg-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600 overflow-hidden">
+                {/* 标题栏 */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-600">
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    {showFullPalette ? '完整色板' : '当前色板'}
                   </h4>
-                  <button
-                    onClick={() => setShowFullPalette(!showFullPalette)}
-                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    {showFullPalette ? '切换当前' : '切换完整'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {showFullPalette ? fullBeadPalette.length : sortedColorCounts.length} 色
+                    </span>
+                    <button
+                      onClick={() => setShowFullPalette(!showFullPalette)}
+                      className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                    >
+                      {showFullPalette ? '当前' : '完整'}
+                    </button>
+                  </div>
                 </div>
                 
                 {/* 色板网格 */}
-                <div className="grid grid-cols-6 gap-1.5 max-h-40 overflow-y-auto p-1">
-                  {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => {
-                    // 为当前色板生成正确的 mardKey
-                    const mardKey = getColorKeyByHex(c.color.toUpperCase(), 'MARD');
-                    return { hex: c.color, key: c.key, mardKey };
-                  })).map((colorItem) => {
-                    const hexColor = colorItem.hex;
-                    const isSelected = selectedColor && selectedColor.color.toUpperCase() === hexColor.toUpperCase();
-                    // 判断颜色深浅来决定文字颜色
-                    const rgb = hexToRgb(hexColor);
-                    const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
-                    // 显示的色号：使用 mardKey（MARD 色号）
-                    const displayKey = colorItem.mardKey;
-                    return (
-                      <button
-                        key={hexColor}
-                        onClick={() => {
-                          if (colorReplaceState.isActive && colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
-                            handleColorReplace(colorReplaceState.sourceColor, { key: colorItem.key, color: hexColor });
-                          } else {
-                            setSelectedColor({ key: colorItem.key, color: hexColor, isExternal: false });
-                            setIsEraseMode(false);
-                            handleHighlightColor(hexColor);
-                          }
-                        }}
-                        className={`group relative w-7 h-7 rounded border-2 transition-all hover:scale-110 flex items-center justify-center ${
-                          isSelected && currentTool !== 'eraser'
-                            ? 'border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700'
-                            : 'border-gray-200 dark:border-gray-500 hover:border-gray-300 dark:hover:border-gray-400'
-                        }`}
-                        style={{ backgroundColor: hexColor }}
-                        title={`${displayKey} - ${hexColor}`}
-                      >
-                        {/* 显示色号 */}
-                        <span className={`text-[9px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`} style={{ textShadow: isLightColor ? '0 0 2px rgba(255,255,255,0.8)' : '0 0 2px rgba(0,0,0,0.8)' }}>
-                          {displayKey}
-                        </span>
-                        {isSelected && currentTool !== 'eraser' && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-5 h-5 border-2 border-white rounded shadow-lg"></div>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="p-3">
+                  <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+                    {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => {
+                      // 为当前色板生成正确的 mardKey
+                      const mardKey = getColorKeyByHex(c.color.toUpperCase(), 'MARD');
+                      return { hex: c.color, key: c.key, mardKey };
+                    })).map((colorItem) => {
+                      const hexColor = colorItem.hex;
+                      const isSelected = selectedColor && selectedColor.color.toUpperCase() === hexColor.toUpperCase();
+                      // 判断颜色深浅来决定文字颜色
+                      const rgb = hexToRgb(hexColor);
+                      const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+                      // 显示的色号：使用 mardKey（MARD 色号）
+                      const displayKey = colorItem.mardKey;
+                      return (
+                        <button
+                          key={hexColor}
+                          onClick={() => {
+                            if (colorReplaceState.isActive && colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
+                              handleColorReplace(colorReplaceState.sourceColor, { key: colorItem.key, color: hexColor });
+                            } else {
+                              setSelectedColor({ key: colorItem.key, color: hexColor, isExternal: false });
+                              setIsEraseMode(false);
+                              handleHighlightColor(hexColor);
+                            }
+                          }}
+                          className={`group relative aspect-square rounded transition-all hover:scale-110 hover:z-10 hover:shadow-lg flex items-center justify-center ${
+                            isSelected && currentTool !== 'eraser'
+                              ? 'ring-2 ring-blue-500 ring-offset-1'
+                              : 'hover:ring-1 hover:ring-gray-400'
+                          }`}
+                          style={{ backgroundColor: hexColor }}
+                          title={`${displayKey} - ${hexColor}`}
+                        >
+                          {/* 显示色号 */}
+                          <span 
+                            className={`text-[10px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`} 
+                            style={{ textShadow: isLightColor ? '0 0 3px rgba(255,255,255,0.9)' : '0 0 3px rgba(0,0,0,0.9)' }}
+                          >
+                            {displayKey}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
+
+              {/* 替换杂色区块 */}
+              <ReplaceColorsPanel
+                colorCounts={colorCounts}
+                totalBeadCount={totalBeadCount}
+                selectedColorSystem={selectedColorSystem}
+                fullPaletteColors={fullBeadPalette}
+                onColorReplace={handleColorReplace}
+                onHighlightColor={handleHighlightColor}
+                replaceHistory={replaceHistory}
+                onRestoreReplace={handleRestoreReplace}
+              />
             </div>
           ) : (
             /* 专心拼豆模式右侧栏 */
