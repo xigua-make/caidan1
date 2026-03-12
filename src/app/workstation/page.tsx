@@ -2048,6 +2048,9 @@ export default function Workstation() {
                   selectedColor={selectedColor?.color}
                   brushSize={brushSize}
                   rectangleFilled={rectangleFilled}
+                  originalImageSrc={originalImageSrc}
+                  showReferenceLayer={showReferenceLayer}
+                  referenceOpacity={referenceOpacity}
                   previewStartPos={drawStartPos}
                   previewEndPos={drawEndPos}
                   isDrawing={isDrawing}
@@ -2520,7 +2523,7 @@ export default function Workstation() {
                         : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
                     }`}
                   >
-                    显示
+                    {showReferenceLayer ? '隐藏' : '显示'}
                   </button>
                 </div>
                 

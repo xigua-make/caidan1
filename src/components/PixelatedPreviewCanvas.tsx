@@ -30,6 +30,10 @@ interface PixelatedPreviewCanvasProps {
   selectedColor?: string | null;
   brushSize?: number;
   rectangleFilled?: boolean;
+  // 参考图层
+  originalImageSrc?: string | null;
+  showReferenceLayer?: boolean;
+  referenceOpacity?: number;
   // 预览状态
   previewStartPos?: { row: number; col: number } | null;
   previewEndPos?: { row: number; col: number } | null;
@@ -354,6 +358,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   selectedColor,
   brushSize = 1,
   rectangleFilled = false,
+  originalImageSrc,
+  showReferenceLayer = true,
+  referenceOpacity = 25,
   previewStartPos,
   previewEndPos,
   isDrawing: isDrawingProp = false,
@@ -375,6 +382,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   
   // 预览画布引用
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  
+  // 参考图层画布引用
+  const referenceCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const referenceImageRef = useRef<HTMLImageElement | null>(null);
   
   // 容器引用
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -437,6 +448,74 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       previewCanvasRef.current.height = canvasRef.current.height;
     }
   }, [mappedPixelData, gridDimensions]);
+
+  // Initialize reference canvas size
+  useEffect(() => {
+    if (canvasRef.current && referenceCanvasRef.current) {
+      referenceCanvasRef.current.width = canvasRef.current.width;
+      referenceCanvasRef.current.height = canvasRef.current.height;
+    }
+  }, [mappedPixelData, gridDimensions]);
+
+  // Load and draw reference layer (original image)
+  useEffect(() => {
+    const referenceCanvas = referenceCanvasRef.current;
+    const mainCanvas = canvasRef.current;
+    
+    if (!referenceCanvas || !mainCanvas || !originalImageSrc || !showReferenceLayer) {
+      // Clear reference canvas if not showing
+      if (referenceCanvas) {
+        const ctx = referenceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
+        }
+      }
+      return;
+    }
+
+    // Load image if not already loaded
+    if (!referenceImageRef.current || referenceImageRef.current.src !== originalImageSrc) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        referenceImageRef.current = img;
+        drawReferenceImage(img, referenceCanvas, mainCanvas, referenceOpacity);
+      };
+      img.src = originalImageSrc;
+    } else {
+      // Image already loaded, just redraw
+      drawReferenceImage(referenceImageRef.current, referenceCanvas, mainCanvas, referenceOpacity);
+    }
+  }, [originalImageSrc, showReferenceLayer, referenceOpacity, mappedPixelData, gridDimensions]);
+
+  // Helper function to draw reference image
+  const drawReferenceImage = (
+    img: HTMLImageElement,
+    referenceCanvas: HTMLCanvasElement,
+    mainCanvas: HTMLCanvasElement,
+    opacity: number
+  ) => {
+    const ctx = referenceCanvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
+
+    // Calculate scaling to fit the canvas
+    const scaleX = mainCanvas.width / img.width;
+    const scaleY = mainCanvas.height / img.height;
+    const scale = Math.min(scaleX, scaleY);
+
+    const width = img.width * scale;
+    const height = img.height * scale;
+    const x = (mainCanvas.width - width) / 2;
+    const y = (mainCanvas.height - height) / 2;
+
+    // Set opacity and draw
+    ctx.globalAlpha = opacity / 100;
+    ctx.drawImage(img, x, y, width, height);
+    ctx.globalAlpha = 1;
+  };
 
   // Draw preview layer
   useEffect(() => {
@@ -655,6 +734,17 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       className="w-full h-full overflow-hidden relative"
       style={{ cursor: isDragging ? 'grabbing' : (isManualColoringMode ? 'crosshair' : 'grab') }}
     >
+      {/* 参考图层画布 - 在主画布下面 */}
+      <canvas
+        ref={referenceCanvasRef}
+        className="absolute top-0 left-0 pointer-events-none"
+        style={{
+          imageRendering: 'auto',
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+        }}
+      />
       {/* 主画布 */}
       <canvas
         ref={canvasRef}
@@ -663,7 +753,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onClick={(e) => e.stopPropagation()}
-        className="border border-gray-300 dark:border-gray-600 rounded block"
+        className="border border-gray-300 dark:border-gray-600 rounded block relative z-10"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
@@ -674,7 +764,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       {/* 预览画布 - 叠加在主画布上 */}
       <canvas
         ref={previewCanvasRef}
-        className="absolute top-0 left-0 pointer-events-none"
+        className="absolute top-0 left-0 pointer-events-none z-20"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
