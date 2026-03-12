@@ -204,7 +204,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const dy = event.clientY - dragStartRef.current.y;
       setOffsetX(dragStartRef.current.offsetX + dx);
       setOffsetY(dragStartRef.current.offsetY + dy);
-    } else if (!isManualColoringMode) {
+    } else if (isManualColoringMode) {
+      // 手动模式下也传递交互信息（用于实时绘制）
+      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
+    } else {
       // 非手动模式下：显示tooltip
       onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
     }
@@ -217,16 +220,22 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     onInteraction(0, 0, 0, 0, false, true);
   };
 
-  // 鼠标按下：开始拖拽（仅在非手动模式）
+  // 鼠标按下
   const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
-    if (!isManualColoringMode && event.button === 0) {
-      setIsDragging(true);
-      dragStartRef.current = {
-        x: event.clientX,
-        y: event.clientY,
-        offsetX: offsetX,
-        offsetY: offsetY
-      };
+    if (event.button === 0) {
+      if (isManualColoringMode) {
+        // 手动模式下，直接执行操作
+        onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
+      } else {
+        // 非手动模式下，开始拖拽
+        setIsDragging(true);
+        dragStartRef.current = {
+          x: event.clientX,
+          y: event.clientY,
+          offsetX: offsetX,
+          offsetY: offsetY
+        };
+      }
     }
   };
 
@@ -235,12 +244,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     if (isDragging) {
       setIsDragging(false);
       dragStartRef.current = null;
-    } else if (isManualColoringMode) {
-      // 手动模式下，执行上色操作
-      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
-    } else {
-      // 非手动模式下，切换tooltip
-      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
     }
   };
 
