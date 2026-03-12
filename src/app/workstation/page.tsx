@@ -81,8 +81,14 @@ export default function Workstation() {
   
   // 图片和像素化状态
   const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
-  const [granularity, setGranularity] = useState<number>(100);
-  const [granularityInput, setGranularityInput] = useState<string>("100");
+  // 图纸尺寸：宽和高
+  const [gridWidth, setGridWidth] = useState<number>(100);
+  const [gridHeight, setGridHeight] = useState<number>(100);
+  const [gridWidthInput, setGridWidthInput] = useState<string>("100");
+  const [gridHeightInput, setGridHeightInput] = useState<string>("100");
+  const [aspectRatioLocked, setAspectRatioLocked] = useState<boolean>(true); // 是否锁定宽高比
+  const [originalAspectRatio, setOriginalAspectRatio] = useState<number | null>(null); // 原始图片宽高比
+  
   const [similarityThreshold, setSimilarityThreshold] = useState<number>(30);
   const [similarityThresholdInput, setSimilarityThresholdInput] = useState<string>("30");
   const [pixelationMode, setPixelationMode] = useState<PixelationMode>(PixelationMode.Dominant);
@@ -227,9 +233,10 @@ export default function Workstation() {
 
   // 同步输入框值
   useEffect(() => {
-    setGranularityInput(granularity.toString());
+    setGridWidthInput(gridWidth.toString());
+    setGridHeightInput(gridHeight.toString());
     setSimilarityThresholdInput(similarityThreshold.toString());
-  }, [granularity, similarityThreshold]);
+  }, [gridWidth, gridHeight, similarityThreshold]);
 
   // 设置组件挂载状态
   useEffect(() => {
@@ -248,7 +255,8 @@ export default function Workstation() {
   // 像素化处理函数
   const pixelateImage = useCallback((
     imageSrc: string,
-    detailLevel: number,
+    widthCells: number,
+    heightCells: number,
     threshold: number,
     currentPalette: PaletteColor[],
     mode: PixelationMode
@@ -283,9 +291,13 @@ export default function Workstation() {
     };
     
     img.onload = () => {
+      // 保存原始宽高比
       const aspectRatio = img.height / img.width;
-      const N = detailLevel;
-      const M = Math.max(1, Math.round(N * aspectRatio));
+      setOriginalAspectRatio(aspectRatio);
+      
+      // 使用用户指定的宽和高
+      const N = widthCells;
+      const M = heightCells;
       if (N <= 0 || M <= 0) return;
 
       // 设置画布尺寸
@@ -303,7 +315,8 @@ export default function Workstation() {
         outputWidth = Math.max(outputWidth, requiredWidthForMinSize);
       }
       
-      const outputHeight = Math.round(outputWidth * aspectRatio);
+      // 根据用户指定的网格比例计算输出高度
+      const outputHeight = Math.round(outputWidth * (M / N));
       
       originalCanvas.width = img.width;
       originalCanvas.height = img.height;
@@ -423,13 +436,13 @@ export default function Workstation() {
     if (originalImageSrc && activeBeadPalette.length > 0) {
       const timeoutId = setTimeout(() => {
         if (originalImageSrc && originalCanvasRef.current && pixelatedCanvasRef.current && activeBeadPalette.length > 0) {
-          pixelateImage(originalImageSrc, granularity, similarityThreshold, activeBeadPalette, pixelationMode);
+          pixelateImage(originalImageSrc, gridWidth, gridHeight, similarityThreshold, activeBeadPalette, pixelationMode);
         }
       }, 50);
       return () => clearTimeout(timeoutId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originalImageSrc, granularity, similarityThreshold, customPaletteSelections, pixelationMode, remapTrigger]);
+  }, [originalImageSrc, gridWidth, gridHeight, similarityThreshold, customPaletteSelections, pixelationMode, remapTrigger]);
 
   // 文件输入触发函数
   const triggerFileInput = useCallback(() => {
@@ -472,8 +485,12 @@ export default function Workstation() {
   }, []);
 
   // 参数输入处理
-  const handleGranularityInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setGranularityInput(e.target.value);
+  const handleGridWidthInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setGridWidthInput(e.target.value);
+  }, []);
+
+  const handleGridHeightInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setGridHeightInput(e.target.value);
   }, []);
 
   const handleSimilarityThresholdInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -481,14 +498,23 @@ export default function Workstation() {
   }, []);
 
   const handleConfirmParameters = useCallback(() => {
-    const minGranularity = 10;
-    const maxGranularity = 300;
-    let newGranularity = parseInt(granularityInput, 10);
+    const minGrid = 10;
+    const maxGrid = 300;
+    
+    // 处理宽度
+    let newWidth = parseInt(gridWidthInput, 10);
+    if (isNaN(newWidth) || newWidth < minGrid) {
+      newWidth = minGrid;
+    } else if (newWidth > maxGrid) {
+      newWidth = maxGrid;
+    }
 
-    if (isNaN(newGranularity) || newGranularity < minGranularity) {
-      newGranularity = minGranularity;
-    } else if (newGranularity > maxGranularity) {
-      newGranularity = maxGranularity;
+    // 处理高度
+    let newHeight = parseInt(gridHeightInput, 10);
+    if (isNaN(newHeight) || newHeight < minGrid) {
+      newHeight = minGrid;
+    } else if (newHeight > maxGrid) {
+      newHeight = maxGrid;
     }
 
     const minSimilarity = 0;
@@ -501,11 +527,12 @@ export default function Workstation() {
       newSimilarity = maxSimilarity;
     }
 
-    const granularityChanged = newGranularity !== granularity;
+    const gridChanged = newWidth !== gridWidth || newHeight !== gridHeight;
     const similarityChanged = newSimilarity !== similarityThreshold;
     
-    if (granularityChanged) {
-      setGranularity(newGranularity);
+    if (gridChanged) {
+      setGridWidth(newWidth);
+      setGridHeight(newHeight);
     }
     
     if (similarityChanged) {
@@ -513,15 +540,16 @@ export default function Workstation() {
     }
     
     // 只有在有值变化时才触发重映射
-    if (granularityChanged || similarityChanged) {
+    if (gridChanged || similarityChanged) {
       setRemapTrigger(prev => prev + 1);
       setIsManualColoringMode(false);
       setSelectedColor(null);
     }
 
-    setGranularityInput(newGranularity.toString());
+    setGridWidthInput(newWidth.toString());
+    setGridHeightInput(newHeight.toString());
     setSimilarityThresholdInput(newSimilarity.toString());
-  }, [granularityInput, similarityThresholdInput, granularity, similarityThreshold]);
+  }, [gridWidthInput, gridHeightInput, similarityThresholdInput, gridWidth, gridHeight, similarityThreshold]);
 
   // 像素化模式变更
   const handlePixelationModeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
@@ -1051,15 +1079,34 @@ export default function Workstation() {
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">处理参数</h3>
               
               <div>
-                <label className="text-xs text-gray-600 dark:text-gray-400">横轴切割数量 (10-300):</label>
-                <input
-                  type="number"
-                  value={granularityInput}
-                  onChange={handleGranularityInputChange}
-                  className="w-full mt-1 p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  min="10"
-                  max="300"
-                />
+                <label className="text-xs text-gray-600 dark:text-gray-400">图纸尺寸 (10-300):</label>
+                <div className="flex gap-2 mt-1">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={gridWidthInput}
+                      onChange={handleGridWidthInputChange}
+                      placeholder="宽"
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      min="10"
+                      max="300"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">宽</span>
+                  </div>
+                  <span className="flex items-center text-gray-400">×</span>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={gridHeightInput}
+                      onChange={handleGridHeightInputChange}
+                      placeholder="高"
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      min="10"
+                      max="300"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block text-center">高</span>
+                  </div>
+                </div>
               </div>
               
               <div>

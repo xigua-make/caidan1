@@ -117,6 +117,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   
+  // 容器引用，用于计算居中位置
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
   // 触摸缩放相关
   const touchDistanceRef = useRef<number | null>(null);
   const touchCenterRef = useRef<{ x: number; y: number } | null>(null);
@@ -168,12 +172,27 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   }, [highlightColorKey, mappedPixelData, gridDimensions, onHighlightComplete]);
 
-  // 重置缩放和偏移（当图片改变时）
+  // 重置缩放和偏移（当图片改变时）- 居中显示
   useEffect(() => {
-    setScale(1);
-    setOffsetX(0);
-    setOffsetY(0);
-  }, [mappedPixelData]);
+    if (mappedPixelData && gridDimensions && canvasRef.current && containerRef.current) {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // 计算居中偏移
+      const newOffsetX = (containerWidth - canvasWidth) / 2;
+      const newOffsetY = (containerHeight - canvasHeight) / 2;
+      
+      setScale(1);
+      setOffsetX(newOffsetX);
+      setOffsetY(newOffsetY);
+      setIsInitialized(true);
+    }
+  }, [mappedPixelData, gridDimensions]);
 
   // --- 鼠标事件处理 ---
   
@@ -359,6 +378,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   return (
     <div
+      ref={containerRef}
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
