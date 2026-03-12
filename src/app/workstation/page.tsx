@@ -78,6 +78,128 @@ function sortColorKeys(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
+// 西瓜预览组件 - 支持拖拽和缩放
+function WatermelonPreview() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // 处理鼠标按下
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+  
+  // 处理鼠标移动
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  }, [isDragging, dragStart]);
+  
+  // 处理鼠标释放
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+  
+  // 处理滚轮缩放
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setScale(prev => Math.max(0.5, Math.min(3, prev + delta)));
+  }, []);
+  
+  // 添加事件监听
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+    }
+    
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleWheel);
+      }
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp, handleWheel]);
+  
+  return (
+    <div 
+      ref={containerRef}
+      className="h-full min-h-[400px] flex flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-green-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-lg overflow-hidden relative select-none"
+    >
+      {/* 背景装饰 */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-10 left-10 w-20 h-20 bg-pink-400 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-32 h-32 bg-green-400 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-blue-400 rounded-full blur-3xl"></div>
+      </div>
+      
+      {/* 可拖拽的西瓜 */}
+      <div 
+        className="relative cursor-grab active:cursor-grabbing transition-transform"
+        style={{ 
+          transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        {/* 大西瓜 */}
+        <div className="relative w-64 h-64 sm:w-80 sm:h-80 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-2xl border-4 border-green-700 dark:border-green-800 overflow-hidden">
+          {/* 西瓜条纹 */}
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-0 left-[20%] w-2 h-16 bg-green-700/30 rounded-full"></div>
+            <div className="absolute top-0 left-[40%] w-2 h-20 bg-green-700/30 rounded-full"></div>
+            <div className="absolute top-0 left-[60%] w-2 h-14 bg-green-700/30 rounded-full"></div>
+            <div className="absolute top-0 right-[15%] w-1.5 h-12 bg-green-700/30 rounded-full"></div>
+          </div>
+          
+          {/* 红色果肉 */}
+          <div className="absolute bottom-2 left-2 right-2 h-52 sm:h-64 bg-gradient-to-b from-red-400 to-red-500 rounded-b-full">
+            {/* 西瓜籽 */}
+            <div className="absolute top-6 left-8 w-4 h-6 bg-gray-900 rounded-full rotate-45"></div>
+            <div className="absolute top-12 left-16 w-4 h-6 bg-gray-900 rounded-full -rotate-12"></div>
+            <div className="absolute top-8 right-8 w-4 h-6 bg-gray-900 rounded-full rotate-12"></div>
+            <div className="absolute top-16 right-16 w-4 h-6 bg-gray-900 rounded-full -rotate-45"></div>
+            <div className="absolute top-20 left-1/2 w-4 h-6 bg-gray-900 rounded-full"></div>
+            <div className="absolute top-28 left-12 w-3 h-5 bg-gray-900 rounded-full rotate-30"></div>
+            <div className="absolute top-24 right-12 w-3 h-5 bg-gray-900 rounded-full -rotate-20"></div>
+            <div className="absolute top-32 left-1/3 w-3 h-5 bg-gray-900 rounded-full rotate-15"></div>
+            <div className="absolute top-36 right-1/3 w-3 h-5 bg-gray-900 rounded-full -rotate-10"></div>
+          </div>
+        </div>
+        
+        {/* 装饰星星 */}
+        <div className="absolute -top-4 -right-4 w-6 h-6 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-ping"></div>
+        <div className="absolute -bottom-4 -left-4 w-5 h-5 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full animate-bounce"></div>
+        <div className="absolute top-0 -left-3 w-3 h-3 bg-gradient-to-br from-green-400 to-teal-500 rotate-45 animate-pulse"></div>
+        <div className="absolute -top-2 right-8 w-2 h-2 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full animate-spin"></div>
+      </div>
+      
+      {/* 提示文字 */}
+      <div className="absolute bottom-8 text-center">
+        <p className="text-sm text-gray-400 dark:text-gray-500">
+          🎨 点击顶部「导入」按钮开始创作
+        </p>
+        <p className="text-xs text-gray-300 dark:text-gray-600 mt-1">
+          可拖拽/滚轮缩放预览图
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // 从colorSystemMapping.json获取所有MARD色号
 const mardToHexMapping = getMardToHexMapping();
 
@@ -1923,16 +2045,24 @@ export default function Workstation() {
       {/* 顶部导航栏 */}
       <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex items-center justify-between px-4 py-2">
-          {/* 左侧 Logo */}
+          {/* 左侧 Logo - 西瓜图标 */}
           <div className="flex items-center gap-3">
-            <div className="grid grid-cols-4 gap-0.5 p-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-              {['bg-red-400', 'bg-blue-400', 'bg-yellow-400', 'bg-green-400',
-                'bg-purple-400', 'bg-pink-400', 'bg-orange-400', 'bg-teal-400',
-                'bg-indigo-400', 'bg-cyan-400', 'bg-lime-400', 'bg-amber-400',
-                'bg-rose-400', 'bg-sky-400', 'bg-emerald-400', 'bg-violet-400'].map((color, i) => (
-                <div key={i} className={`w-2.5 h-2.5 rounded-full ${color}`}></div>
-              ))}
-            </div>
+            <a href="/" className="relative w-10 h-10 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-lg border-2 border-green-700 dark:border-green-800 overflow-hidden hover:scale-105 transition-transform">
+              {/* Watermelon stripes */}
+              <div className="absolute top-0 left-0 w-full h-full">
+                <div className="absolute top-0 left-1/4 w-0.5 h-2.5 bg-green-700/30 rounded-full"></div>
+                <div className="absolute top-0 left-1/2 w-0.5 h-3 bg-green-700/30 rounded-full"></div>
+                <div className="absolute top-0 right-1/4 w-0.5 h-2 bg-green-700/30 rounded-full"></div>
+              </div>
+              {/* Red flesh */}
+              <div className="absolute bottom-0.5 left-0.5 right-0.5 h-7 bg-gradient-to-b from-red-400 to-red-500 rounded-b-full">
+                {/* Seeds */}
+                <div className="absolute top-1.5 left-1.5 w-1 h-1.5 bg-gray-900 rounded-full rotate-45"></div>
+                <div className="absolute top-3 left-3 w-1 h-1.5 bg-gray-900 rounded-full -rotate-12"></div>
+                <div className="absolute top-2 right-1.5 w-1 h-1.5 bg-gray-900 rounded-full rotate-12"></div>
+                <div className="absolute top-4 right-3 w-1 h-1.5 bg-gray-900 rounded-full -rotate-45"></div>
+              </div>
+            </a>
             <div className="flex flex-col">
               <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
                 小瓜
@@ -1978,12 +2108,6 @@ export default function Workstation() {
           {/* 右侧功能按钮 */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsCustomPaletteEditorOpen(true)}
-              className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              {selectedColorSystem} {activeBeadPalette.length}
-            </button>
-            <button
               onClick={triggerFileInput}
               className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
             >
@@ -2005,22 +2129,8 @@ export default function Workstation() {
         {/* 左侧画布区域 */}
         <main ref={mainRef} className="flex-1 overflow-auto p-4">
           {!originalImageSrc ? (
-            /* 上传区域 */
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragOver}
-              onClick={isMounted ? triggerFileInput : undefined}
-              className={`h-full min-h-[400px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center ${
-                isMounted ? 'cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-800' : 'cursor-wait'
-              } transition-all duration-300`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-lg text-gray-500 dark:text-gray-400 mb-2">拖放图片到此处，或点击选择文件</p>
-              <p className="text-sm text-gray-400 dark:text-gray-500">支持 JPG, PNG 图片格式</p>
-            </div>
+            /* 预览区域 - 西瓜Logo */
+            <WatermelonPreview />
           ) : (
             /* 画布显示区域 */
             <div className="h-full flex flex-col">
