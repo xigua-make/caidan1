@@ -40,6 +40,30 @@ import { TRANSPARENT_KEY, transparentColorData } from '../../utils/pixelEditingU
 // 工作台模式类型
 type WorkstationMode = 'auto' | 'manual' | 'focus';
 
+// 工具类型
+type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move';
+
+// 镜像模式类型
+interface MirrorMode {
+  horizontal: boolean;
+  vertical: boolean;
+}
+
+// 选区类型
+interface Selection {
+  startRow: number;
+  startCol: number;
+  endRow: number;
+  endCol: number;
+}
+
+// 剪贴板类型
+interface Clipboard {
+  width: number;
+  height: number;
+  pixels: { row: number; col: number; pixel: MappedPixel }[];
+}
+
 // Helper function for sorting color keys
 function sortColorKeys(a: string, b: string): number {
   const regex = /^([A-Z]+)(\d+)$/;
@@ -116,6 +140,23 @@ export default function Workstation() {
   const [isManualColoringMode, setIsManualColoringMode] = useState<boolean>(false);
   const [selectedColor, setSelectedColor] = useState<MappedPixel | null>(null);
   const [isEraseMode, setIsEraseMode] = useState<boolean>(false);
+  
+  // 手动编辑工具状态
+  const [currentTool, setCurrentTool] = useState<ToolType>('brush');
+  
+  // 笔刷大小
+  const [brushSize, setBrushSize] = useState<number>(1);
+  
+  // 历史记录（撤销/重做）
+  const [history, setHistory] = useState<MappedPixel[][][]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  
+  // 选区状态
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [clipboard, setClipboard] = useState<Clipboard | null>(null);
+  
+  // 镜像模式
+  const [mirrorMode, setMirrorMode] = useState<MirrorMode>({ horizontal: false, vertical: false });
   
   // 参考图层状态
   const [referenceOpacity, setReferenceOpacity] = useState<number>(25);
@@ -434,7 +475,65 @@ export default function Workstation() {
     img.src = imageSrc;
     setIsManualColoringMode(false);
     setSelectedColor(null);
+    
+    // 重置历史记录
+    setHistory([]);
+    setHistoryIndex(-1);
   }, [TRANSPARENT_KEY]);
+
+  // 重新计算颜色计数
+  const recalculateColorCounts = useCallback((data: MappedPixel[][]) => {
+    const counts: { [key: string]: { count: number; color: string } } = {};
+    let total = 0;
+    
+    data.flat().forEach(cell => {
+      if (cell && cell.color && !cell.isExternal) {
+        const key = cell.key;
+        if (!counts[key]) {
+          counts[key] = { count: 0, color: cell.color };
+        }
+        counts[key].count++;
+        total++;
+      }
+    });
+    
+    setColorCounts(counts);
+    setTotalBeadCount(total);
+  }, []);
+
+  // 保存历史记录
+  const saveToHistory = useCallback((data: MappedPixel[][]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(data.map(row => row.map(cell => ({ ...cell }))));
+    // 限制历史记录数量
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    }
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
+  // 撤销
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const prevData = history[newIndex];
+      setMappedPixelData(prevData.map(row => row.map(cell => ({ ...cell }))));
+      recalculateColorCounts(prevData);
+    }
+  }, [history, historyIndex, recalculateColorCounts]);
+
+  // 重做
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const nextData = history[newIndex];
+      setMappedPixelData(nextData.map(row => row.map(cell => ({ ...cell }))));
+      recalculateColorCounts(nextData);
+    }
+  }, [history, historyIndex, recalculateColorCounts]);
 
   // 图片变化时触发像素化
   // 注意：依赖 customPaletteSelections 而不是 activeBeadPalette，避免排除颜色时触发重新像素化
@@ -558,6 +657,397 @@ export default function Workstation() {
   }, [gridWidthInput, gridHeightInput, similarityThresholdInput, gridWidth, gridHeight, similarityThreshold]);
 
   // 像素化模式变更
+  // 绘制单个像素（带镜像模式支持）
+  const drawPixelWithMirror = useCallback((pixelData: MappedPixel[][], row: number, col: number, color: string | null) => {
+    const newPixelData = [...pixelData];
+    const height = pixelData.length;
+    const width = pixelData[0]?.length || 0;
+    
+    // 应用颜色
+    const applyColor = (r: number, c: number) => {
+      if (r >= 0 && r < height && c >= 0 && c < width) {
+        newPixelData[r] = [...newPixelData[r]];
+        if (color === null) {
+          // 删除像素（透明）
+          newPixelData[r][c] = { ...transparentColorData };
+        } else {
+          const key = getColorKeyByHex(color, selectedColorSystem);
+          newPixelData[r][c] = {
+            ...newPixelData[r][c],
+            color,
+            key
+          };
+        }
+      }
+    };
+    
+    // 原始位置
+    applyColor(row, col);
+    
+    // 水平镜像
+    if (mirrorMode.horizontal) {
+      applyColor(row, width - 1 - col);
+    }
+    
+    // 垂直镜像
+    if (mirrorMode.vertical) {
+      applyColor(height - 1 - row, col);
+    }
+    
+    // 对角镜像（同时开启水平和垂直）
+    if (mirrorMode.horizontal && mirrorMode.vertical) {
+      applyColor(height - 1 - row, width - 1 - col);
+    }
+    
+    return newPixelData;
+  }, [selectedColorSystem, mirrorMode]);
+
+  // 绘制直线（Bresenham算法）
+  const drawLine = useCallback((
+    pixelData: MappedPixel[][],
+    startRow: number,
+    startCol: number,
+    endRow: number,
+    endCol: number,
+    color: string | null
+  ) => {
+    let newPixelData = [...pixelData];
+    const dx = Math.abs(endCol - startCol);
+    const dy = Math.abs(endRow - startRow);
+    const sx = startCol < endCol ? 1 : -1;
+    const sy = startRow < endRow ? 1 : -1;
+    let err = dx - dy;
+    let currentCol = startCol;
+    let currentRow = startRow;
+
+    while (true) {
+      newPixelData = drawPixelWithMirror(newPixelData, currentRow, currentCol, color);
+      
+      if (currentCol === endCol && currentRow === endRow) break;
+      
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        currentCol += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        currentRow += sy;
+      }
+    }
+    
+    return newPixelData;
+  }, [drawPixelWithMirror]);
+
+  // 绘制矩形
+  const drawRectangle = useCallback((
+    pixelData: MappedPixel[][],
+    startRow: number,
+    startCol: number,
+    endRow: number,
+    endCol: number,
+    color: string | null
+  ) => {
+    let newPixelData = [...pixelData];
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minCol = Math.min(startCol, endCol);
+    const maxCol = Math.max(startCol, endCol);
+    
+    // 绘制四条边
+    for (let col = minCol; col <= maxCol; col++) {
+      newPixelData = drawPixelWithMirror(newPixelData, minRow, col, color);
+      newPixelData = drawPixelWithMirror(newPixelData, maxRow, col, color);
+    }
+    for (let row = minRow; row <= maxRow; row++) {
+      newPixelData = drawPixelWithMirror(newPixelData, row, minCol, color);
+      newPixelData = drawPixelWithMirror(newPixelData, row, maxCol, color);
+    }
+    
+    return newPixelData;
+  }, [drawPixelWithMirror]);
+
+  // 处理手动绘制
+  const handleManualDraw = useCallback((row: number, col: number) => {
+    if (!mappedPixelData) return;
+    
+    // 保存历史记录
+    saveToHistory(mappedPixelData);
+    
+    let newPixelData = [...mappedPixelData];
+    const height = mappedPixelData.length;
+    const width = mappedPixelData[0]?.length || 0;
+    
+    // 根据当前工具处理
+    switch (currentTool) {
+      case 'brush':
+        // 画笔：绘制笔刷范围内的所有像素
+        for (let dr = -(brushSize - 1); dr < brushSize; dr++) {
+          for (let dc = -(brushSize - 1); dc < brushSize; dc++) {
+            const nr = row + dr;
+            const nc = col + dc;
+            if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
+              newPixelData = drawPixelWithMirror(newPixelData, nr, nc, selectedColor?.color || null);
+            }
+          }
+        }
+        break;
+        
+      case 'eraser':
+        // 橡皮擦：清除笔刷范围内的所有像素
+        for (let dr = -(brushSize - 1); dr < brushSize; dr++) {
+          for (let dc = -(brushSize - 1); dc < brushSize; dc++) {
+            const nr = row + dr;
+            const nc = col + dc;
+            if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
+              newPixelData = drawPixelWithMirror(newPixelData, nr, nc, null);
+            }
+          }
+        }
+        break;
+        
+      case 'picker':
+        // 取色器：获取点击位置的颜色并设为当前颜色
+        if (row >= 0 && row < height && col >= 0 && col < width) {
+          const pixel = mappedPixelData[row][col];
+          if (pixel.color) {
+            setSelectedColor({ key: pixel.key || '', color: pixel.color, isExternal: false });
+            setCurrentTool('brush'); // 切换回画笔工具
+          }
+        }
+        return; // 取色不修改数据
+        
+      case 'fill':
+        // 填充：使用洪水填充算法
+        if (row >= 0 && row < height && col >= 0 && col < width) {
+          const targetColor = mappedPixelData[row][col].color;
+          const fillColor = selectedColor?.color || null;
+          
+          if (targetColor !== fillColor) {
+            const stack = [[row, col]];
+            const visited = new Set<string>();
+            
+            while (stack.length > 0) {
+              const [r, c] = stack.pop()!;
+              const visitKey = `${r},${c}`;
+              
+              if (visited.has(visitKey)) continue;
+              if (r < 0 || r >= height || c < 0 || c >= width) continue;
+              if (mappedPixelData[r][c].color !== targetColor) continue;
+              
+              visited.add(visitKey);
+              
+              // 填充当前像素（不使用镜像）
+              newPixelData[r] = [...newPixelData[r]];
+              if (fillColor) {
+                const colorKey = getColorKeyByHex(fillColor, selectedColorSystem);
+                newPixelData[r][c] = { ...newPixelData[r][c], color: fillColor, key: colorKey };
+              } else {
+                newPixelData[r][c] = { ...transparentColorData };
+              }
+              
+              // 添加相邻像素
+              stack.push([r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]);
+            }
+          }
+        }
+        break;
+        
+      case 'line':
+      case 'rectangle':
+        // 直线和矩形在mouseup时处理
+        return;
+        
+      case 'select':
+        // 选择工具：创建选区
+        return;
+        
+      case 'move':
+        // 移动工具：在选区内移动
+        return;
+    }
+    
+    setMappedPixelData(newPixelData);
+    recalculateColorCounts(newPixelData);
+  }, [mappedPixelData, currentTool, brushSize, selectedColor, selectedColorSystem, mirrorMode, drawPixelWithMirror, recalculateColorCounts, saveToHistory]);
+
+  // 处理形状绘制（鼠标释放时）
+  const handleShapeDraw = useCallback((startRow: number, startCol: number, endRow: number, endCol: number) => {
+    if (!mappedPixelData) return;
+    
+    saveToHistory(mappedPixelData);
+    
+    let newPixelData = [...mappedPixelData];
+    
+    switch (currentTool) {
+      case 'line':
+        newPixelData = drawLine(newPixelData, startRow, startCol, endRow, endCol, selectedColor?.color || null);
+        break;
+        
+      case 'rectangle':
+        newPixelData = drawRectangle(newPixelData, startRow, startCol, endRow, endCol, selectedColor?.color || null);
+        break;
+        
+      case 'select':
+        // 创建选区
+        const minRow = Math.min(startRow, endRow);
+        const maxRow = Math.max(startRow, endRow);
+        const minCol = Math.min(startCol, endCol);
+        const maxCol = Math.max(startCol, endCol);
+        
+        setSelection({
+          startRow: minRow,
+          startCol: minCol,
+          endRow: maxRow,
+          endCol: maxCol
+        });
+        return; // 选择不修改数据
+    }
+    
+    setMappedPixelData(newPixelData);
+    recalculateColorCounts(newPixelData);
+  }, [mappedPixelData, currentTool, selectedColor, drawLine, drawRectangle, recalculateColorCounts, saveToHistory]);
+
+  // 处理选区复制
+  const handleCopySelection = useCallback(() => {
+    if (!selection || !mappedPixelData) return;
+    
+    const copiedPixels: { row: number; col: number; pixel: MappedPixel }[] = [];
+    
+    for (let r = selection.startRow; r <= selection.endRow; r++) {
+      for (let c = selection.startCol; c <= selection.endCol; c++) {
+        if (mappedPixelData[r] && mappedPixelData[r][c]) {
+          copiedPixels.push({
+            row: r - selection.startRow,
+            col: c - selection.startCol,
+            pixel: { ...mappedPixelData[r][c] }
+          });
+        }
+      }
+    }
+    
+    setClipboard({
+      width: selection.endCol - selection.startCol + 1,
+      height: selection.endRow - selection.startRow + 1,
+      pixels: copiedPixels
+    });
+  }, [selection, mappedPixelData]);
+
+  // 处理选区剪切
+  const handleCutSelection = useCallback(() => {
+    if (!selection || !mappedPixelData) return;
+    
+    saveToHistory(mappedPixelData);
+    
+    // 先复制
+    handleCopySelection();
+    
+    // 再清除选区内容
+    const newPixelData = mappedPixelData.map(row => row.map(pixel => ({ ...pixel })));
+    
+    for (let r = selection.startRow; r <= selection.endRow; r++) {
+      for (let c = selection.startCol; c <= selection.endCol; c++) {
+        if (newPixelData[r] && newPixelData[r][c]) {
+          newPixelData[r][c] = { ...transparentColorData };
+        }
+      }
+    }
+    
+    setMappedPixelData(newPixelData);
+    recalculateColorCounts(newPixelData);
+  }, [selection, mappedPixelData, handleCopySelection, saveToHistory, recalculateColorCounts]);
+
+  // 处理选区粘贴
+  const handlePasteSelection = useCallback(() => {
+    if (!clipboard || !mappedPixelData) return;
+    
+    saveToHistory(mappedPixelData);
+    
+    const newPixelData = mappedPixelData.map(row => row.map(pixel => ({ ...pixel })));
+    const pasteRow = selection?.startRow || 0;
+    const pasteCol = selection?.startCol || 0;
+    
+    clipboard.pixels.forEach(({ row, col, pixel }) => {
+      const targetRow = pasteRow + row;
+      const targetCol = pasteCol + col;
+      
+      if (targetRow >= 0 && targetRow < newPixelData.length &&
+          targetCol >= 0 && targetCol < newPixelData[0].length) {
+        newPixelData[targetRow][targetCol] = { ...pixel };
+      }
+    });
+    
+    setMappedPixelData(newPixelData);
+    recalculateColorCounts(newPixelData);
+  }, [clipboard, mappedPixelData, selection, saveToHistory, recalculateColorCounts]);
+
+  // 处理选区清空
+  const handleClearSelection = useCallback(() => {
+    if (!selection || !mappedPixelData) return;
+    
+    saveToHistory(mappedPixelData);
+    
+    const newPixelData = mappedPixelData.map(row => row.map(pixel => ({ ...pixel })));
+    
+    for (let r = selection.startRow; r <= selection.endRow; r++) {
+      for (let c = selection.startCol; c <= selection.endCol; c++) {
+        if (newPixelData[r] && newPixelData[r][c]) {
+          newPixelData[r][c] = { ...transparentColorData };
+        }
+      }
+    }
+    
+    setMappedPixelData(newPixelData);
+    recalculateColorCounts(newPixelData);
+  }, [selection, mappedPixelData, saveToHistory, recalculateColorCounts]);
+
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 撤销: Ctrl+Z
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+      // 重做: Ctrl+Y 或 Ctrl+Shift+Z
+      if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) {
+        e.preventDefault();
+        handleRedo();
+      }
+      // 复制: Ctrl+C
+      if (e.ctrlKey && e.key === 'c') {
+        e.preventDefault();
+        handleCopySelection();
+      }
+      // 剪切: Ctrl+X
+      if (e.ctrlKey && e.key === 'x') {
+        e.preventDefault();
+        handleCutSelection();
+      }
+      // 粘贴: Ctrl+V
+      if (e.ctrlKey && e.key === 'v') {
+        e.preventDefault();
+        handlePasteSelection();
+      }
+      // 工具快捷键
+      if (!e.ctrlKey && !e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case 'b': setCurrentTool('brush'); break;
+          case 'e': setCurrentTool('eraser'); break;
+          case 'i': setCurrentTool('picker'); break;
+          case 'g': setCurrentTool('fill'); break;
+          case 'l': setCurrentTool('line'); break;
+          case 'r': setCurrentTool('rectangle'); break;
+          case 's': setCurrentTool('select'); break;
+          case 'm': setCurrentTool('move'); break;
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo, handleCopySelection, handleCutSelection, handlePasteSelection]);
+
   const handlePixelationModeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
     const newMode = e.target.value as PixelationMode;
     if (Object.values(PixelationMode).includes(newMode)) {
@@ -766,26 +1256,6 @@ export default function Workstation() {
     setInitialGridColorKeys(new Set(Object.keys(newColorCounts)));
   }, [mappedPixelData, gridDimensions, TRANSPARENT_KEY]);
 
-  // 重新计算颜色计数
-  const recalculateColorCounts = useCallback((data: MappedPixel[][]) => {
-    const counts: { [key: string]: { count: number; color: string } } = {};
-    let total = 0;
-    
-    data.flat().forEach(cell => {
-      if (cell && cell.color && !cell.isExternal) {
-        const key = cell.key;
-        if (!counts[key]) {
-          counts[key] = { count: 0, color: cell.color };
-        }
-        counts[key].count++;
-        total++;
-      }
-    });
-    
-    setColorCounts(counts);
-    setTotalBeadCount(total);
-  }, []);
-
   // 画布交互处理
   const handleCanvasInteraction = useCallback((
     clientX: number,
@@ -834,24 +1304,95 @@ export default function Workstation() {
         return;
       }
 
-      // 手动上色模式
-      if (isClick && isManualColoringMode && selectedColor) {
+      // 手动编辑模式
+      if (isClick && isManualColoringMode) {
         const newPixelData = mappedPixelData.map(row => row.map(cell => ({ ...cell })));
-        const currentCell = newPixelData[j]?.[i];
-
-        if (!currentCell) return;
-
-        const previousKey = currentCell.key;
-        const wasExternal = currentCell.isExternal;
         
-        let newCellData: MappedPixel;
+        // 取色工具
+        if (currentTool === 'picker') {
+          if (cellData && !cellData.isExternal && cellData.color) {
+            const displayKey = getColorKeyByHex(cellData.color, selectedColorSystem);
+            setSelectedColor({ key: displayKey, color: cellData.color, isExternal: false });
+            setCurrentTool('brush'); // 取色后自动切换回画笔
+          }
+          setTooltipData(null);
+          return;
+        }
         
-        if (selectedColor.key === TRANSPARENT_KEY) {
-          newCellData = { ...transparentColorData };
-        } else if (isEraseMode) {
-          // 区域擦除模式：洪水填充擦除相同颜色的格子
-          const targetKey = currentCell.key;
-          if (targetKey === TRANSPARENT_KEY || currentCell.isExternal) return;
+        // 填充工具
+        if (currentTool === 'fill' && selectedColor) {
+          const targetColor = cellData?.color?.toUpperCase();
+          const fillColor = selectedColor.color.toUpperCase();
+          if (targetColor === fillColor) return; // 颜色相同不需要填充
+          
+          const visited = Array(M).fill(null).map(() => Array(N).fill(false));
+          const stack = [{ row: j, col: i }];
+          
+          while (stack.length > 0) {
+            const { row, col } = stack.pop()!;
+            if (row < 0 || row >= M || col < 0 || col >= N || visited[row][col]) continue;
+            
+            const cell = newPixelData[row][col];
+            const cellColor = cell?.color?.toUpperCase();
+            if (!cell || cell.isExternal || cellColor !== targetColor) continue;
+            
+            visited[row][col] = true;
+            newPixelData[row][col] = { key: selectedColor.key, color: selectedColor.color, isExternal: false };
+            
+            stack.push({ row: row - 1, col });
+            stack.push({ row: row + 1, col });
+            stack.push({ row, col: col - 1 });
+            stack.push({ row, col: col + 1 });
+          }
+          
+          setMappedPixelData(newPixelData);
+          recalculateColorCounts(newPixelData);
+          saveToHistory(newPixelData);
+          setTooltipData(null);
+          return;
+        }
+        
+        // 画笔或橡皮擦
+        if ((currentTool === 'brush' || currentTool === 'eraser') && (selectedColor || currentTool === 'eraser')) {
+          // 应用笔刷大小
+          const halfSize = Math.floor(brushSize / 2);
+          let changed = false;
+          
+          for (let dj = -halfSize; dj <= halfSize; dj++) {
+            for (let di = -halfSize; di <= halfSize; di++) {
+              const ni = i + di;
+              const nj = j + dj;
+              if (ni >= 0 && ni < N && nj >= 0 && nj < M) {
+                const currentCell = newPixelData[nj][ni];
+                if (currentTool === 'eraser') {
+                  if (!currentCell.isExternal) {
+                    newPixelData[nj][ni] = { ...transparentColorData };
+                    changed = true;
+                  }
+                } else if (selectedColor) {
+                  const newCellData = { key: selectedColor.key, color: selectedColor.color, isExternal: false };
+                  if (currentCell.key !== newCellData.key || currentCell.isExternal !== newCellData.isExternal) {
+                    newPixelData[nj][ni] = newCellData;
+                    changed = true;
+                  }
+                }
+              }
+            }
+          }
+          
+          if (changed) {
+            setMappedPixelData(newPixelData);
+            recalculateColorCounts(newPixelData);
+            saveToHistory(newPixelData);
+          }
+          setTooltipData(null);
+          return;
+        }
+        
+        // 区域擦除模式（批量擦除相同颜色）
+        if (isEraseMode) {
+          const targetKey = cellData?.key;
+          if (!targetKey || targetKey === TRANSPARENT_KEY || cellData.isExternal) return;
           
           const visited = Array(M).fill(null).map(() => Array(N).fill(false));
           const stack = [{ row: j, col: i }];
@@ -874,22 +1415,11 @@ export default function Workstation() {
           
           setMappedPixelData(newPixelData);
           recalculateColorCounts(newPixelData);
+          saveToHistory(newPixelData);
           setIsEraseMode(false);
           setTooltipData(null);
           return;
-        } else {
-          newCellData = { ...selectedColor, isExternal: false };
         }
-
-        // 只有状态变化时才更新
-        if (newCellData.key !== previousKey || newCellData.isExternal !== wasExternal) {
-          newPixelData[j][i] = newCellData;
-          setMappedPixelData(newPixelData);
-          recalculateColorCounts(newPixelData);
-        }
-        
-        setTooltipData(null);
-        return;
       }
 
       // 更新tooltip
@@ -906,7 +1436,7 @@ export default function Workstation() {
     } else {
       setTooltipData(null);
     }
-  }, [mappedPixelData, gridDimensions, isEraseMode, isManualColoringMode, selectedColor, recalculateColorCounts, colorReplaceState]);
+  }, [mappedPixelData, gridDimensions, isEraseMode, isManualColoringMode, selectedColor, recalculateColorCounts, colorReplaceState, currentTool, brushSize, saveToHistory, selectedColorSystem]);
 
   // 高亮完成处理
   const handleHighlightComplete = useCallback(() => {
@@ -1306,7 +1836,7 @@ export default function Workstation() {
             </div>
           ) : workstationMode === 'manual' ? (
             /* 手动编辑模式右侧栏 */
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
               {/* 参考图层模块 */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1335,6 +1865,269 @@ export default function Workstation() {
                     onChange={(e) => setReferenceOpacity(parseInt(e.target.value))}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                   />
+                </div>
+              </div>
+
+              {/* 分隔线 */}
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              {/* 工具栏模块 */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">绘图工具</h3>
+                
+                {/* 工具按钮网格 - 第一行：基础工具 */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {/* 画笔 */}
+                  <button
+                    onClick={() => setCurrentTool('brush')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'brush'
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    }`}
+                    title="画笔 (B)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    <span className="text-[10px]">画笔</span>
+                  </button>
+
+                  {/* 橡皮擦 */}
+                  <button
+                    onClick={() => setCurrentTool('eraser')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'eraser'
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                    }`}
+                    title="橡皮擦 (E)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span className="text-[10px]">橡皮</span>
+                  </button>
+
+                  {/* 取色器 */}
+                  <button
+                    onClick={() => setCurrentTool('picker')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'picker'
+                        ? 'bg-purple-500 text-white border-purple-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                    }`}
+                    title="取色器 (I)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                    <span className="text-[10px]">取色</span>
+                  </button>
+
+                  {/* 填充 */}
+                  <button
+                    onClick={() => setCurrentTool('fill')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'fill'
+                        ? 'bg-green-500 text-white border-green-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                    }`}
+                    title="填充 (G)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                    <span className="text-[10px]">填充</span>
+                  </button>
+                </div>
+
+                {/* 工具按钮网格 - 第二行：形状工具 */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {/* 直线 */}
+                  <button
+                    onClick={() => setCurrentTool('line')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'line'
+                        ? 'bg-indigo-500 text-white border-indigo-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                    }`}
+                    title="直线 (L)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20L20 4" />
+                    </svg>
+                    <span className="text-[10px]">直线</span>
+                  </button>
+
+                  {/* 矩形 */}
+                  <button
+                    onClick={() => setCurrentTool('rectangle')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'rectangle'
+                        ? 'bg-teal-500 text-white border-teal-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-teal-50 dark:hover:bg-teal-900/20'
+                    }`}
+                    title="矩形 (R)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                    </svg>
+                    <span className="text-[10px]">矩形</span>
+                  </button>
+
+                  {/* 选择 */}
+                  <button
+                    onClick={() => setCurrentTool('select')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'select'
+                        ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                    }`}
+                    title="选择 (S)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
+                    </svg>
+                    <span className="text-[10px]">选择</span>
+                  </button>
+
+                  {/* 移动 */}
+                  <button
+                    onClick={() => setCurrentTool('move')}
+                    className={`p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                      currentTool === 'move'
+                        ? 'bg-cyan-500 text-white border-cyan-500'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/20'
+                    }`}
+                    title="移动 (M)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                    <span className="text-[10px]">移动</span>
+                  </button>
+                </div>
+
+                {/* 笔刷大小调节 */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">笔刷大小</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{brushSize}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  />
+                </div>
+
+                {/* 镜像模式 */}
+                <div className="space-y-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">镜像模式</span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => setMirrorMode(prev => ({ ...prev, horizontal: !prev.horizontal }))}
+                      className={`p-2 rounded-lg border transition-all duration-200 text-xs ${
+                        mirrorMode.horizontal
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      水平镜像
+                    </button>
+                    <button
+                      onClick={() => setMirrorMode(prev => ({ ...prev, vertical: !prev.vertical }))}
+                      className={`p-2 rounded-lg border transition-all duration-200 text-xs ${
+                        mirrorMode.vertical
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      垂直镜像
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 分隔线 */}
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              {/* 选区操作 */}
+              {selection && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">选区操作</h3>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      onClick={handleCopySelection}
+                      className="p-2 rounded-lg border bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs"
+                      title="复制 (Ctrl+C)"
+                    >
+                      复制
+                    </button>
+                    <button
+                      onClick={handleCutSelection}
+                      className="p-2 rounded-lg border bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs"
+                      title="剪切 (Ctrl+X)"
+                    >
+                      剪切
+                    </button>
+                    <button
+                      onClick={handlePasteSelection}
+                      disabled={!clipboard}
+                      className="p-2 rounded-lg border bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="粘贴 (Ctrl+V)"
+                    >
+                      粘贴
+                    </button>
+                    <button
+                      onClick={handleClearSelection}
+                      className="p-2 rounded-lg border bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-800/30 text-xs"
+                    >
+                      清空
+                    </button>
+                    <button
+                      onClick={() => setSelection(null)}
+                      className="p-2 rounded-lg border bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs col-span-2"
+                    >
+                      取消选择
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 撤销/重做 */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">历史记录</h3>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={handleUndo}
+                    disabled={historyIndex <= 0}
+                    className="p-2 rounded-lg border bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                    title="撤销 (Ctrl+Z)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    撤销
+                  </button>
+                  <button
+                    onClick={handleRedo}
+                    disabled={historyIndex >= history.length - 1}
+                    className="p-2 rounded-lg border bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                    title="重做 (Ctrl+Y)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+                    </svg>
+                    重做
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  {historyIndex + 1} / {history.length}
                 </div>
               </div>
 
@@ -1384,21 +2177,6 @@ export default function Workstation() {
                     橡皮擦
                   </button>
 
-                  {/* 区域擦除按钮 */}
-                  <button
-                    onClick={handleEraseToggle}
-                    className={`flex-1 p-2 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1 text-xs ${
-                      isEraseMode
-                        ? 'bg-orange-500 text-white border-orange-500'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-orange-50 dark:hover:bg-orange-900/20'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    区域擦除
-                  </button>
-
                   {/* 颜色替换按钮 */}
                   <button
                     onClick={handleColorReplaceToggle}
@@ -1443,7 +2221,7 @@ export default function Workstation() {
                           }
                         }}
                         className={`group relative w-8 h-8 rounded border-2 transition-all hover:scale-110 ${
-                          isSelected && !isEraseMode
+                          isSelected && currentTool !== 'eraser'
                             ? 'border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700'
                             : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
@@ -1451,7 +2229,7 @@ export default function Workstation() {
                         title={`${displayKey} - ${hexColor}`}
                       >
                         {/* 选中指示器 */}
-                        {isSelected && !isEraseMode && (
+                        {isSelected && currentTool !== 'eraser' && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-2 h-2 bg-white rounded-full shadow-lg"></div>
                           </div>
@@ -1462,7 +2240,7 @@ export default function Workstation() {
                 </div>
                 
                 {/* 当前选中颜色显示 */}
-                {selectedColor && selectedColor.key !== TRANSPARENT_KEY && !isEraseMode && (
+                {selectedColor && selectedColor.key !== TRANSPARENT_KEY && currentTool !== 'eraser' && (
                   <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <div
                       className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600"
