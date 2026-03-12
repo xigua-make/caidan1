@@ -185,13 +185,12 @@ const drawColorLabels = (
   // 清除色号层
   ctx.clearRect(0, 0, outputWidth, outputHeight);
   
-  // 使用 CSS scale 缩放时，格子实际像素大小是固定的（baseCellSize = 6）
-  // 只有当 scale >= 1（放大时）才显示色号
-  // 注意：currentScale 在新实现中固定为 1，实际缩放由 CSS 处理
-  // 所以这里总是显示色号，让 CSS scale 处理视觉大小
-  const minCellSize = Math.min(cellWidthOutput, cellHeightOutput);
+  // 计算缩放后的实际格子大小（参考网站逻辑）
+  const actualCellWidth = cellWidthOutput * currentScale;
+  const actualCellHeight = cellHeightOutput * currentScale;
+  const minCellSize = Math.min(actualCellWidth, actualCellHeight);
   
-  // 如果格子太小就不显示色号（基础格子大小 < 6px 时不显示）
+  // 参考网站：如果格子实际大小小于6px就不显示色号
   if (minCellSize < 6) return;
 
   // 计算字体缩放因子（参考网站逻辑：根据纵横比调整）
@@ -522,15 +521,19 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const touchMovedRef = useRef<boolean>(false);
   const [isHighlighting, setIsHighlighting] = useState(false);
 
-  // 缩放和拖拽状态 - 参考网站的实现方式：使用 CSS scale 进行视觉缩放
+  // 缩放和拖拽状态 - 参考网站的实现方式
   const [scale, setScale] = useState(1);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isLocalDrawing, setIsLocalDrawing] = useState(false);
   
-  // 基础格子大小（画布像素尺寸固定，使用 CSS scale 缩放）
+  // 基础格子大小（参考网站使用固定值，缩放时画布尺寸变化）
   const baseCellSize = 6; // 每个格子的基础大小（像素）
+  
+  // 计算缩放后的画布尺寸
+  const scaledWidth = gridDimensions ? gridDimensions.N * baseCellSize * scale : 0;
+  const scaledHeight = gridDimensions ? gridDimensions.M * baseCellSize * scale : 0;
 
   const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   
@@ -594,17 +597,17 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas - 只在数据变化时绘制，scale 变化不触发重绘
+  // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      // 画布尺寸固定（基于基础格子大小）
+      // 缩放时重新设置画布尺寸
       const canvas = canvasRef.current;
-      const fixedWidth = gridDimensions.N * baseCellSize;
-      const fixedHeight = gridDimensions.M * baseCellSize;
+      const newWidth = gridDimensions.N * baseCellSize * scale;
+      const newHeight = gridDimensions.M * baseCellSize * scale;
       
-      if (canvas.width !== fixedWidth || canvas.height !== fixedHeight) {
-        canvas.width = fixedWidth;
-        canvas.height = fixedHeight;
+      if (canvas.width !== newWidth || canvas.height !== newHeight) {
+        canvas.width = newWidth;
+        canvas.height = newHeight;
       }
       
       drawPixelatedCanvas(
@@ -620,27 +623,26 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         gridLineColor
       );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, baseCellSize]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize]);
 
-  // Initialize preview canvas size - 只在网格尺寸变化时设置
+  // Initialize preview canvas size when scale changes
   useEffect(() => {
     if (canvasRef.current && previewCanvasRef.current && gridDimensions) {
-      const fixedWidth = gridDimensions.N * baseCellSize;
-      const fixedHeight = gridDimensions.M * baseCellSize;
-      previewCanvasRef.current.width = fixedWidth;
-      previewCanvasRef.current.height = fixedHeight;
+      const newWidth = gridDimensions.N * baseCellSize * scale;
+      const newHeight = gridDimensions.M * baseCellSize * scale;
+      previewCanvasRef.current.width = newWidth;
+      previewCanvasRef.current.height = newHeight;
     }
     // Initialize color label canvas size
     if (canvasRef.current && colorLabelCanvasRef.current && gridDimensions) {
-      const fixedWidth = gridDimensions.N * baseCellSize;
-      const fixedHeight = gridDimensions.M * baseCellSize;
-      colorLabelCanvasRef.current.width = fixedWidth;
-      colorLabelCanvasRef.current.height = fixedHeight;
+      const newWidth = gridDimensions.N * baseCellSize * scale;
+      const newHeight = gridDimensions.M * baseCellSize * scale;
+      colorLabelCanvasRef.current.width = newWidth;
+      colorLabelCanvasRef.current.height = newHeight;
     }
-  }, [gridDimensions, baseCellSize]);
+  }, [mappedPixelData, gridDimensions, scale, baseCellSize]);
 
-  // Draw color labels - 只在 showColorLabels 或数据变化时绘制，scale 不触发重绘
-  // 使用 CSS scale 缩放时，色号会随之缩放，不需要重绘
+  // Draw color labels when scale or showColorLabels changes
   useEffect(() => {
     if (mappedPixelData && gridDimensions && colorLabelCanvasRef.current && showColorLabels) {
       drawColorLabels(
@@ -648,7 +650,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         colorLabelCanvasRef.current,
         gridDimensions,
         selectedColorSystem,
-        1 // 使用固定 scale=1，因为 CSS scale 会处理缩放
+        scale
       );
     } else if (colorLabelCanvasRef.current) {
       // Clear color labels when disabled
@@ -657,7 +659,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
       }
     }
-  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem]);
+  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem, scale]);
 
   // Initialize reference canvas size
   useEffect(() => {
@@ -760,10 +762,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   useEffect(() => {
     if (gridDimensions && containerRef.current) {
       const container = containerRef.current;
-      // 画布像素尺寸固定为基础尺寸
-      const canvasWidth = gridDimensions.N * baseCellSize;
+      const canvasWidth = gridDimensions.N * baseCellSize; // 初始尺寸（scale=1）
       const canvasHeight = gridDimensions.M * baseCellSize;
-      // 居中显示
       const newOffsetX = (container.clientWidth - canvasWidth) / 2;
       const newOffsetY = (container.clientHeight - canvasHeight) / 2;
       setScale(1);
@@ -976,13 +976,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const headerSize = 20; // 坐标轴宽度/高度
   const coordinateBgColor = '#9CA3AF'; // 参考网站使用的颜色
   
-  // 画布的固定像素尺寸
-  const canvasPixelWidth = gridDimensions ? gridDimensions.N * baseCellSize : 0;
-  const canvasPixelHeight = gridDimensions ? gridDimensions.M * baseCellSize : 0;
-  
-  // 缩放后的显示尺寸
-  const canvasDisplayWidth = canvasPixelWidth * scale;
-  const canvasDisplayHeight = canvasPixelHeight * scale;
+  // 画布尺寸已经包含了缩放，直接使用
+  const canvasDisplayWidth = scaledWidth;
+  const canvasDisplayHeight = scaledHeight;
   
   // 计算每个格子的实际显示大小（缩放后的格子大小）
   const cellDisplayWidth = baseCellSize * scale;
@@ -1072,11 +1068,12 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="absolute top-0 left-0 pointer-events-none"
         style={{
           imageRendering: 'pixelated',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          transformOrigin: '0 0',
+          width: scaledWidth,
+          height: scaledHeight,
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
         }}
       />
-      {/* 主画布 - 使用 CSS scale 进行视觉缩放，画布像素尺寸固定 */}
+      {/* 主画布 - 参考网站方式：尺寸动态变化，不使用 CSS scale */}
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
@@ -1087,8 +1084,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="border border-gray-300 dark:border-gray-600 rounded block relative z-10"
         style={{
           imageRendering: 'pixelated',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          transformOrigin: '0 0',
+          width: scaledWidth,
+          height: scaledHeight,
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
         }}
       />
       {/* 预览画布 - 叠加在主画布上 */}
@@ -1097,8 +1095,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="absolute top-0 left-0 pointer-events-none z-20"
         style={{
           imageRendering: 'pixelated',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          transformOrigin: '0 0',
+          width: scaledWidth,
+          height: scaledHeight,
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
         }}
       />
       {/* 色号标签画布 - 叠加在预览画布上 */}
@@ -1106,8 +1105,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         ref={colorLabelCanvasRef}
         className="absolute top-0 left-0 pointer-events-none z-25"
         style={{
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          transformOrigin: '0 0',
+          width: scaledWidth,
+          height: scaledHeight,
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
         }}
       />
     </div>
