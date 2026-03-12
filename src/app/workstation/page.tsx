@@ -262,6 +262,11 @@ export default function Workstation() {
   const [drawEndPos, setDrawEndPos] = useState<{ row: number; col: number } | null>(null);
   const lastDrawPosRef = useRef<{ row: number; col: number } | null>(null);
   
+  // 性能优化：使用 ref 存储临时绘制结果，批量更新状态
+  const pendingDrawDataRef = useRef<MappedPixel[][] | null>(null);
+  const drawRafRef = useRef<number | null>(null);
+  const lastFlushTimeRef = useRef<number>(0);
+  
   // 默认颜色（当没有选择颜色时使用）
   const defaultColor = fullBeadPalette.length > 0 ? fullBeadPalette[0].hex : '#FFFFFF';
   
@@ -1765,13 +1770,25 @@ export default function Workstation() {
     setSelectedColor(null);
   }, [excludedColorKeys, mappedPixelData, gridDimensions]);
 
-  // 应用画笔/橡皮擦笔触
+  // 性能优化：刷新待应用的绘制结果
+  const flushPendingDraw = useCallback(() => {
+    if (pendingDrawDataRef.current) {
+      setMappedPixelData(pendingDrawDataRef.current);
+      pendingDrawDataRef.current = null;
+    }
+    drawRafRef.current = null;
+  }, []);
+
+  // 应用画笔/橡皮擦笔触 - 性能优化版本
   const applyBrushStroke = useCallback((row: number, col: number, color: string | null, size: number) => {
     if (!mappedPixelData || !gridDimensions) return;
     
     const { N, M } = gridDimensions;
-    const newMappedData = mappedPixelData.map(r => r.map(c => ({ ...c })));
     const halfSize = Math.floor(size / 2);
+    
+    // 使用 ref 存储临时数据，避免频繁状态更新
+    const baseData = pendingDrawDataRef.current || mappedPixelData;
+    const newMappedData = baseData.map(r => r.map(c => ({ ...c })));
     
     for (let dy = -halfSize; dy <= halfSize; dy++) {
       for (let dx = -halfSize; dx <= halfSize; dx++) {
@@ -1795,10 +1812,16 @@ export default function Workstation() {
       }
     }
     
-    setMappedPixelData(newMappedData);
-  }, [mappedPixelData, gridDimensions]);
+    // 存储临时结果
+    pendingDrawDataRef.current = newMappedData;
+    
+    // 使用 requestAnimationFrame 节流状态更新
+    if (!drawRafRef.current) {
+      drawRafRef.current = requestAnimationFrame(flushPendingDraw);
+    }
+  }, [mappedPixelData, gridDimensions, flushPendingDraw]);
 
-  // 使用 Bresenham 算法在两点之间绘制笔触（插值绘制）
+  // 使用 Bresenham 算法在两点之间绘制笔触（插值绘制）- 性能优化版本
   const applyBrushStrokeLine = useCallback((
     startRow: number, startCol: number,
     endRow: number, endCol: number,
@@ -1838,38 +1861,42 @@ export default function Workstation() {
       }
     }
     
-    // 批量更新所有点
-    setMappedPixelData(prevData => {
-      if (!prevData) return prevData;
-      const newMappedData = prevData.map(r => r.map(c => ({ ...c })));
-      
-      for (const point of points) {
-        for (let dy = -halfSize; dy <= halfSize; dy++) {
-          for (let dx = -halfSize; dx <= halfSize; dx++) {
-            const newRow = point.row + dy;
-            const newCol = point.col + dx;
-            
-            if (newRow >= 0 && newRow < M && newCol >= 0 && newCol < N) {
-              if (color) {
-                // 画笔：设置颜色
-                const colorData = findColorData(color);
-                newMappedData[newRow][newCol] = {
-                  key: colorData?.key || color.toUpperCase(),
-                  color: color,
-                  isExternal: false
-                };
-              } else {
-                // 橡皮擦：设为透明
-                newMappedData[newRow][newCol] = { ...transparentColorData };
-              }
+    // 使用 ref 存储临时数据，避免频繁状态更新
+    const baseData = pendingDrawDataRef.current || mappedPixelData;
+    const newMappedData = baseData.map(r => r.map(c => ({ ...c })));
+    
+    for (const point of points) {
+      for (let dy = -halfSize; dy <= halfSize; dy++) {
+        for (let dx = -halfSize; dx <= halfSize; dx++) {
+          const newRow = point.row + dy;
+          const newCol = point.col + dx;
+          
+          if (newRow >= 0 && newRow < M && newCol >= 0 && newCol < N) {
+            if (color) {
+              // 画笔：设置颜色
+              const colorData = findColorData(color);
+              newMappedData[newRow][newCol] = {
+                key: colorData?.key || color.toUpperCase(),
+                color: color,
+                isExternal: false
+              };
+            } else {
+              // 橡皮擦：设为透明
+              newMappedData[newRow][newCol] = { ...transparentColorData };
             }
           }
         }
       }
-      
-      return newMappedData;
-    });
-  }, [mappedPixelData, gridDimensions]);
+    }
+    
+    // 存储临时结果
+    pendingDrawDataRef.current = newMappedData;
+    
+    // 使用 requestAnimationFrame 节流状态更新
+    if (!drawRafRef.current) {
+      drawRafRef.current = requestAnimationFrame(flushPendingDraw);
+    }
+  }, [mappedPixelData, gridDimensions, flushPendingDraw]);
 
   // 绘制开始 - 接收网格坐标
   const handleDrawStart = useCallback((gridCol: number, gridRow: number) => {
@@ -1957,10 +1984,31 @@ export default function Workstation() {
       setIsDrawing(false);
       setDrawStartPos(null);
       setDrawEndPos(null);
+      pendingDrawDataRef.current = null; // 清空临时绘制结果
       return;
     }
     
     setDrawEndPos(pos);
+    
+    // 对于画笔和橡皮擦，立即刷新待应用的绘制结果
+    if (currentTool === 'brush' || currentTool === 'eraser') {
+      // 取消待执行的 RAF
+      if (drawRafRef.current) {
+        cancelAnimationFrame(drawRafRef.current);
+        drawRafRef.current = null;
+      }
+      // 立即应用待应用的绘制结果
+      if (pendingDrawDataRef.current) {
+        setMappedPixelData(pendingDrawDataRef.current);
+        recalculateColorCounts(pendingDrawDataRef.current);
+        pendingDrawDataRef.current = null;
+      }
+      lastDrawPosRef.current = null;
+      setIsDrawing(false);
+      setDrawStartPos(null);
+      setDrawEndPos(null);
+      return;
+    }
     
     // 根据工具类型执行最终操作
     let newPixelData = mappedPixelData.map(r => r.map(c => ({ ...c })));
@@ -2029,6 +2077,7 @@ export default function Workstation() {
     setDrawStartPos(null);
     setDrawEndPos(null);
     lastDrawPosRef.current = null; // 重置上一次绘制位置
+    pendingDrawDataRef.current = null; // 清空临时绘制结果
   }, [isDrawing, drawStartPos, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, rectangleFilled, selection, clipboard, recalculateColorCounts]);
 
   // 创建选区

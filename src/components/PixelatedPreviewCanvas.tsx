@@ -652,51 +652,31 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas - 使用 requestAnimationFrame 节流
+  // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      // 标记需要绘制
-      pendingDrawRef.current = true;
+      // 缩放时重新设置画布尺寸
+      const canvas = canvasRef.current;
+      const newWidth = gridDimensions.N * baseCellSize * scale;
+      const newHeight = gridDimensions.M * baseCellSize * scale;
       
-      // 使用 requestAnimationFrame 节流绘制
-      if (drawRafRef.current === null) {
-        drawRafRef.current = requestAnimationFrame(() => {
-          if (!pendingDrawRef.current || !canvasRef.current) return;
-          
-          const canvas = canvasRef.current;
-          const newWidth = gridDimensions.N * baseCellSize * scale;
-          const newHeight = gridDimensions.M * baseCellSize * scale;
-          
-          // 只在尺寸真正变化时才重新设置
-          if (canvas.width !== newWidth || canvas.height !== newHeight) {
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-          }
-          
-          drawPixelatedCanvas(
-            mappedPixelData, 
-            canvasRef.current, 
-            gridDimensions, 
-            highlightColorKey, 
-            isHighlighting,
-            showColorLabels,
-            selectedColorSystem,
-            showGridLines,
-            gridLineInterval,
-            gridLineColor
-          );
-          
-          pendingDrawRef.current = false;
-          drawRafRef.current = null;
-        });
+      if (canvas.width !== newWidth || canvas.height !== newHeight) {
+        canvas.width = newWidth;
+        canvas.height = newHeight;
       }
       
-      return () => {
-        if (drawRafRef.current !== null) {
-          cancelAnimationFrame(drawRafRef.current);
-          drawRafRef.current = null;
-        }
-      };
+      drawPixelatedCanvas(
+        mappedPixelData, 
+        canvasRef.current, 
+        gridDimensions, 
+        highlightColorKey, 
+        isHighlighting,
+        showColorLabels,
+        selectedColorSystem,
+        showGridLines,
+        gridLineInterval,
+        gridLineColor
+      );
     }
   }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize]);
 
