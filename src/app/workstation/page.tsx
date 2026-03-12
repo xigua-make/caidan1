@@ -147,7 +147,7 @@ function WatermelonPreview() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-blue-400 rounded-full blur-3xl"></div>
       </div>
       
-      {/* 可拖拽的西瓜 */}
+      {/* 可拖拽的像素风西瓜 */}
       <div 
         className="relative cursor-grab active:cursor-grabbing transition-transform"
         style={{ 
@@ -155,30 +155,12 @@ function WatermelonPreview() {
         }}
         onMouseDown={handleMouseDown}
       >
-        {/* 大西瓜 */}
-        <div className="relative w-64 h-64 sm:w-80 sm:h-80 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-2xl border-4 border-green-700 dark:border-green-800 overflow-hidden">
-          {/* 西瓜条纹 */}
-          <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-0 left-[20%] w-2 h-16 bg-green-700/30 rounded-full"></div>
-            <div className="absolute top-0 left-[40%] w-2 h-20 bg-green-700/30 rounded-full"></div>
-            <div className="absolute top-0 left-[60%] w-2 h-14 bg-green-700/30 rounded-full"></div>
-            <div className="absolute top-0 right-[15%] w-1.5 h-12 bg-green-700/30 rounded-full"></div>
-          </div>
-          
-          {/* 红色果肉 */}
-          <div className="absolute bottom-2 left-2 right-2 h-52 sm:h-64 bg-gradient-to-b from-red-400 to-red-500 rounded-b-full">
-            {/* 西瓜籽 */}
-            <div className="absolute top-6 left-8 w-4 h-6 bg-gray-900 rounded-full rotate-45"></div>
-            <div className="absolute top-12 left-16 w-4 h-6 bg-gray-900 rounded-full -rotate-12"></div>
-            <div className="absolute top-8 right-8 w-4 h-6 bg-gray-900 rounded-full rotate-12"></div>
-            <div className="absolute top-16 right-16 w-4 h-6 bg-gray-900 rounded-full -rotate-45"></div>
-            <div className="absolute top-20 left-1/2 w-4 h-6 bg-gray-900 rounded-full"></div>
-            <div className="absolute top-28 left-12 w-3 h-5 bg-gray-900 rounded-full rotate-30"></div>
-            <div className="absolute top-24 right-12 w-3 h-5 bg-gray-900 rounded-full -rotate-20"></div>
-            <div className="absolute top-32 left-1/3 w-3 h-5 bg-gray-900 rounded-full rotate-15"></div>
-            <div className="absolute top-36 right-1/3 w-3 h-5 bg-gray-900 rounded-full -rotate-10"></div>
-          </div>
-        </div>
+        {/* 像素风格西瓜图片 */}
+        <img 
+          src="/logo.png" 
+          alt="小瓜拼豆" 
+          className="w-64 h-64 sm:w-80 sm:h-80 object-contain drop-shadow-2xl"
+        />
         
         {/* 装饰星星 */}
         <div className="absolute -top-4 -right-4 w-6 h-6 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-ping"></div>
