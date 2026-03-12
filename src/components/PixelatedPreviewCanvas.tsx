@@ -18,6 +18,10 @@ interface PixelatedPreviewCanvasProps {
   ) => void;
   highlightColorKey?: string | null;
   onHighlightComplete?: () => void;
+  // 新增：绘制状态回调
+  onDrawStart?: (clientX: number, clientY: number) => void;
+  onDrawMove?: (clientX: number, clientY: number) => void;
+  onDrawEnd?: (clientX: number, clientY: number) => void;
 }
 
 // 绘制像素化画布的函数

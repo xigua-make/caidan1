@@ -1035,21 +1035,61 @@ export default function Workstation() {
       // 工具快捷键
       if (!e.ctrlKey && !e.shiftKey) {
         switch (e.key.toLowerCase()) {
-          case 'b': setCurrentTool('brush'); break;
-          case 'e': setCurrentTool('eraser'); break;
-          case 'i': setCurrentTool('picker'); break;
-          case 'g': setCurrentTool('fill'); break;
-          case 'l': setCurrentTool('line'); break;
-          case 'r': setCurrentTool('rectangle'); break;
-          case 's': setCurrentTool('select'); break;
-          case 'm': setCurrentTool('move'); break;
+          case 'b': 
+            setCurrentTool('brush'); 
+            setIsManualColoringMode(true);
+            if (!selectedColor && fullBeadPalette.length > 0) {
+              setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+            }
+            break;
+          case 'e': 
+            setCurrentTool('eraser'); 
+            setIsManualColoringMode(true);
+            break;
+          case 'i': 
+            setCurrentTool('picker'); 
+            setIsManualColoringMode(true);
+            break;
+          case 'f': 
+            setCurrentTool('fill'); 
+            setIsManualColoringMode(true);
+            if (!selectedColor && fullBeadPalette.length > 0) {
+              setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+            }
+            break;
+          case 'l': 
+            setCurrentTool('line'); 
+            setIsManualColoringMode(true);
+            if (!selectedColor && fullBeadPalette.length > 0) {
+              setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+            }
+            break;
+          case 'r': 
+            setCurrentTool('rectangle'); 
+            setIsManualColoringMode(true);
+            if (!selectedColor && fullBeadPalette.length > 0) {
+              setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+            }
+            break;
+          case 's': 
+            setCurrentTool('select'); 
+            setIsManualColoringMode(true);
+            break;
+          case 'm': 
+            setCurrentTool('move'); 
+            setIsManualColoringMode(true);
+            break;
+          case 'h': 
+            setCurrentTool('hand'); 
+            setIsManualColoringMode(false);
+            break;
         }
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, handleCopySelection, handleCutSelection, handlePasteSelection]);
+  }, [handleUndo, handleRedo, handleCopySelection, handleCutSelection, handlePasteSelection, selectedColor, fullBeadPalette]);
 
   const handlePixelationModeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
     const newMode = e.target.value as PixelationMode;
@@ -1356,7 +1396,7 @@ export default function Workstation() {
         }
         
         // 画笔或橡皮擦
-        if ((currentTool === 'brush' || currentTool === 'eraser') && (selectedColor || currentTool === 'eraser')) {
+        if ((currentTool === 'brush' || currentTool === 'eraser')) {
           // 应用笔刷大小
           const halfSize = Math.floor(brushSize / 2);
           let changed = false;
@@ -1905,7 +1945,15 @@ export default function Workstation() {
                 {/* 工具按钮矩阵 3x3 */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => { setCurrentTool('brush'); setIsManualColoringMode(true); }}
+                    onClick={() => {
+                      setCurrentTool('brush');
+                      setIsManualColoringMode(true);
+                      setIsEraseMode(false);
+                      // 如果没有选择颜色，选择第一个颜色
+                      if (!selectedColor && fullBeadPalette.length > 0) {
+                        setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                      }
+                    }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'brush'
                         ? 'bg-blue-500 text-white'
@@ -1915,7 +1963,7 @@ export default function Workstation() {
                     画笔(B)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('eraser'); setIsManualColoringMode(true); }}
+                    onClick={() => { setCurrentTool('eraser'); setIsManualColoringMode(true); setIsEraseMode(false); }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'eraser'
                         ? 'bg-blue-500 text-white'
@@ -1925,7 +1973,7 @@ export default function Workstation() {
                     橡皮(E)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('picker'); setIsManualColoringMode(true); }}
+                    onClick={() => { setCurrentTool('picker'); setIsManualColoringMode(true); setIsEraseMode(false); }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'picker'
                         ? 'bg-blue-500 text-white'
@@ -1935,7 +1983,15 @@ export default function Workstation() {
                     取色(I)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('fill'); setIsManualColoringMode(true); }}
+                    onClick={() => {
+                      setCurrentTool('fill');
+                      setIsManualColoringMode(true);
+                      setIsEraseMode(false);
+                      // 如果没有选择颜色，选择第一个颜色
+                      if (!selectedColor && fullBeadPalette.length > 0) {
+                        setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                      }
+                    }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'fill'
                         ? 'bg-blue-500 text-white'
@@ -1945,7 +2001,15 @@ export default function Workstation() {
                     填充(F)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('line'); setIsManualColoringMode(true); }}
+                    onClick={() => {
+                      setCurrentTool('line');
+                      setIsManualColoringMode(true);
+                      setIsEraseMode(false);
+                      // 如果没有选择颜色，选择第一个颜色
+                      if (!selectedColor && fullBeadPalette.length > 0) {
+                        setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                      }
+                    }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'line'
                         ? 'bg-blue-500 text-white'
@@ -1955,7 +2019,15 @@ export default function Workstation() {
                     直线(L)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('rectangle'); setIsManualColoringMode(true); }}
+                    onClick={() => {
+                      setCurrentTool('rectangle');
+                      setIsManualColoringMode(true);
+                      setIsEraseMode(false);
+                      // 如果没有选择颜色，选择第一个颜色
+                      if (!selectedColor && fullBeadPalette.length > 0) {
+                        setSelectedColor({ key: fullBeadPalette[0].key, color: fullBeadPalette[0].hex, isExternal: false });
+                      }
+                    }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'rectangle'
                         ? 'bg-blue-500 text-white'
@@ -1965,7 +2037,7 @@ export default function Workstation() {
                     矩形(R)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('select'); setIsManualColoringMode(true); }}
+                    onClick={() => { setCurrentTool('select'); setIsManualColoringMode(true); setIsEraseMode(false); }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'select'
                         ? 'bg-blue-500 text-white'
@@ -1975,7 +2047,7 @@ export default function Workstation() {
                     选择(S)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('move'); setIsManualColoringMode(true); }}
+                    onClick={() => { setCurrentTool('move'); setIsManualColoringMode(true); setIsEraseMode(false); }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'move'
                         ? 'bg-blue-500 text-white'
@@ -1985,7 +2057,7 @@ export default function Workstation() {
                     移动(M)
                   </button>
                   <button
-                    onClick={() => { setCurrentTool('hand'); setIsManualColoringMode(false); }}
+                    onClick={() => { setCurrentTool('hand'); setIsManualColoringMode(false); setIsEraseMode(false); }}
                     className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                       currentTool === 'hand'
                         ? 'bg-blue-500 text-white'
