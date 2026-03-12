@@ -213,7 +213,7 @@ export default function Workstation() {
     }
   }, []);
 
-  // 更新 activeBeadPalette
+  // 更新 activeBeadPalette - 不进行色号系统转换，保持 key 为 hex 值
   useEffect(() => {
     const newActiveBeadPalette = fullBeadPalette.filter(color => {
       const normalizedHex = color.hex.toUpperCase();
@@ -221,9 +221,9 @@ export default function Workstation() {
       const isNotExcluded = !excludedColorKeys.has(normalizedHex);
       return isSelectedInCustomPalette && isNotExcluded;
     });
-    const convertedPalette = convertPaletteToColorSystem(newActiveBeadPalette, selectedColorSystem);
-    setActiveBeadPalette(convertedPalette);
-  }, [customPaletteSelections, excludedColorKeys, remapTrigger, selectedColorSystem]);
+    // 不进行色号系统转换，保持原始的MARD色号和hex值
+    setActiveBeadPalette(newActiveBeadPalette);
+  }, [customPaletteSelections, excludedColorKeys, remapTrigger]);
 
   // 同步输入框值
   useEffect(() => {
@@ -806,6 +806,14 @@ export default function Workstation() {
       });
       setColorCounts(newCounts);
       setTotalBeadCount(newTotalCount);
+      
+      // 更新 initialGridColorKeys：移除被排除的颜色，添加新出现的颜色
+      const newInitialGridColorKeys = new Set(initialGridColorKeys);
+      newInitialGridColorKeys.delete(hexKey);
+      Object.keys(newCounts).forEach(newHexKey => {
+        newInitialGridColorKeys.add(newHexKey);
+      });
+      setInitialGridColorKeys(newInitialGridColorKeys);
 
     } else {
       // 恢复颜色 - 触发完全重映射
@@ -1028,32 +1036,59 @@ export default function Workstation() {
             {/* 分隔线 */}
             <hr className="border-gray-200 dark:border-gray-700" />
 
+            {/* 色号系统选择器 */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">色号系统</h3>
+              <div className="flex flex-wrap gap-2">
+                {colorSystemOptions.map(option => (
+                  <button
+                    key={option.key}
+                    onClick={() => setSelectedColorSystem(option.key as ColorSystem)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200 ${
+                      selectedColorSystem === option.key
+                        ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                    }`}
+                  >
+                    {option.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 分隔线 */}
+            <hr className="border-gray-200 dark:border-gray-700" />
+
             {/* 去除杂色模块 */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">去除杂色</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">点击颜色可移除。总计: {totalBeadCount} 颗</p>
               
               <div className="max-h-48 overflow-y-auto space-y-1">
-                {sortedColorCounts.slice(0, 20).map(({ key, color, count }) => (
-                  <button
-                    key={key}
-                    onClick={() => handleColorClick(key)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
-                      excludedColorKeys.has(key)
-                        ? 'opacity-40 bg-gray-100 dark:bg-gray-700'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-5 h-5 rounded border border-gray-300 dark:border-gray-600"
-                        style={{ backgroundColor: color }}
-                      ></div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{key}</span>
-                    </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{count}颗</span>
-                  </button>
-                ))}
+                {sortedColorCounts.slice(0, 20).map(({ key, color, count }) => {
+                  const displayKey = getColorKeyByHex(key, selectedColorSystem);
+                  const isExcluded = excludedColorKeys.has(key);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleColorClick(key)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                        isExcluded
+                          ? 'opacity-40 bg-gray-100 dark:bg-gray-700 line-through'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-5 h-5 rounded border border-gray-300 dark:border-gray-600"
+                          style={{ backgroundColor: color }}
+                        ></div>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{displayKey}</span>
+                      </div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{count}颗</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
