@@ -1876,53 +1876,38 @@ export default function Home() {
         <div className="relative z-10 py-8">
           {/* Integrated super fancy logo and title container */}
           <div className="relative flex flex-col items-center">
-            {/* Ultra cute hyper-detailed 16-bead icon */}
+            {/* Watermelon Logo */}
             <div className="relative mb-6 animate-float">
-              <div className="relative grid grid-cols-4 gap-2 p-4 bg-white/95 dark:bg-gray-800/95 rounded-3xl shadow-2xl border-4 border-gradient-to-r from-pink-300 via-purple-300 to-blue-300 dark:border-gray-600">
-                {['bg-red-400', 'bg-blue-400', 'bg-yellow-400', 'bg-green-400',
-                  'bg-purple-400', 'bg-pink-400', 'bg-orange-400', 'bg-teal-400',
-                  'bg-indigo-400', 'bg-cyan-400', 'bg-lime-400', 'bg-amber-400',
-                  'bg-rose-400', 'bg-sky-400', 'bg-emerald-400', 'bg-violet-400'].map((color, i) => (
-                  <div key={i} className="relative">
-                    <div
-                      className={`w-5 h-5 rounded-full ${color} transition-all duration-500 hover:scale-150 shadow-xl hover:shadow-2xl relative z-10`}
-                      style={{
-                        animation: `float ${2 + (i % 3)}s ease-in-out infinite ${i * 0.1}s`,
-                        boxShadow: `0 0 20px ${color.includes('red') ? '#f87171' : color.includes('blue') ? '#60a5fa' : color.includes('yellow') ? '#fbbf24' : color.includes('green') ? '#4ade80' : color.includes('purple') ? '#a855f7' : color.includes('pink') ? '#f472b6' : color.includes('orange') ? '#fb923c' : color.includes('teal') ? '#2dd4bf' : color.includes('indigo') ? '#818cf8' : color.includes('cyan') ? '#22d3ee' : color.includes('lime') ? '#84cc16' : color.includes('amber') ? '#f59e0b' : color.includes('rose') ? '#fb7185' : color.includes('sky') ? '#0ea5e9' : color.includes('emerald') ? '#10b981' : '#8b5cf6'}70`
-                      }}
-                    ></div>
-                    {/* Mini decorations around each bead */}
-                    {i % 4 === 0 && <div className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-yellow-300 rounded-full animate-ping"></div>}
-                    {i % 4 === 1 && <div className="absolute -bottom-0.5 -left-0.5 w-0.5 h-0.5 bg-pink-300 rounded-full animate-pulse"></div>}
-                    {i % 4 === 2 && <div className="absolute -top-0.5 -left-0.5 w-0.5 h-0.5 bg-blue-300 rounded-full animate-bounce"></div>}
-                    {i % 4 === 3 && <div className="absolute -bottom-0.5 -right-0.5 w-1 h-1 bg-purple-300 rounded-full animate-spin"></div>}
-                  </div>
-                ))}
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-2xl border-4 border-green-700 dark:border-green-800 overflow-hidden">
+                {/* Watermelon stripes */}
+                <div className="absolute top-0 left-0 w-full h-full">
+                  <div className="absolute top-0 left-1/4 w-1 h-6 bg-green-700/30 rounded-full"></div>
+                  <div className="absolute top-0 left-1/2 w-1 h-8 bg-green-700/30 rounded-full"></div>
+                  <div className="absolute top-0 right-1/4 w-1 h-5 bg-green-700/30 rounded-full"></div>
+                </div>
+                {/* Red flesh */}
+                <div className="absolute bottom-1 left-1 right-1 h-16 sm:h-20 bg-gradient-to-b from-red-400 to-red-500 rounded-b-full">
+                  {/* Seeds */}
+                  <div className="absolute top-3 left-4 w-2 h-3 bg-gray-900 rounded-full rotate-45"></div>
+                  <div className="absolute top-6 left-8 w-2 h-3 bg-gray-900 rounded-full -rotate-12"></div>
+                  <div className="absolute top-4 right-4 w-2 h-3 bg-gray-900 rounded-full rotate-12"></div>
+                  <div className="absolute top-8 right-8 w-2 h-3 bg-gray-900 rounded-full -rotate-45"></div>
+                  <div className="absolute top-10 left-1/2 w-2 h-3 bg-gray-900 rounded-full"></div>
+                </div>
               </div>
               
-              {/* Super cute decorations around the icon */}
-              <div className="absolute -top-3 -right-4 w-3 h-3 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-ping transform rotate-12"></div>
-              <div className="absolute -top-1 -right-2 w-2 h-2 bg-gradient-to-br from-pink-400 to-purple-500 rotate-45 animate-spin"></div>
-              <div className="absolute -bottom-3 -left-4 w-2.5 h-2.5 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full animate-bounce"></div>
-              <div className="absolute -bottom-1 -left-2 w-1.5 h-1.5 bg-gradient-to-br from-green-400 to-teal-500 rotate-45 animate-pulse"></div>
-              <div className="absolute top-0 -right-1 w-1 h-1 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full animate-pulse delay-100"></div>
-              <div className="absolute -top-2 left-2 w-1 h-1 bg-gradient-to-br from-orange-400 to-red-500 rounded-full animate-bounce delay-200"></div>
-              <div className="absolute bottom-1 -right-3 w-1.5 h-1.5 bg-gradient-to-br from-indigo-400 to-purple-500 rotate-45 animate-spin delay-300"></div>
-              <div className="absolute -bottom-2 right-1 w-0.5 h-0.5 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full animate-ping delay-400"></div>
-              
-              {/* Extra tiny sparkles */}
-              <div className="absolute -top-4 left-1 w-0.5 h-0.5 bg-yellow-300 rounded-full animate-pulse delay-500"></div>
-              <div className="absolute top-2 -left-4 w-0.5 h-0.5 bg-pink-300 rounded-full animate-bounce delay-600"></div>
-              <div className="absolute -bottom-4 right-2 w-0.5 h-0.5 bg-blue-300 rounded-full animate-ping delay-700"></div>
-              <div className="absolute bottom-2 -right-5 w-0.5 h-0.5 bg-purple-300 rounded-full animate-pulse delay-800"></div>
+              {/* Cute decorations around the watermelon */}
+              <div className="absolute -top-2 -right-3 w-3 h-3 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-ping"></div>
+              <div className="absolute -bottom-2 -left-3 w-2.5 h-2.5 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full animate-bounce"></div>
+              <div className="absolute top-0 -left-2 w-1.5 h-1.5 bg-gradient-to-br from-green-400 to-teal-500 rotate-45 animate-pulse"></div>
             </div>
 
             {/* Ultra fancy brand name and tool name with hyper cute decorations */}
             <div className="relative flex flex-col items-center space-y-3">
-              {/* Brand name - 七卡瓦 with ultra fancy effects */}
+              {/* Brand name - 小瓜 with ultra fancy effects */}
               <div className="relative">
                 <h1 className="relative text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 to-cyan-400 tracking-wider drop-shadow-2xl transform hover:scale-105 transition-transform duration-300 animate-bounce">
-                  七卡瓦
+                  小瓜
                 </h1>
                 
                 {/* Super fancy geometric decorations */}
@@ -2015,37 +2000,7 @@ export default function Home() {
 
       {/* Apply dark mode styles to the main section */}
       <main ref={mainRef} className="w-full md:max-w-4xl flex flex-col items-center space-y-5 sm:space-y-6 relative overflow-hidden">
-        {/* Apply dark mode styles to the Drop Zone */}
-        <div
-          onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
-          onClick={isMounted ? triggerFileInput : undefined}
-          className={`border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 sm:p-12 text-center ${isMounted ? 'cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-800' : 'cursor-wait'} transition-all duration-300 w-full md:max-w-md flex flex-col justify-center items-center shadow-sm hover:shadow-md`}
-          style={{ minHeight: '200px' }}
-        >
-          {/* Icon color */}
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 dark:text-gray-500 mb-2 sm:mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-             <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          {/* Text color */}
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">拖放图片到此处，或<span className="font-medium text-blue-600 dark:text-blue-400">点击选择文件</span></p>
-          {/* Text color */}
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">支持 JPG, PNG 图片格式，或 CSV 数据文件</p>
-        </div>
-
-        {/* Apply dark mode styles to the Tip Box */}
-        {!originalImageSrc && (
-          <div className="w-full md:max-w-md bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 p-3 rounded-lg border border-blue-100 dark:border-gray-600 shadow-sm">
-            {/* Icon color */}
-            <p className="text-xs text-indigo-700 dark:text-indigo-300 flex items-start">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 flex-shrink-0 text-blue-500 dark:text-blue-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {/* Text color */}
-              <span className="text-indigo-700 dark:text-indigo-300">小贴士：使用像素图进行转换前，请确保图片的边缘吻合像素格子的边界线，这样可以获得更精确的切割效果和更好的成品。</span>
-            </p>
-          </div>
-        )}
-
+        {/* Hidden file input for workstation page to use */}
                       <input type="file" accept="image/jpeg, image/png, .csv, text/csv, application/csv, text/plain" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
 
         {/* Controls and Output Area */}
