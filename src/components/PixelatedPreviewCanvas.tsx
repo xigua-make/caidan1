@@ -394,6 +394,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // 触摸缩放相关
   const touchDistanceRef = useRef<number | null>(null);
   const touchCenterRef = useRef<{ x: number; y: number } | null>(null);
+  
+  // 保存最后的触摸网格位置（用于触摸结束时）
+  const lastTouchGridPosRef = useRef<{ row: number; col: number } | null>(null);
 
   // 获取网格坐标
   const getGridPosition = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
@@ -652,21 +655,24 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       touchStartPosRef.current = { x: touch.clientX, y: touch.clientY, pageX: touch.pageX, pageY: touch.pageY };
       touchMovedRef.current = false;
       
-      if (!isManualColoringMode) {
-        dragStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX, offsetY };
-      } else {
-        // 开始触摸绘制
+      if (isManualColoringMode) {
+        // 手动编辑模式：开始触摸绘制
         setIsLocalDrawing(true);
         const pos = getGridPosition(touch.clientX, touch.clientY);
-        if (pos && onDrawStart) {
-          onDrawStart(pos.col, pos.row);
+        if (pos) {
+          lastTouchGridPosRef.current = pos;
+          if (onDrawStart) {
+            onDrawStart(pos.col, pos.row);
+          }
         }
+      } else {
+        // 非手动模式：拖拽画布
+        dragStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX, offsetY };
       }
     } else if (event.touches.length === 2) {
-      // 双指缩放：取消当前绘制操作
-      if (isLocalDrawing) {
-        setIsLocalDrawing(false);
-      }
+      // 双指缩放：取消当前绘制操作并进入缩放模式
+      setIsLocalDrawing(false);
+      lastTouchGridPosRef.current = null;
       
       const touch1 = event.touches[0];
       const touch2 = event.touches[1];
@@ -682,24 +688,36 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     event.preventDefault();
     event.stopPropagation();
     
-    if (event.touches.length === 1 && dragStartRef.current) {
+    if (event.touches.length === 1) {
       const touch = event.touches[0];
-      const dx = touch.clientX - dragStartRef.current.x;
-      const dy = touch.clientY - dragStartRef.current.y;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-        touchMovedRef.current = true;
+      
+      // 计算移动距离
+      if (touchStartPosRef.current) {
+        const dx = touch.clientX - touchStartPosRef.current.x;
+        const dy = touch.clientY - touchStartPosRef.current.y;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          touchMovedRef.current = true;
+        }
       }
       
       if (isManualColoringMode && isLocalDrawing) {
+        // 手动编辑模式：持续绘制
         const pos = getGridPosition(touch.clientX, touch.clientY);
-        if (pos && onDrawMove) {
-          onDrawMove(pos.col, pos.row);
+        if (pos) {
+          lastTouchGridPosRef.current = pos;
+          if (onDrawMove) {
+            onDrawMove(pos.col, pos.row);
+          }
         }
-      } else {
+      } else if (dragStartRef.current) {
+        // 非手动模式：拖拽画布
+        const dx = touch.clientX - dragStartRef.current.x;
+        const dy = touch.clientY - dragStartRef.current.y;
         setOffsetX(dragStartRef.current.offsetX + dx);
         setOffsetY(dragStartRef.current.offsetY + dy);
       }
     } else if (event.touches.length === 2 && touchDistanceRef.current && touchCenterRef.current) {
+      // 双指缩放
       const touch1 = event.touches[0];
       const touch2 = event.touches[1];
       const dx = touch2.clientX - touch1.clientX;
@@ -721,18 +739,20 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     event.preventDefault();
     event.stopPropagation();
     
-    // 结束触摸绘制
+    // 结束触摸绘制 - 使用保存的最后触摸位置
     if (isLocalDrawing) {
       setIsLocalDrawing(false);
-      if (onDrawEnd && previewEndPos) {
-        onDrawEnd(previewEndPos.col, previewEndPos.row);
+      if (onDrawEnd && lastTouchGridPosRef.current) {
+        onDrawEnd(lastTouchGridPosRef.current.col, lastTouchGridPosRef.current.row);
       }
+      lastTouchGridPosRef.current = null;
     }
     
     dragStartRef.current = null;
     touchDistanceRef.current = null;
     touchCenterRef.current = null;
     
+    // 如果是点击（没有移动），触发点击交互
     if (isManualColoringMode && !touchMovedRef.current && touchStartPosRef.current) {
       const { x, y, pageX, pageY } = touchStartPosRef.current;
       onInteraction(x, y, pageX, pageY, true);

@@ -1916,7 +1916,8 @@ export default function Workstation() {
 
   // 绘制移动 - 接收网格坐标
   const handleDrawMove = useCallback((gridCol: number, gridRow: number) => {
-    if (!isDrawing) return;
+    // 使用 drawStartPos 代替 isDrawing 检查，避免 React 状态更新延迟问题
+    if (!drawStartPos) return;
     
     const pos = { row: gridRow, col: gridCol };
     setDrawEndPos(pos);
@@ -1940,18 +1941,21 @@ export default function Workstation() {
       // 更新上一个绘制位置
       lastDrawPosRef.current = pos;
     }
-  }, [isDrawing, currentTool, selectedColor, defaultColor, brushSize, applyBrushStroke, applyBrushStrokeLine]);
+  }, [drawStartPos, currentTool, selectedColor, defaultColor, brushSize, applyBrushStroke, applyBrushStrokeLine]);
 
   // 绘制结束 - 接收网格坐标
   const handleDrawEnd = useCallback((gridCol: number, gridRow: number) => {
-    if (!isDrawing || !drawStartPos || !mappedPixelData) {
+    // 即使 isDrawing 为 false 也尝试完成绘制（用于移动端触摸结束）
+    const pos = { row: gridRow, col: gridCol };
+    
+    // 如果没有开始位置，重置状态并返回
+    if (!drawStartPos || !mappedPixelData) {
       setIsDrawing(false);
       setDrawStartPos(null);
       setDrawEndPos(null);
       return;
     }
     
-    const pos = { row: gridRow, col: gridCol };
     setDrawEndPos(pos);
     
     // 根据工具类型执行最终操作
