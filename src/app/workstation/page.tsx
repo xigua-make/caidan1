@@ -2273,10 +2273,10 @@ export default function Workstation() {
         </div>
       </header>
 
-      {/* 主内容区域 - 使用Grid布局实现响应式，添加padding-top补偿fixed header */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_384px] gap-0 lg:gap-0 pt-[60px] lg:pt-[56px]">
-        {/* 左侧画布区域 */}
-        <main ref={mainRef} className="relative flex flex-col min-h-0 h-full overflow-hidden">
+      {/* 主内容区域 - 使用fixed定位让画布和工具栏完全分开 */}
+      <div className="fixed top-[56px] left-0 right-0 bottom-0 flex">
+        {/* 左侧画布区域 - 固定不动 */}
+        <main ref={mainRef} className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
           {!originalImageSrc ? (
             <>
               {/* 桌面端：西瓜Logo预览 */}
@@ -2380,7 +2380,7 @@ export default function Workstation() {
         </main>
 
         {/* 右侧功能面板 - 独立滚动 */}
-        <aside className="w-full lg:w-96 h-full overflow-hidden bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 flex-shrink-0">
+        <aside className="w-[384px] flex-shrink-0 h-full overflow-hidden bg-white dark:bg-gray-800 border-l border-gray-200/70 dark:border-gray-700/70">
           {workstationMode === 'auto' ? (
             /* 自动优化模式右侧栏 - 独立滚动 */
             <div className="h-full overflow-y-auto p-4 space-y-4">
