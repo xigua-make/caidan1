@@ -2108,6 +2108,12 @@ export default function Workstation() {
           {/* 右侧功能按钮 */}
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setIsCustomPaletteEditorOpen(true)}
+              className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              {selectedColorSystem} {activeBeadPalette.length}
+            </button>
+            <button
               onClick={triggerFileInput}
               className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
             >
