@@ -732,7 +732,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
       className="w-full h-full overflow-hidden relative"
-      style={{ cursor: isDragging ? 'grabbing' : (isManualColoringMode ? 'crosshair' : 'grab') }}
+      style={{ 
+        cursor: isDragging ? 'grabbing' : (isManualColoringMode ? 'crosshair' : 'grab'),
+        touchAction: 'none'
+      }}
     >
       {/* 参考图层画布 - 在主画布下面 */}
       <canvas
