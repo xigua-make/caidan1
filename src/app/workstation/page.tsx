@@ -165,6 +165,7 @@ export default function Workstation() {
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [drawStartPos, setDrawStartPos] = useState<{ row: number; col: number } | null>(null);
   const [drawEndPos, setDrawEndPos] = useState<{ row: number; col: number } | null>(null);
+  const lastDrawPosRef = useRef<{ row: number; col: number } | null>(null);
   
   // 默认颜色（当没有选择颜色时使用）
   const defaultColor = fullBeadPalette.length > 0 ? fullBeadPalette[0].hex : '#FFFFFF';
@@ -1619,6 +1620,112 @@ export default function Workstation() {
     setSelectedColor(null);
   }, [excludedColorKeys, mappedPixelData, gridDimensions]);
 
+  // 应用画笔/橡皮擦笔触
+  const applyBrushStroke = useCallback((row: number, col: number, color: string | null, size: number) => {
+    if (!mappedPixelData || !gridDimensions) return;
+    
+    const { N, M } = gridDimensions;
+    const newMappedData = mappedPixelData.map(r => r.map(c => ({ ...c })));
+    const halfSize = Math.floor(size / 2);
+    
+    for (let dy = -halfSize; dy <= halfSize; dy++) {
+      for (let dx = -halfSize; dx <= halfSize; dx++) {
+        const newRow = row + dy;
+        const newCol = col + dx;
+        
+        if (newRow >= 0 && newRow < M && newCol >= 0 && newCol < N) {
+          if (color) {
+            // 画笔：设置颜色
+            const colorData = findColorData(color);
+            newMappedData[newRow][newCol] = {
+              key: colorData?.key || color.toUpperCase(),
+              color: color,
+              isExternal: false
+            };
+          } else {
+            // 橡皮擦：设为透明
+            newMappedData[newRow][newCol] = { ...transparentColorData };
+          }
+        }
+      }
+    }
+    
+    setMappedPixelData(newMappedData);
+  }, [mappedPixelData, gridDimensions]);
+
+  // 使用 Bresenham 算法在两点之间绘制笔触（插值绘制）
+  const applyBrushStrokeLine = useCallback((
+    startRow: number, startCol: number,
+    endRow: number, endCol: number,
+    color: string | null,
+    size: number
+  ) => {
+    if (!mappedPixelData || !gridDimensions) return;
+    
+    const { N, M } = gridDimensions;
+    const halfSize = Math.floor(size / 2);
+    
+    // Bresenham 直线算法
+    const dx = Math.abs(endCol - startCol);
+    const dy = Math.abs(endRow - startRow);
+    const sx = startCol < endCol ? 1 : -1;
+    const sy = startRow < endRow ? 1 : -1;
+    let err = dx - dy;
+    let col = startCol;
+    let row = startRow;
+    
+    // 收集所有需要绘制的点
+    const points: { row: number; col: number }[] = [];
+    
+    while (true) {
+      points.push({ row, col });
+      
+      if (row === endRow && col === endCol) break;
+      
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        col += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        row += sy;
+      }
+    }
+    
+    // 批量更新所有点
+    setMappedPixelData(prevData => {
+      if (!prevData) return prevData;
+      const newMappedData = prevData.map(r => r.map(c => ({ ...c })));
+      
+      for (const point of points) {
+        for (let dy = -halfSize; dy <= halfSize; dy++) {
+          for (let dx = -halfSize; dx <= halfSize; dx++) {
+            const newRow = point.row + dy;
+            const newCol = point.col + dx;
+            
+            if (newRow >= 0 && newRow < M && newCol >= 0 && newCol < N) {
+              if (color) {
+                // 画笔：设置颜色
+                const colorData = findColorData(color);
+                newMappedData[newRow][newCol] = {
+                  key: colorData?.key || color.toUpperCase(),
+                  color: color,
+                  isExternal: false
+                };
+              } else {
+                // 橡皮擦：设为透明
+                newMappedData[newRow][newCol] = { ...transparentColorData };
+              }
+            }
+          }
+        }
+      }
+      
+      return newMappedData;
+    });
+  }, [mappedPixelData, gridDimensions]);
+
   // 绘制开始 - 接收网格坐标
   const handleDrawStart = useCallback((gridCol: number, gridRow: number) => {
     if (!mappedPixelData) return;
@@ -1631,6 +1738,9 @@ export default function Workstation() {
     setDrawStartPos(pos);
     setDrawEndPos(pos);
     setIsDrawing(true);
+    
+    // 初始化上一次绘制位置
+    lastDrawPosRef.current = pos;
     
     // 对于移动工具，保存选区内容
     if (currentTool === 'move' && selection) {
@@ -1661,7 +1771,7 @@ export default function Workstation() {
       const color = currentTool === 'brush' ? (selectedColor?.color || defaultColor) : null;
       applyBrushStroke(pos.row, pos.col, color, brushSize);
     }
-  }, [currentTool, selectedColor, defaultColor, brushSize, mappedPixelData, saveToHistory, selection]);
+  }, [currentTool, selectedColor, defaultColor, brushSize, mappedPixelData, saveToHistory, selection, applyBrushStroke]);
 
   // 绘制移动 - 接收网格坐标
   const handleDrawMove = useCallback((gridCol: number, gridRow: number) => {
@@ -1670,12 +1780,26 @@ export default function Workstation() {
     const pos = { row: gridRow, col: gridCol };
     setDrawEndPos(pos);
     
-    // 对于画笔和橡皮擦，实时绘制
+    // 对于画笔和橡皮擦，使用插值绘制从上一个点到当前位置
     if (currentTool === 'brush' || currentTool === 'eraser') {
       const color = currentTool === 'brush' ? (selectedColor?.color || defaultColor) : null;
-      applyBrushStroke(pos.row, pos.col, color, brushSize);
+      
+      if (lastDrawPosRef.current) {
+        // 从上一个位置到当前位置进行插值绘制
+        applyBrushStrokeLine(
+          lastDrawPosRef.current.row, lastDrawPosRef.current.col,
+          pos.row, pos.col,
+          color, brushSize
+        );
+      } else {
+        // 如果没有上一个位置，直接绘制当前位置
+        applyBrushStroke(pos.row, pos.col, color, brushSize);
+      }
+      
+      // 更新上一个绘制位置
+      lastDrawPosRef.current = pos;
     }
-  }, [isDrawing, currentTool, selectedColor, defaultColor, brushSize]);
+  }, [isDrawing, currentTool, selectedColor, defaultColor, brushSize, applyBrushStroke, applyBrushStrokeLine]);
 
   // 绘制结束 - 接收网格坐标
   const handleDrawEnd = useCallback((gridCol: number, gridRow: number) => {
@@ -1755,40 +1879,8 @@ export default function Workstation() {
     setIsDrawing(false);
     setDrawStartPos(null);
     setDrawEndPos(null);
+    lastDrawPosRef.current = null; // 重置上一次绘制位置
   }, [isDrawing, drawStartPos, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, selection, clipboard, recalculateColorCounts]);
-
-  // 应用画笔/橡皮擦笔触
-  const applyBrushStroke = useCallback((row: number, col: number, color: string | null, size: number) => {
-    if (!mappedPixelData || !gridDimensions) return;
-    
-    const { N, M } = gridDimensions;
-    const newMappedData = mappedPixelData.map(r => r.map(c => ({ ...c })));
-    const halfSize = Math.floor(size / 2);
-    
-    for (let dy = -halfSize; dy <= halfSize; dy++) {
-      for (let dx = -halfSize; dx <= halfSize; dx++) {
-        const newRow = row + dy;
-        const newCol = col + dx;
-        
-        if (newRow >= 0 && newRow < M && newCol >= 0 && newCol < N) {
-          if (color) {
-            // 画笔：设置颜色
-            const colorData = findColorData(color);
-            newMappedData[newRow][newCol] = {
-              key: colorData?.key || color.toUpperCase(),
-              color: color,
-              isExternal: false
-            };
-          } else {
-            // 橡皮擦：设为透明
-            newMappedData[newRow][newCol] = { ...transparentColorData };
-          }
-        }
-      }
-    }
-    
-    setMappedPixelData(newMappedData);
-  }, [mappedPixelData, gridDimensions]);
 
   // 创建选区
   const createSelection = useCallback((startRow: number, startCol: number, endRow: number, endCol: number) => {
