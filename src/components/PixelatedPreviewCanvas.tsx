@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback } from 'react';
+import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback, useMemo } from 'react';
 import { MappedPixel } from '../utils/pixelation';
 import { getColorKeyByHex, ColorSystem } from '../utils/colorSystemUtils';
 
@@ -528,6 +528,41 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isLocalDrawing, setIsLocalDrawing] = useState(false);
   
+  // 性能优化：使用 ref 存储中间状态，减少 React 状态更新
+  const scaleRef = useRef(1);
+  const offsetXRef = useRef(0);
+  const offsetYRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const pendingUpdateRef = useRef<{ scale?: number; offsetX?: number; offsetY?: number } | null>(null);
+  
+  // 批量更新状态的函数
+  const flushUpdate = useCallback(() => {
+    if (pendingUpdateRef.current) {
+      const { scale: newScale, offsetX: newOffsetX, offsetY: newOffsetY } = pendingUpdateRef.current;
+      if (newScale !== undefined) setScale(newScale);
+      if (newOffsetX !== undefined) setOffsetX(newOffsetX);
+      if (newOffsetY !== undefined) setOffsetY(newOffsetY);
+      pendingUpdateRef.current = null;
+    }
+    rafRef.current = null;
+  }, []);
+  
+  // 请求更新的函数（使用 requestAnimationFrame 节流）
+  const requestUpdate = useCallback((update: { scale?: number; offsetX?: number; offsetY?: number }) => {
+    // 更新 ref
+    if (update.scale !== undefined) scaleRef.current = update.scale;
+    if (update.offsetX !== undefined) offsetXRef.current = update.offsetX;
+    if (update.offsetY !== undefined) offsetYRef.current = update.offsetY;
+    
+    // 合并待更新的值
+    pendingUpdateRef.current = { ...pendingUpdateRef.current, ...update };
+    
+    // 如果还没有安排更新，安排一个
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(flushUpdate);
+    }
+  }, [flushUpdate]);
+  
   // 基础格子大小（参考网站使用固定值，缩放时画布尺寸变化）
   const baseCellSize = 6; // 每个格子的基础大小（像素）
   
@@ -766,6 +801,12 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const canvasHeight = gridDimensions.M * baseCellSize;
       const newOffsetX = (container.clientWidth - canvasWidth) / 2;
       const newOffsetY = (container.clientHeight - canvasHeight) / 2;
+      
+      // 更新 ref 值
+      scaleRef.current = 1;
+      offsetXRef.current = newOffsetX;
+      offsetYRef.current = newOffsetY;
+      
       setScale(1);
       setOffsetX(newOffsetX);
       setOffsetY(newOffsetY);
@@ -780,8 +821,11 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     if (isDragging && dragStartRef.current) {
       const dx = event.clientX - dragStartRef.current.x;
       const dy = event.clientY - dragStartRef.current.y;
-      setOffsetX(dragStartRef.current.offsetX + dx);
-      setOffsetY(dragStartRef.current.offsetY + dy);
+      // 使用 requestAnimationFrame 节流更新
+      requestUpdate({
+        offsetX: dragStartRef.current.offsetX + dx,
+        offsetY: dragStartRef.current.offsetY + dy,
+      });
     } else if (isManualColoringMode && isLocalDrawing) {
       const pos = getGridPosition(event.clientX, event.clientY);
       if (pos && onDrawMove) {
@@ -845,13 +889,23 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const rect = event.currentTarget.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    const beforeX = (mouseX - offsetX) / scale;
-    const beforeY = (mouseY - offsetY) / scale;
+    
+    // 使用 ref 中的值而不是状态
+    const currentScale = scaleRef.current;
+    const currentOffsetX = offsetXRef.current;
+    const currentOffsetY = offsetYRef.current;
+    
+    const beforeX = (mouseX - currentOffsetX) / currentScale;
+    const beforeY = (mouseY - currentOffsetY) / currentScale;
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 50);
-    setOffsetX(mouseX - beforeX * newScale);
-    setOffsetY(mouseY - beforeY * newScale);
-    setScale(newScale);
+    const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
+    
+    // 使用 requestAnimationFrame 节流更新
+    requestUpdate({
+      scale: newScale,
+      offsetX: mouseX - beforeX * newScale,
+      offsetY: mouseY - beforeY * newScale,
+    });
   };
 
   // --- Touch event handlers ---
@@ -923,8 +977,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         // 非手动模式：拖拽画布
         const dx = touch.clientX - dragStartRef.current.x;
         const dy = touch.clientY - dragStartRef.current.y;
-        setOffsetX(dragStartRef.current.offsetX + dx);
-        setOffsetY(dragStartRef.current.offsetY + dy);
+        requestUpdate({
+          offsetX: dragStartRef.current.offsetX + dx,
+          offsetY: dragStartRef.current.offsetY + dy,
+        });
       }
     } else if (event.touches.length === 2 && touchDistanceRef.current && touchCenterRef.current) {
       // 双指缩放
@@ -934,12 +990,22 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const dy = touch2.clientY - touch1.clientY;
       const newDistance = Math.sqrt(dx * dx + dy * dy);
       const zoomFactor = newDistance / touchDistanceRef.current;
-      const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 50);
+      
+      // 使用 ref 中的值
+      const currentScale = scaleRef.current;
+      const currentOffsetX = offsetXRef.current;
+      const currentOffsetY = offsetYRef.current;
+      
+      const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
       const newCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
-      const scaleRatio = newScale / scale;
-      setOffsetX(newCenter.x - (newCenter.x - offsetX) * scaleRatio);
-      setOffsetY(newCenter.y - (newCenter.y - offsetY) * scaleRatio);
-      setScale(newScale);
+      const scaleRatio = newScale / currentScale;
+      
+      requestUpdate({
+        scale: newScale,
+        offsetX: newCenter.x - (newCenter.x - currentOffsetX) * scaleRatio,
+        offsetY: newCenter.y - (newCenter.y - currentOffsetY) * scaleRatio,
+      });
+      
       touchDistanceRef.current = newDistance;
       touchCenterRef.current = newCenter;
     }
@@ -986,6 +1052,17 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   
   // 计算坐标轴字体大小（根据格子大小调整）
   const coordinateFontSize = Math.max(8, Math.min(10, cellDisplayWidth * 0.4));
+  
+  // 使用 useMemo 缓存坐标数组，避免每次渲染都重新创建
+  const colCoordinates = useMemo(() => {
+    if (!gridDimensions) return [];
+    return Array.from({ length: gridDimensions.N }, (_, i) => i + 1);
+  }, [gridDimensions]);
+  
+  const rowCoordinates = useMemo(() => {
+    if (!gridDimensions) return [];
+    return Array.from({ length: gridDimensions.M }, (_, i) => i + 1);
+  }, [gridDimensions]);
 
   return (
     <div
@@ -1033,9 +1110,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
               fontSize: coordinateFontSize,
             }}
           >
-            {Array.from({ length: gridDimensions.N }, (_, i) => (
-              <div key={`col-${i}`} className="flex items-center justify-center">
-                {i + 1}
+            {colCoordinates.map((num) => (
+              <div key={`col-${num}`} className="flex items-center justify-center">
+                {num}
               </div>
             ))}
           </div>
@@ -1053,9 +1130,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
               fontSize: coordinateFontSize,
             }}
           >
-            {Array.from({ length: gridDimensions.M }, (_, i) => (
-              <div key={`row-${i}`} className="flex items-center justify-center">
-                {i + 1}
+            {rowCoordinates.map((num) => (
+              <div key={`row-${num}`} className="flex items-center justify-center">
+                {num}
               </div>
             ))}
           </div>
