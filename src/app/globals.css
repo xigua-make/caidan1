@@ -38,3 +38,8 @@ body {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* 隐藏 Next.js 开发环境错误覆盖层 */
+nextjs-portal {
+  display: none !important;
+}
