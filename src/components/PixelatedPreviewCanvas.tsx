@@ -2,7 +2,6 @@
 
 import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback } from 'react';
 import { MappedPixel } from '../utils/pixelation';
-import { getColorKeyByHex, ColorSystem } from '../utils/colorSystemUtils';
 
 // 工具类型
 type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
@@ -40,10 +39,6 @@ interface PixelatedPreviewCanvasProps {
   previewEndPos?: { row: number; col: number } | null;
   isDrawing?: boolean;
   selection?: { startRow: number; startCol: number; endRow: number; endCol: number } | null;
-  // 显示色号和坐标
-  showColorKey?: boolean;
-  showCoordinates?: boolean;
-  selectedColorSystem?: ColorSystem;
 }
 
 // 绘制像素化画布的函数
@@ -52,10 +47,7 @@ const drawPixelatedCanvas = (
   canvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
   highlightColorKey?: string | null,
-  isHighlighting?: boolean,
-  showColorKey?: boolean,
-  showCoordinates?: boolean,
-  selectedColorSystem?: ColorSystem
+  isHighlighting?: boolean
 ) => {
   if (!canvas || !dims || !dataToDraw) {
     console.warn("drawPixelatedCanvas: Missing required parameters");
@@ -80,9 +72,6 @@ const drawPixelatedCanvas = (
 
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
   pixelatedCtx.lineWidth = 0.5;
-
-  // 计算文字大小（根据格子大小动态调整）
-  const fontSize = Math.max(6, Math.min(10, Math.min(cellWidthOutput, cellHeightOutput) * 0.6));
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
@@ -114,46 +103,6 @@ const drawPixelatedCanvas = (
 
       pixelatedCtx.strokeStyle = gridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
-      
-      // 绘制色号
-      if (showColorKey && !cellData.isExternal && cellData.color) {
-        const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem || 'MARD');
-        
-        // 判断颜色深浅来决定文字颜色
-        const hex = cellData.color.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
-        
-        pixelatedCtx.fillStyle = isLightColor ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
-        pixelatedCtx.font = `bold ${fontSize}px Arial`;
-        pixelatedCtx.textAlign = 'center';
-        pixelatedCtx.textBaseline = 'middle';
-        pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2 - (showCoordinates ? fontSize * 0.5 : 0));
-      }
-      
-      // 绘制坐标
-      if (showCoordinates && !cellData.isExternal) {
-        const coordText = `${i},${j}`;
-        
-        // 判断颜色深浅来决定文字颜色
-        if (cellData.color) {
-          const hex = cellData.color.replace('#', '');
-          const r = parseInt(hex.substr(0, 2), 16);
-          const g = parseInt(hex.substr(2, 2), 16);
-          const b = parseInt(hex.substr(4, 2), 16);
-          const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
-          pixelatedCtx.fillStyle = isLightColor ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.7)';
-        } else {
-          pixelatedCtx.fillStyle = 'rgba(128, 128, 128, 0.8)';
-        }
-        
-        pixelatedCtx.font = `${fontSize * 0.7}px Arial`;
-        pixelatedCtx.textAlign = 'center';
-        pixelatedCtx.textBaseline = 'middle';
-        pixelatedCtx.fillText(coordText, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2 + (showColorKey ? fontSize * 0.6 : 0));
-      }
     }
   }
 };
@@ -416,9 +365,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   previewEndPos,
   isDrawing: isDrawingProp = false,
   selection,
-  showColorKey = false,
-  showCoordinates = false,
-  selectedColorSystem = 'MARD',
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -494,9 +440,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting, showColorKey, showCoordinates, selectedColorSystem);
+      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting);
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorKey, showCoordinates, selectedColorSystem]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]);
 
   // Initialize preview canvas size
   useEffect(() => {
