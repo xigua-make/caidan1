@@ -2027,8 +2027,8 @@ export default function Workstation() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
-      {/* 顶部导航栏 - 始终显示，不隐藏 */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200/70 dark:border-gray-700/70 shadow-sm">
+      {/* 顶部导航栏 - 固定显示，不随页面滚动隐藏 */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200/70 dark:border-gray-700/70 shadow-sm">
         {/* 桌面端布局 */}
         <div className="hidden md:flex items-center justify-between px-4 py-2">
           {/* 左侧 Logo - 西瓜图标 */}
@@ -2184,8 +2184,8 @@ export default function Workstation() {
         </div>
       </header>
 
-      {/* 主内容区域 - 使用Grid布局实现响应式 */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-0 lg:gap-0">
+      {/* 主内容区域 - 使用Grid布局实现响应式，添加padding-top补偿fixed header */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-0 lg:gap-0 pt-[60px] lg:pt-[56px]">
         {/* 左侧画布区域 */}
         <main ref={mainRef} className="relative flex flex-col min-h-0 h-full overflow-hidden">
           {!originalImageSrc ? (
