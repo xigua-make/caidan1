@@ -20,6 +20,7 @@ export interface PaletteColor {
   key: string;
   hex: string;
   rgb: RgbColor;
+  mardKey: string; // MARD色号，用于显示
 }
 
 export interface MappedPixel {
@@ -56,7 +57,7 @@ export function findClosestPaletteColor(
   if (!palette || palette.length === 0) {
       console.error("findClosestPaletteColor: Palette is empty or invalid!");
       // 提供一个健壮的回退
-      return { key: 'ERR', hex: '#000000', rgb: { r: 0, g: 0, b: 0 } };
+      return { key: 'ERR', hex: '#000000', rgb: { r: 0, g: 0, b: 0 }, mardKey: 'ERR' };
   }
 
   let minDistance = Infinity;

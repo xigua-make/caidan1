@@ -293,11 +293,18 @@ const FloatingColorPalette: React.FC<FloatingColorPaletteProps> = ({
               const isSelected = selectedColor?.key === colorData.key && selectedColor?.color === colorData.color;
               const displayKey = getColorKeyByHex(colorData.color, selectedColorSystem);
               
+              // 判断颜色深浅来决定文字颜色
+              const hex = colorData.color.replace('#', '');
+              const r = parseInt(hex.substr(0, 2), 16);
+              const g = parseInt(hex.substr(2, 2), 16);
+              const b = parseInt(hex.substr(4, 2), 16);
+              const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
+              
               return (
                 <button
                   key={`${colorData.key}-${colorData.color}`}
                   onClick={() => handleColorClick(colorData)}
-                  className={`group relative aspect-square rounded-lg border-2 transition-all duration-200 hover:scale-110 ${
+                  className={`group relative aspect-square rounded-lg border-2 transition-all duration-200 hover:scale-110 flex items-center justify-center ${
                     isSelected
                       ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800 scale-110'
                       : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
@@ -305,17 +312,20 @@ const FloatingColorPalette: React.FC<FloatingColorPaletteProps> = ({
                   style={{ backgroundColor: colorData.color }}
                   title={`${displayKey} (${colorData.color})`}
                 >
+                  {/* 显示色号 */}
+                  <span 
+                    className={`text-[6px] font-bold ${isLightColor ? 'text-gray-800' : 'text-white'}`} 
+                    style={{ textShadow: isLightColor ? '0 0 1px rgba(255,255,255,0.5)' : '0 0 1px rgba(0,0,0,0.5)' }}
+                  >
+                    {displayKey}
+                  </span>
+                  
                   {/* 选中指示器 */}
                   {isSelected && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full shadow-lg"></div>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-5 h-5 border-2 border-white rounded shadow-lg"></div>
                     </div>
                   )}
-                  
-                  {/* 悬停时显示色号 */}
-                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                    {displayKey}
-                  </div>
                 </button>
               );
             })}

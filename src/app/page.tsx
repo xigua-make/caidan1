@@ -75,8 +75,8 @@ const fullBeadPalette: PaletteColor[] = Object.entries(mardToHexMapping)
       console.warn(`Invalid hex code "${hex}" for MARD key "${mardKey}". Skipping.`);
       return null;
     }
-    // 使用hex值作为key，符合新的架构设计
-    return { key: hex, hex, rgb };
+    // 使用hex值作为key，符合新的架构设计；同时保存mardKey用于显示
+    return { key: hex, hex, rgb, mardKey } as PaletteColor;
   })
   .filter((color): color is PaletteColor => color !== null);
 

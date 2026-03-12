@@ -193,7 +193,7 @@ const fullBeadPalette: PaletteColor[] = Object.entries(mardToHexMapping)
       console.warn(`Invalid hex code "${hex}" for MARD key "${mardKey}". Skipping.`);
       return null;
     }
-    return { key: hex, hex, rgb };
+    return { key: hex, hex, rgb, mardKey } as PaletteColor;
   })
   .filter((color): color is PaletteColor => color !== null);
 
@@ -2774,12 +2774,14 @@ export default function Workstation() {
                 
                 {/* 色板网格 */}
                 <div className="grid grid-cols-6 gap-1.5 max-h-40 overflow-y-auto p-1">
-                  {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => ({ hex: c.color, key: c.key }))).map((colorItem) => {
+                  {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => ({ hex: c.color, key: c.key, mardKey: c.key }))).map((colorItem) => {
                     const hexColor = colorItem.hex;
                     const isSelected = selectedColor && selectedColor.color.toUpperCase() === hexColor.toUpperCase();
                     // 判断颜色深浅来决定文字颜色
                     const rgb = hexToRgb(hexColor);
                     const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+                    // 显示的色号：优先使用 mardKey，否则使用 key
+                    const displayKey = colorItem.mardKey || colorItem.key;
                     return (
                       <button
                         key={hexColor}
@@ -2798,11 +2800,11 @@ export default function Workstation() {
                             : 'border-gray-200 dark:border-gray-500 hover:border-gray-300 dark:hover:border-gray-400'
                         }`}
                         style={{ backgroundColor: hexColor }}
-                        title={`${colorItem.key} - ${hexColor}`}
+                        title={`${displayKey} - ${hexColor}`}
                       >
                         {/* 显示色号 */}
                         <span className={`text-[6px] font-bold ${isLightColor ? 'text-gray-800' : 'text-white'}`} style={{ textShadow: isLightColor ? '0 0 1px rgba(255,255,255,0.5)' : '0 0 1px rgba(0,0,0,0.5)' }}>
-                          {colorItem.key}
+                          {displayKey}
                         </span>
                         {isSelected && currentTool !== 'eraser' && (
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
