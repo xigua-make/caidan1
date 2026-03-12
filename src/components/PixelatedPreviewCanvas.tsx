@@ -907,6 +907,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
@@ -920,11 +922,38 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
     const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
     
+    // 计算缩放后的画布尺寸
+    const canvasWidth = gridDimensions ? gridDimensions.N * baseCellSize * newScale : 0;
+    const canvasHeight = gridDimensions ? gridDimensions.M * baseCellSize * newScale : 0;
+    
+    let newOffsetX: number;
+    let newOffsetY: number;
+    
+    // 如果画布可以完全显示在容器中，自动居中
+    if (canvasWidth <= containerWidth && canvasHeight <= containerHeight) {
+      newOffsetX = (containerWidth - canvasWidth) / 2;
+      newOffsetY = (containerHeight - canvasHeight) / 2;
+    } else {
+      // 否则基于鼠标位置缩放
+      newOffsetX = mouseX - beforeX * newScale;
+      newOffsetY = mouseY - beforeY * newScale;
+      
+      // 确保画布不会完全移出可视区域
+      // 画布至少要有一部分在容器内可见
+      const minX = -canvasWidth + 50; // 至少显示 50px
+      const maxX = containerWidth - 50;
+      const minY = -canvasHeight + 50;
+      const maxY = containerHeight - 50;
+      
+      newOffsetX = Math.max(minX, Math.min(maxX, newOffsetX));
+      newOffsetY = Math.max(minY, Math.min(maxY, newOffsetY));
+    }
+    
     // 使用 requestAnimationFrame 节流更新
     requestUpdate({
       scale: newScale,
-      offsetX: mouseX - beforeX * newScale,
-      offsetY: mouseY - beforeY * newScale,
+      offsetX: newOffsetX,
+      offsetY: newOffsetY,
     });
   };
 
@@ -1018,12 +1047,32 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       
       const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
       const newCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
-      const scaleRatio = newScale / currentScale;
+      
+      // 计算缩放后的画布尺寸
+      const containerRect = event.currentTarget.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
+      const canvasWidth = gridDimensions ? gridDimensions.N * baseCellSize * newScale : 0;
+      const canvasHeight = gridDimensions ? gridDimensions.M * baseCellSize * newScale : 0;
+      
+      let newOffsetX: number;
+      let newOffsetY: number;
+      
+      // 如果画布可以完全显示在容器中，自动居中
+      if (canvasWidth <= containerWidth && canvasHeight <= containerHeight) {
+        newOffsetX = (containerWidth - canvasWidth) / 2;
+        newOffsetY = (containerHeight - canvasHeight) / 2;
+      } else {
+        // 否则基于触摸中心缩放
+        const scaleRatio = newScale / currentScale;
+        newOffsetX = newCenter.x - (newCenter.x - currentOffsetX) * scaleRatio;
+        newOffsetY = newCenter.y - (newCenter.y - currentOffsetY) * scaleRatio;
+      }
       
       requestUpdate({
         scale: newScale,
-        offsetX: newCenter.x - (newCenter.x - currentOffsetX) * scaleRatio,
-        offsetY: newCenter.y - (newCenter.y - currentOffsetY) * scaleRatio,
+        offsetX: newOffsetX,
+        offsetY: newOffsetY,
       });
       
       touchDistanceRef.current = newDistance;
