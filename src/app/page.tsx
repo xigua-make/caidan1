@@ -1876,27 +1876,15 @@ export default function Home() {
         <div className="relative z-10 py-8">
           {/* Integrated super fancy logo and title container */}
           <div className="relative flex flex-col items-center">
-            {/* Watermelon Logo */}
+            {/* Watermelon Logo - 像素风格 */}
             <div className="relative mb-6 animate-float">
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-b from-green-400 to-green-600 rounded-full shadow-2xl border-4 border-green-700 dark:border-green-800 overflow-hidden">
-                {/* Watermelon stripes */}
-                <div className="absolute top-0 left-0 w-full h-full">
-                  <div className="absolute top-0 left-1/4 w-1 h-6 bg-green-700/30 rounded-full"></div>
-                  <div className="absolute top-0 left-1/2 w-1 h-8 bg-green-700/30 rounded-full"></div>
-                  <div className="absolute top-0 right-1/4 w-1 h-5 bg-green-700/30 rounded-full"></div>
-                </div>
-                {/* Red flesh */}
-                <div className="absolute bottom-1 left-1 right-1 h-16 sm:h-20 bg-gradient-to-b from-red-400 to-red-500 rounded-b-full">
-                  {/* Seeds */}
-                  <div className="absolute top-3 left-4 w-2 h-3 bg-gray-900 rounded-full rotate-45"></div>
-                  <div className="absolute top-6 left-8 w-2 h-3 bg-gray-900 rounded-full -rotate-12"></div>
-                  <div className="absolute top-4 right-4 w-2 h-3 bg-gray-900 rounded-full rotate-12"></div>
-                  <div className="absolute top-8 right-8 w-2 h-3 bg-gray-900 rounded-full -rotate-45"></div>
-                  <div className="absolute top-10 left-1/2 w-2 h-3 bg-gray-900 rounded-full"></div>
-                </div>
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="小瓜拼豆" 
+                className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-xl"
+              />
               
-              {/* Cute decorations around the watermelon */}
+              {/* Cute decorations around the logo */}
               <div className="absolute -top-2 -right-3 w-3 h-3 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-ping"></div>
               <div className="absolute -bottom-2 -left-3 w-2.5 h-2.5 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full animate-bounce"></div>
               <div className="absolute top-0 -left-2 w-1.5 h-1.5 bg-gradient-to-br from-green-400 to-teal-500 rotate-45 animate-pulse"></div>
