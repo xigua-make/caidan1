@@ -273,6 +273,9 @@ export default function Workstation() {
   const [gridLineInterval, setGridLineInterval] = useState<number>(5);
   const [gridLineColor, setGridLineColor] = useState<string>('#FF0000');
   
+  // 显示坐标轴状态
+  const [showCoordinates, setShowCoordinates] = useState<boolean>(false);
+  
   // 网格线颜色选项
   const gridLineColorOptions = [
     { value: '#6B7280', name: '灰色' },
@@ -2316,6 +2319,7 @@ export default function Workstation() {
                   showGridLines={showGridLines}
                   gridLineInterval={gridLineInterval}
                   gridLineColor={gridLineColor}
+                  showCoordinates={showCoordinates}
                   previewStartPos={drawStartPos}
                   previewEndPos={drawEndPos}
                   isDrawing={isDrawing}
@@ -2713,6 +2717,21 @@ export default function Workstation() {
                     }`}
                   >
                     {showColorLabels ? '开启' : '关闭'}
+                  </button>
+                </div>
+                
+                {/* 显示坐标开关 */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">显示坐标</span>
+                  <button
+                    onClick={() => setShowCoordinates(!showCoordinates)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                      showCoordinates
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    }`}
+                  >
+                    {showCoordinates ? '开启' : '关闭'}
                   </button>
                 </div>
                 

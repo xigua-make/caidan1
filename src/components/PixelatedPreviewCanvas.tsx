@@ -47,6 +47,8 @@ interface PixelatedPreviewCanvasProps {
   showGridLines?: boolean;
   gridLineInterval?: number;
   gridLineColor?: string;
+  // 显示坐标轴
+  showCoordinates?: boolean;
 }
 
 // 绘制像素化画布的函数
@@ -512,6 +514,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   showGridLines = false,
   gridLineInterval = 5,
   gridLineColor = '#FF0000',
+  showCoordinates = false,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -947,6 +950,21 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     touchMovedRef.current = false;
   };
 
+  // 计算坐标轴尺寸
+  const headerSize = 20; // 坐标轴宽度/高度
+  const coordinateBgColor = '#9CA3AF'; // 参考网站使用的颜色
+  
+  // 计算画布的实际显示尺寸
+  const canvasDisplayWidth = canvasRef.current ? canvasRef.current.width * scale : 0;
+  const canvasDisplayHeight = canvasRef.current ? canvasRef.current.height * scale : 0;
+  
+  // 计算每个格子的实际显示大小
+  const cellDisplayWidth = gridDimensions ? canvasDisplayWidth / gridDimensions.N : 0;
+  const cellDisplayHeight = gridDimensions ? canvasDisplayHeight / gridDimensions.M : 0;
+  
+  // 计算坐标轴字体大小（根据格子大小调整）
+  const coordinateFontSize = Math.max(8, Math.min(10, cellDisplayWidth * 0.4));
+
   return (
     <div
       ref={containerRef}
@@ -961,6 +979,67 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         touchAction: 'none'
       }}
     >
+      {/* 坐标轴层 - 在所有画布下面 */}
+      {showCoordinates && gridDimensions && (
+        <>
+          {/* 左上角尺寸信息 */}
+          <div
+            className="absolute rounded-sm flex items-center justify-center text-white text-[8px] font-medium select-none z-0"
+            style={{
+              backgroundColor: coordinateBgColor,
+              width: headerSize * scale,
+              height: headerSize * scale,
+              left: offsetX - headerSize * scale,
+              top: offsetY - headerSize * scale,
+            }}
+          >
+            <span style={{ fontSize: Math.max(6, 8 * scale) }}>
+              {gridDimensions.N}×{gridDimensions.M}
+            </span>
+          </div>
+          
+          {/* 顶部横向坐标 */}
+          <div
+            className="absolute grid text-white text-center select-none z-0"
+            style={{
+              gridTemplateColumns: `repeat(${gridDimensions.N}, ${cellDisplayWidth}px)`,
+              backgroundColor: coordinateBgColor,
+              width: canvasDisplayWidth,
+              height: headerSize * scale,
+              left: offsetX,
+              top: offsetY - headerSize * scale,
+              fontSize: coordinateFontSize,
+            }}
+          >
+            {Array.from({ length: gridDimensions.N }, (_, i) => (
+              <div key={`col-${i}`} className="flex items-center justify-center">
+                {i + 1}
+              </div>
+            ))}
+          </div>
+          
+          {/* 左侧纵向坐标 */}
+          <div
+            className="absolute grid text-white text-center select-none z-0"
+            style={{
+              gridTemplateRows: `repeat(${gridDimensions.M}, ${cellDisplayHeight}px)`,
+              backgroundColor: coordinateBgColor,
+              width: headerSize * scale,
+              height: canvasDisplayHeight,
+              left: offsetX - headerSize * scale,
+              top: offsetY,
+              fontSize: coordinateFontSize,
+            }}
+          >
+            {Array.from({ length: gridDimensions.M }, (_, i) => (
+              <div key={`row-${i}`} className="flex items-center justify-center">
+                {i + 1}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      
       {/* 参考图层画布 - 在主画布下面 */}
       <canvas
         ref={referenceCanvasRef}
