@@ -80,8 +80,8 @@ const drawPixelatedCanvas = (
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
   pixelatedCtx.lineWidth = 0.5;
 
-  // 计算色号字体大小
-  const colorKeyFontSize = Math.max(6, Math.min(cellWidthOutput, cellHeightOutput) * 0.4);
+  // 计算色号字体大小 - 根据格子大小动态调整
+  const colorKeyFontSize = Math.max(6, Math.min(cellWidthOutput, cellHeightOutput) * 0.5);
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
@@ -114,7 +114,7 @@ const drawPixelatedCanvas = (
       pixelatedCtx.strokeStyle = gridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
       
-      // 绘制色号
+      // 绘制色号 - 直接在主画布上绘制
       if (showColorKey && !cellData.isExternal && cellData.color && selectedColorSystem) {
         const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
         
@@ -131,10 +131,14 @@ const drawPixelatedCanvas = (
         pixelatedCtx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
         
         // 添加文字阴影增强可读性
-        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
-        pixelatedCtx.shadowBlur = 1;
+        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
+        pixelatedCtx.shadowBlur = 2;
+        pixelatedCtx.shadowOffsetX = 1;
+        pixelatedCtx.shadowOffsetY = 1;
         pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2);
         pixelatedCtx.shadowBlur = 0;
+        pixelatedCtx.shadowOffsetX = 0;
+        pixelatedCtx.shadowOffsetY = 0;
       }
     }
   }
