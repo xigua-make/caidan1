@@ -85,7 +85,7 @@ const drawPixelatedCanvas = (
   const cellHeightOutput = outputHeight / M;
 
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
-  pixelatedCtx.lineWidth = 0.5;
+  pixelatedCtx.lineWidth = 1;
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
@@ -114,16 +114,31 @@ const drawPixelatedCanvas = (
           pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
         }
       }
-
-      pixelatedCtx.strokeStyle = defaultGridLineColor;
-      pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
     }
+  }
+  
+  // 绘制细网格线（每个格子之间）
+  pixelatedCtx.strokeStyle = defaultGridLineColor;
+  pixelatedCtx.lineWidth = 1;
+  for (let j = 0; j <= M; j++) {
+    const y = j * cellHeightOutput;
+    pixelatedCtx.beginPath();
+    pixelatedCtx.moveTo(0, y);
+    pixelatedCtx.lineTo(outputWidth, y);
+    pixelatedCtx.stroke();
+  }
+  for (let i = 0; i <= N; i++) {
+    const x = i * cellWidthOutput;
+    pixelatedCtx.beginPath();
+    pixelatedCtx.moveTo(x, 0);
+    pixelatedCtx.lineTo(x, outputHeight);
+    pixelatedCtx.stroke();
   }
   
   // 绘制分组网格线（每N格一条粗线）
   if (showGridLines && gridLineInterval && gridLineInterval > 1) {
     pixelatedCtx.strokeStyle = gridLineColor;
-    pixelatedCtx.lineWidth = 2;
+    pixelatedCtx.lineWidth = 3;
     
     // 垂直线
     for (let i = 0; i <= N; i += gridLineInterval) {
@@ -167,9 +182,11 @@ const drawColorLabels = (
   // 清除色号层
   ctx.clearRect(0, 0, outputWidth, outputHeight);
   
-  // 只有当格子足够大时才显示色号
-  const minCellSize = 15; // 最小显示色号的格子尺寸
-  if (cellWidthOutput < minCellSize || cellHeightOutput < minCellSize) return;
+  // 计算缩放后的实际格子大小，只有当实际显示大小足够大时才显示色号
+  const actualCellWidth = cellWidthOutput * currentScale;
+  const actualCellHeight = cellHeightOutput * currentScale;
+  const minCellSize = 20; // 最小显示色号的实际显示尺寸
+  if (actualCellWidth < minCellSize || actualCellHeight < minCellSize) return;
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
