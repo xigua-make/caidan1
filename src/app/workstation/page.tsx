@@ -532,6 +532,105 @@ export default function Workstation() {
     }
   }, []);
 
+  // 处理自定义色板中单个颜色的选择变化
+  const handleSelectionChange = useCallback((hexValue: string, isSelected: boolean) => {
+    const normalizedHex = hexValue.toUpperCase();
+    setCustomPaletteSelections(prev => ({
+      ...prev,
+      [normalizedHex]: isSelected
+    }));
+    setIsCustomPalette(true);
+  }, []);
+
+  // 保存自定义色板并应用
+  const handleSaveCustomPalette = useCallback(() => {
+    savePaletteSelections(customPaletteSelections);
+    setIsCustomPalette(true);
+    setIsCustomPaletteEditorOpen(false);
+    setRemapTrigger(prev => prev + 1);
+    setIsManualColoringMode(false);
+    setSelectedColor(null);
+    setIsEraseMode(false);
+  }, [customPaletteSelections]);
+
+  // 导出自定义色板配置
+  const handleExportCustomPalette = useCallback(() => {
+    const selectedHexValues = Object.entries(customPaletteSelections)
+      .filter(([, isSelected]) => isSelected)
+      .map(([hexValue]) => hexValue);
+
+    if (selectedHexValues.length === 0) {
+      alert("当前没有选中的颜色，无法导出。");
+      return;
+    }
+
+    const exportData = {
+      version: "3.0",
+      selectedHexValues: selectedHexValues,
+      exportDate: new Date().toISOString(),
+      totalColors: selectedHexValues.length
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `custom-palette-${selectedColorSystem}-${selectedHexValues.length}colors.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [customPaletteSelections, selectedColorSystem]);
+
+  // 触发导入色板文件
+  const triggerImportPalette = useCallback(() => {
+    if (importPaletteInputRef.current) {
+      importPaletteInputRef.current.click();
+    }
+  }, []);
+
+  // 导入色板文件处理
+  const handleImportPaletteFile = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const data = JSON.parse(content);
+        
+        if (data.selectedHexValues && Array.isArray(data.selectedHexValues)) {
+          const allHexValues = fullBeadPalette.map(c => c.hex.toUpperCase());
+          const validSelections: PaletteSelections = {};
+          let validCount = 0;
+          
+          data.selectedHexValues.forEach((hex: string) => {
+            const normalizedHex = hex.toUpperCase();
+            if (allHexValues.includes(normalizedHex)) {
+              validSelections[normalizedHex] = true;
+              validCount++;
+            }
+          });
+          
+          if (validCount > 0) {
+            setCustomPaletteSelections(validSelections);
+            setIsCustomPalette(true);
+            alert(`成功导入 ${validCount} 个颜色。点击"保存并应用"以应用更改。`);
+          } else {
+            alert("导入的配置中没有有效的颜色。");
+          }
+        } else {
+          alert("无效的配置文件格式。");
+        }
+      } catch {
+        alert("无法解析配置文件。");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }, []);
+
   // 自动去背景 - 识别边缘主色并洪水填充去除
   const handleAutoRemoveBackground = useCallback(() => {
     if (!mappedPixelData || !gridDimensions) {
@@ -806,15 +905,8 @@ export default function Workstation() {
       });
       setColorCounts(newCounts);
       setTotalBeadCount(newTotalCount);
+      // 注意：不更新 initialGridColorKeys，保持原始图像的颜色集合
       
-      // 更新 initialGridColorKeys：移除被排除的颜色，添加新出现的颜色
-      const newInitialGridColorKeys = new Set(initialGridColorKeys);
-      newInitialGridColorKeys.delete(hexKey);
-      Object.keys(newCounts).forEach(newHexKey => {
-        newInitialGridColorKeys.add(newHexKey);
-      });
-      setInitialGridColorKeys(newInitialGridColorKeys);
-
     } else {
       // 恢复颜色 - 触发完全重映射
       const nextExcludedKeys = new Set(currentExcluded);
@@ -894,9 +986,12 @@ export default function Workstation() {
 
           {/* 右侧功能按钮 */}
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full">
+            <button
+              onClick={() => setIsCustomPaletteEditorOpen(true)}
+              className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
               {selectedColorSystem} {activeBeadPalette.length}
-            </span>
+            </button>
             <button
               onClick={triggerFileInput}
               className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
@@ -1036,29 +1131,6 @@ export default function Workstation() {
             {/* 分隔线 */}
             <hr className="border-gray-200 dark:border-gray-700" />
 
-            {/* 色号系统选择器 */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">色号系统</h3>
-              <div className="flex flex-wrap gap-2">
-                {colorSystemOptions.map(option => (
-                  <button
-                    key={option.key}
-                    onClick={() => setSelectedColorSystem(option.key as ColorSystem)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200 ${
-                      selectedColorSystem === option.key
-                        ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
-                    }`}
-                  >
-                    {option.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 分隔线 */}
-            <hr className="border-gray-200 dark:border-gray-700" />
-
             {/* 去除杂色模块 */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">去除杂色</h3>
@@ -1109,6 +1181,34 @@ export default function Workstation() {
         onOptionsChange={setDownloadOptions}
         onDownload={handleDownloadRequest}
       />
+
+      {/* 自定义色板编辑器弹窗 */}
+      {isCustomPaletteEditorOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 隐藏的文件输入框 */}
+            <input
+              type="file"
+              accept=".json"
+              ref={importPaletteInputRef}
+              onChange={handleImportPaletteFile}
+              className="hidden"
+            />
+            <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
+              <CustomPaletteEditor
+                allColors={fullBeadPalette}
+                currentSelections={customPaletteSelections}
+                onSelectionChange={handleSelectionChange}
+                onSaveCustomPalette={handleSaveCustomPalette}
+                onClose={() => setIsCustomPaletteEditorOpen(false)}
+                onExportCustomPalette={handleExportCustomPalette}
+                onImportCustomPalette={triggerImportPalette}
+                selectedColorSystem={selectedColorSystem}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
