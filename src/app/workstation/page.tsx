@@ -833,73 +833,31 @@ export default function Workstation() {
     });
   };
 
-  // 颜色点击移除 - 完全复制老界面的 handleToggleExcludeColor 逻辑
+  // 颜色点击移除 - 将格子设为空白（透明）
   const handleColorClick = useCallback((hexKey: string) => {
     const currentExcluded = excludedColorKeys;
     const isExcluding = !currentExcluded.has(hexKey);
 
-    console.log(`---------\nhandleColorClick: ${hexKey}, isExcluding: ${isExcluding}`);
-    console.log("Initial Grid Color Keys:", Array.from(initialGridColorKeys));
-    console.log("Current Excluded Keys:", Array.from(currentExcluded));
-
     if (isExcluding) {
       // 排除颜色
-      if (initialGridColorKeys.size === 0) {
-        alert("无法排除颜色，初始颜色数据尚未准备好，请稍候。");
+      if (!mappedPixelData || !gridDimensions) {
+        alert("无法排除颜色，缺少必要数据。");
         return;
       }
 
       const nextExcludedKeys = new Set(currentExcluded);
       nextExcludedKeys.add(hexKey);
 
-      // --- 使用初始颜色键进行重映射目标逻辑 ---
-      // 1. 从初始网格颜色集合开始（hex值）
-      const potentialRemapHexKeys = new Set(initialGridColorKeys);
-      console.log("Step 1: Potential Hex Keys (from initial):", Array.from(potentialRemapHexKeys));
-
-      // 2. 移除当前要排除的hex键
-      potentialRemapHexKeys.delete(hexKey);
-      console.log(`Step 2: Potential Hex Keys (after removing ${hexKey}):`, Array.from(potentialRemapHexKeys));
-
-      // 3. 移除任何*其他*当前也被排除的hex键
-      currentExcluded.forEach(excludedHexKey => {
-        potentialRemapHexKeys.delete(excludedHexKey);
-      });
-      console.log("Step 3: Potential Hex Keys (after removing other exclusions):", Array.from(potentialRemapHexKeys));
-
-      // 4. 基于剩余的hex值创建重映射调色板
-      const remapTargetPalette = fullBeadPalette.filter(color => potentialRemapHexKeys.has(color.hex.toUpperCase()));
-      console.log("Step 4: Remap Target Palette Hex Keys:", remapTargetPalette.map(p => p.hex));
-
-      // 5. 关键检查：如果在考虑所有排除项后，没有初始颜色可供映射，则阻止此次排除
-      if (remapTargetPalette.length === 0) {
-        alert(`无法排除颜色 ${hexKey}，因为图中最初存在的其他可用颜色也已被排除。请先恢复部分其他颜色。`);
-        return;
-      }
-
-      // 查找被排除颜色的RGB值用于重映射
-      const excludedColorData = fullBeadPalette.find(p => p.hex.toUpperCase() === hexKey);
-      if (!excludedColorData || !mappedPixelData || !gridDimensions) {
-        alert("无法排除颜色，缺少必要数据。");
-        return;
-      }
-
-      // 创建深拷贝并重映射
+      // 创建深拷贝
       const newMappedData = mappedPixelData.map(row => row.map(cell => ({...cell})));
       const { N, M } = gridDimensions;
 
+      // 将所有使用该颜色的格子设为透明（空白）
       for (let j = 0; j < M; j++) {
         for (let i = 0; i < N; i++) {
           const cell = newMappedData[j]?.[i];
-          // 此条件正确地仅针对具有排除hex值的单元格
           if (cell && !cell.isExternal && cell.color.toUpperCase() === hexKey) {
-            // 使用派生的 remapTargetPalette 查找最接近的颜色
-            const replacementColor = findClosestPaletteColor(excludedColorData.rgb, remapTargetPalette);
-            newMappedData[j][i] = { 
-              ...cell, 
-              key: replacementColor.key, 
-              color: replacementColor.hex 
-            };
+            newMappedData[j][i] = { ...transparentColorData };
           }
         }
       }
@@ -908,7 +866,7 @@ export default function Workstation() {
       setExcludedColorKeys(nextExcludedKeys);
       setMappedPixelData(newMappedData);
 
-      // 基于*新*映射数据重新计算计数（以hex为键）
+      // 重新计算计数
       const newCounts: { [hexKey: string]: { count: number; color: string } } = {};
       let newTotalCount = 0;
       newMappedData.flat().forEach(cell => {
@@ -921,7 +879,6 @@ export default function Workstation() {
           newTotalCount++;
         }
       });
-      console.log("New Counts:", Object.keys(newCounts));
       setColorCounts(newCounts);
       setTotalBeadCount(newTotalCount);
       
@@ -935,8 +892,7 @@ export default function Workstation() {
 
     setIsManualColoringMode(false);
     setSelectedColor(null);
-    console.log("---------");
-  }, [excludedColorKeys, initialGridColorKeys, mappedPixelData, gridDimensions]);
+  }, [excludedColorKeys, mappedPixelData, gridDimensions]);
 
   // 获取排序后的颜色列表
   const sortedColorCounts = useMemo(() => {
