@@ -2899,6 +2899,63 @@ export default function Workstation() {
                 </div>
               </div>
 
+              {/* 画笔颜色选择区块 - 参考网站风格 */}
+              <div className="bg-white dark:bg-gray-700 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-600">
+                {/* 标题行 */}
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">画笔颜色选择</h4>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    总计: {sortedColorCounts.reduce((sum, c) => sum + c.count, 0)}颗
+                  </span>
+                </div>
+                
+                {/* 颜色列表 */}
+                <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                  {sortedColorCounts.length === 0 ? (
+                    <div className="text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
+                  ) : (
+                    sortedColorCounts.map(({ key, color, count }) => {
+                      const displayKey = getColorKeyByHex(color, selectedColorSystem);
+                      const isSelected = selectedColor && selectedColor.color.toUpperCase() === color.toUpperCase();
+                      const rgb = hexToRgb(color);
+                      const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+                      
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => {
+                            setSelectedColor({ key: displayKey, color: color, isExternal: false });
+                            setIsEraseMode(false);
+                            setCurrentTool('brush');
+                            setIsManualColoringMode(true);
+                            handleHighlightColor(color);
+                          }}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all ${
+                            isSelected && currentTool !== 'eraser'
+                              ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-300 dark:ring-blue-600'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-600/50'
+                          }`}
+                        >
+                          {/* 颜色方块 */}
+                          <div
+                            className="w-5 h-5 rounded flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          {/* 色号 */}
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-1 text-left">
+                            {displayKey}
+                          </span>
+                          {/* 数量 */}
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            {count}颗
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
               {/* 色板区块 */}
               <div className="bg-white dark:bg-gray-700 rounded-xl p-3 space-y-3 shadow-sm border border-gray-100 dark:border-gray-600">
                 <div className="flex items-center justify-between">
@@ -2960,6 +3017,158 @@ export default function Workstation() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* 替换杂色区块 - 参考网站风格 */}
+              <div className="bg-white dark:bg-gray-700 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-600">
+                {/* 标题行 */}
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">替换杂色</h4>
+                  {/* 开关 */}
+                  <button
+                    onClick={() => {
+                      if (colorReplaceState.isActive) {
+                        // 关闭替换模式
+                        setColorReplaceState({ isActive: false, step: 'select-source' });
+                      } else {
+                        // 开启替换模式
+                        setColorReplaceState({ isActive: true, step: 'select-source' });
+                      }
+                    }}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      colorReplaceState.isActive 
+                        ? 'bg-blue-500' 
+                        : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        colorReplaceState.isActive ? 'translate-x-5' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+                
+                {/* 说明文字 */}
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                  {colorReplaceState.isActive 
+                    ? (colorReplaceState.step === 'select-source' 
+                        ? '点击下方颜色选择要替换的颜色' 
+                        : `已选择 ${colorReplaceState.sourceColor?.key}，点击色板选择目标颜色`)
+                    : '开启后可批量替换颜色'
+                  }
+                </p>
+                
+                {/* 颜色列表 - 只在选择源颜色时显示 */}
+                {colorReplaceState.step === 'select-source' && (
+                  <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                    {sortedColorCounts.length === 0 ? (
+                      <div className="text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
+                    ) : (
+                      sortedColorCounts.map(({ key, color, count }) => {
+                        const displayKey = getColorKeyByHex(color, selectedColorSystem);
+                        const isSourceSelected = colorReplaceState.isActive && 
+                          colorReplaceState.step === 'select-source' && 
+                          colorReplaceState.sourceColor?.color.toUpperCase() === color.toUpperCase();
+                        
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              if (colorReplaceState.isActive && colorReplaceState.step === 'select-source') {
+                                // 选择源颜色，进入选择目标颜色步骤
+                                setColorReplaceState({
+                                  isActive: true,
+                                  step: 'select-target',
+                                  sourceColor: { key: displayKey, color: color }
+                                });
+                              }
+                            }}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all ${
+                              isSourceSelected
+                                ? 'bg-orange-50 dark:bg-orange-900/30 ring-1 ring-orange-300 dark:ring-orange-600'
+                                : colorReplaceState.isActive
+                                  ? 'hover:bg-orange-50 dark:hover:bg-orange-900/20 cursor-pointer'
+                                  : ''
+                            }`}
+                          >
+                            {/* 颜色方块 */}
+                            <div
+                              className="w-5 h-5 rounded flex-shrink-0"
+                              style={{ backgroundColor: color }}
+                            />
+                            {/* 色号 */}
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-1 text-left">
+                              {displayKey}
+                            </span>
+                            {/* 数量 */}
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                              {count}颗
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+                
+                {/* 目标颜色选择 - 在选择目标颜色时显示完整色板 */}
+                {colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
+                      <div
+                        className="w-5 h-5 rounded"
+                        style={{ backgroundColor: colorReplaceState.sourceColor.color }}
+                      />
+                      <span className="text-xs text-orange-600 dark:text-orange-400">
+                        {colorReplaceState.sourceColor.key} → ?
+                      </span>
+                      <button
+                        onClick={() => setColorReplaceState({ isActive: true, step: 'select-source' })}
+                        className="ml-auto text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        重选
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-6 gap-1 max-h-32 overflow-y-auto p-1">
+                      {fullBeadPalette.map((colorItem) => {
+                        const hexColor = colorItem.hex;
+                        const displayKey = colorItem.mardKey;
+                        const rgb = hexToRgb(hexColor);
+                        const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+                        
+                        return (
+                          <button
+                            key={hexColor}
+                            onClick={() => {
+                              handleColorReplace(colorReplaceState.sourceColor!, { key: displayKey, color: hexColor });
+                            }}
+                            className="w-7 h-7 rounded border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:scale-110 transition-transform"
+                            style={{ backgroundColor: hexColor }}
+                            title={`${displayKey} - ${hexColor}`}
+                          >
+                            <span className={`text-[8px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
+                              {displayKey}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 一键恢复按钮 */}
+                <button
+                  onClick={() => {
+                    // 重置颜色替换状态
+                    setColorReplaceState({ isActive: false, step: 'select-source' });
+                    // 触发重新映射（恢复原始颜色）
+                    setRemapTrigger(prev => prev + 1);
+                  }}
+                  className="w-full mt-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                >
+                  一键恢复（撤销所有颜色更换）
+                </button>
               </div>
             </div>
           ) : (
