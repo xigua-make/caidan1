@@ -38,7 +38,7 @@ import { loadPaletteSelections, savePaletteSelections, presetToSelections, Palet
 import { TRANSPARENT_KEY, transparentColorData } from '../../utils/pixelEditingUtils';
 
 // 工作台模式类型
-type WorkstationMode = 'auto' | 'manual' | 'focus';
+type WorkstationMode = 'auto' | 'manual';
 
 // 工具类型
 type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
@@ -2075,16 +2075,6 @@ export default function Workstation() {
             >
               手动编辑
             </button>
-            <button
-              onClick={() => setWorkstationMode('focus')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                workstationMode === 'focus'
-                  ? 'bg-green-500 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-600'
-              }`}
-            >
-              专心拼豆
-            </button>
           </div>
 
           {/* 右侧功能按钮 */}
@@ -2288,7 +2278,7 @@ export default function Workstation() {
                 </div>
               </div>
             </div>
-          ) : workstationMode === 'manual' ? (
+          ) : (
             /* 手动编辑模式右侧栏 */
             <div className="p-4 space-y-3 overflow-y-auto">
               {/* 顶部标题区 */}
@@ -2690,13 +2680,6 @@ export default function Workstation() {
                     );
                   })}
                 </div>
-              </div>
-            </div>
-          ) : (
-            /* 专心拼豆模式右侧栏 */
-            <div className="p-4 space-y-4">
-              <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
-                专心拼豆模式
               </div>
             </div>
           )}
