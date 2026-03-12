@@ -18,7 +18,7 @@ interface PixelatedPreviewCanvasProps {
   ) => void;
   highlightColorKey?: string | null;
   onHighlightComplete?: () => void;
-  // 绘制状态回调
+  // 新增：绘制状态回调
   onDrawStart?: (clientX: number, clientY: number) => void;
   onDrawMove?: (clientX: number, clientY: number) => void;
   onDrawEnd?: (clientX: number, clientY: number) => void;
@@ -108,9 +108,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   onInteraction,
   highlightColorKey,
   onHighlightComplete,
-  onDrawStart,
-  onDrawMove,
-  onDrawEnd,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -123,10 +120,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const [offsetY, setOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
-  
-  // 绘制状态跟踪
-  const [isDrawing, setIsDrawing] = useState(false);
-  const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   
   // 容器引用，用于计算居中位置
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -207,21 +200,16 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // --- 鼠标事件处理 ---
   
-  // 鼠标移动
+  // 鼠标移动时显示提示或拖拽
   const handleMouseMove = (event: MouseEvent<HTMLCanvasElement>) => {
     if (isDragging && dragStartRef.current) {
-      // 画布拖拽模式：更新偏移量
+      // 拖拽模式：更新偏移量
       const dx = event.clientX - dragStartRef.current.x;
       const dy = event.clientY - dragStartRef.current.y;
       setOffsetX(dragStartRef.current.offsetX + dx);
       setOffsetY(dragStartRef.current.offsetY + dy);
-    } else if (isDrawing && drawStartRef.current) {
-      // 绘制模式：实时绘制或预览
-      if (onDrawMove) {
-        onDrawMove(event.clientX, event.clientY);
-      }
     } else if (isManualColoringMode) {
-      // 手动模式下：显示tooltip
+      // 手动模式下也传递交互信息（用于实时绘制）
       onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
     } else {
       // 非手动模式下：显示tooltip
@@ -229,16 +217,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   };
 
-  // 鼠标离开
+  // 鼠标离开时隐藏提示
   const handleMouseLeave = () => {
-    if (isDrawing && drawStartRef.current && onDrawEnd) {
-      // 如果正在绘制，取消绘制
-      onDrawEnd(0, 0);
-    }
     setIsDragging(false);
-    setIsDrawing(false);
     dragStartRef.current = null;
-    drawStartRef.current = null;
     onInteraction(0, 0, 0, 0, false, true);
   };
 
@@ -246,14 +228,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
     if (event.button === 0) {
       if (isManualColoringMode) {
-        // 手动模式：开始绘制
-        setIsDrawing(true);
-        drawStartRef.current = { x: event.clientX, y: event.clientY };
-        if (onDrawStart) {
-          onDrawStart(event.clientX, event.clientY);
-        }
+        // 手动模式下，直接执行操作
+        onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
       } else {
-        // 非手动模式：开始画布拖拽
+        // 非手动模式下，开始拖拽
         setIsDragging(true);
         dragStartRef.current = {
           x: event.clientX,
@@ -265,24 +243,15 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   };
 
-  // 鼠标释放
+  // 鼠标释放：结束拖拽
   const handleMouseUp = (event: MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
-      // 结束画布拖拽
       setIsDragging(false);
       dragStartRef.current = null;
     }
-    if (isDrawing && drawStartRef.current) {
-      // 结束绘制
-      setIsDrawing(false);
-      if (onDrawEnd) {
-        onDrawEnd(event.clientX, event.clientY);
-      }
-      drawStartRef.current = null;
-    }
   };
 
-  // --- 滚轮缩放 ---
+  // 鼠标滚轮缩放
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
     
