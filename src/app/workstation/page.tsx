@@ -2774,14 +2774,18 @@ export default function Workstation() {
                 
                 {/* 色板网格 */}
                 <div className="grid grid-cols-6 gap-1.5 max-h-40 overflow-y-auto p-1">
-                  {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => ({ hex: c.color, key: c.key, mardKey: c.key }))).map((colorItem) => {
+                  {(showFullPalette ? fullBeadPalette : sortedColorCounts.map(c => {
+                    // 为当前色板生成正确的 mardKey
+                    const mardKey = getColorKeyByHex(c.color.toUpperCase(), 'MARD');
+                    return { hex: c.color, key: c.key, mardKey };
+                  })).map((colorItem) => {
                     const hexColor = colorItem.hex;
                     const isSelected = selectedColor && selectedColor.color.toUpperCase() === hexColor.toUpperCase();
                     // 判断颜色深浅来决定文字颜色
                     const rgb = hexToRgb(hexColor);
                     const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
-                    // 显示的色号：优先使用 mardKey，否则使用 key
-                    const displayKey = colorItem.mardKey || colorItem.key;
+                    // 显示的色号：使用 mardKey（MARD 色号）
+                    const displayKey = colorItem.mardKey;
                     return (
                       <button
                         key={hexColor}
@@ -2803,7 +2807,7 @@ export default function Workstation() {
                         title={`${displayKey} - ${hexColor}`}
                       >
                         {/* 显示色号 */}
-                        <span className={`text-[6px] font-bold ${isLightColor ? 'text-gray-800' : 'text-white'}`} style={{ textShadow: isLightColor ? '0 0 1px rgba(255,255,255,0.5)' : '0 0 1px rgba(0,0,0,0.5)' }}>
+                        <span className={`text-[9px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`} style={{ textShadow: isLightColor ? '0 0 2px rgba(255,255,255,0.8)' : '0 0 2px rgba(0,0,0,0.8)' }}>
                           {displayKey}
                         </span>
                         {isSelected && currentTool !== 'eraser' && (

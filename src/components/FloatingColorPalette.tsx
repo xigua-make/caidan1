@@ -314,7 +314,7 @@ const FloatingColorPalette: React.FC<FloatingColorPaletteProps> = ({
                 >
                   {/* 显示色号 */}
                   <span 
-                    className={`text-[10px] font-bold ${isLightColor ? 'text-gray-800' : 'text-white'}`} 
+                    className={`text-[12px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`} 
                     style={{ textShadow: isLightColor ? '0 0 2px rgba(255,255,255,0.8)' : '0 0 2px rgba(0,0,0,0.8)' }}
                   >
                     {displayKey}
