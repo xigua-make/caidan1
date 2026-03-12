@@ -46,13 +46,15 @@ interface PixelatedPreviewCanvasProps {
   selectedColorSystem?: ColorSystem;
 }
 
-// 绘制像素化画布的函数 - 只绘制格子颜色和网格线
+// 绘制像素化画布的函数
 const drawPixelatedCanvas = (
   dataToDraw: MappedPixel[][],
   canvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
   highlightColorKey?: string | null,
-  isHighlighting?: boolean
+  isHighlighting?: boolean,
+  showColorKey?: boolean,
+  selectedColorSystem?: ColorSystem
 ) => {
   if (!canvas || !dims || !dataToDraw) {
     return;
@@ -80,6 +82,9 @@ const drawPixelatedCanvas = (
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
   pixelatedCtx.lineWidth = 0.5;
 
+  // 计算色号字体大小
+  const colorKeyFontSize = Math.max(6, Math.min(cellWidthOutput, cellHeightOutput) * 0.45);
+
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
       const cellData = dataToDraw[j]?.[i];
@@ -88,6 +93,7 @@ const drawPixelatedCanvas = (
       const drawX = i * cellWidthOutput;
       const drawY = j * cellHeightOutput;
 
+      // 绘制格子颜色
       if (cellData.isExternal) {
         pixelatedCtx.fillStyle = externalBackgroundColor;
       } else {
@@ -95,6 +101,7 @@ const drawPixelatedCanvas = (
       }
       pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
 
+      // 高亮效果
       if (isHighlighting && highlightColorKey) {
         let shouldDim = false;
         if (cellData.isExternal) {
@@ -108,78 +115,39 @@ const drawPixelatedCanvas = (
         }
       }
 
+      // 绘制网格线
       pixelatedCtx.strokeStyle = gridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
-    }
-  }
-};
-
-// 绘制色号层 - 独立的Canvas层，只绘制色号文字
-const drawColorKeyCanvas = (
-  dataToDraw: MappedPixel[][],
-  canvas: HTMLCanvasElement | null,
-  mainCanvas: HTMLCanvasElement | null,
-  dims: { N: number; M: number } | null,
-  selectedColorSystem: ColorSystem
-) => {
-  if (!canvas || !dims || !dataToDraw || !mainCanvas) return;
-  
-  // 设置色号画布大小与主画布相同
-  canvas.width = mainCanvas.width;
-  canvas.height = mainCanvas.height;
-  
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const { N, M } = dims;
-  const cellWidth = canvas.width / N;
-  const cellHeight = canvas.height / M;
-  
-  // 清空画布
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // 计算字体大小 - 根据格子大小动态调整
-  const fontSize = Math.max(6, Math.min(cellWidth, cellHeight) * 0.45);
-  ctx.font = `bold ${fontSize}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  for (let j = 0; j < M; j++) {
-    for (let i = 0; i < N; i++) {
-      const cellData = dataToDraw[j]?.[i];
-      if (!cellData || cellData.isExternal || !cellData.color) continue;
-
-      const drawX = i * cellWidth;
-      const drawY = j * cellHeight;
-      const centerX = drawX + cellWidth / 2;
-      const centerY = drawY + cellHeight / 2;
-
-      // 获取色号
-      const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
       
-      // 判断颜色深浅来决定文字颜色
-      const hex = cellData.color.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16);
-      const g = parseInt(hex.substr(2, 2), 16);
-      const b = parseInt(hex.substr(4, 2), 16);
-      const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
-      
-      // 设置文字颜色
-      ctx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
-      
-      // 添加文字阴影增强可读性
-      ctx.shadowColor = isLightColor ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
-      ctx.shadowBlur = 2;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
-      
-      ctx.fillText(colorKey, centerX, centerY);
-      
-      // 重置阴影
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
+      // 绘制色号
+      if (showColorKey && !cellData.isExternal && cellData.color && selectedColorSystem) {
+        const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
+        
+        // 判断颜色深浅来决定文字颜色
+        const hex = cellData.color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        
+        pixelatedCtx.font = `bold ${colorKeyFontSize}px Arial`;
+        pixelatedCtx.textAlign = 'center';
+        pixelatedCtx.textBaseline = 'middle';
+        pixelatedCtx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
+        
+        // 添加文字阴影增强可读性
+        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+        pixelatedCtx.shadowBlur = 2;
+        pixelatedCtx.shadowOffsetX = 1;
+        pixelatedCtx.shadowOffsetY = 1;
+        pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2);
+        
+        // 重置阴影
+        pixelatedCtx.shadowColor = 'transparent';
+        pixelatedCtx.shadowBlur = 0;
+        pixelatedCtx.shadowOffsetX = 0;
+        pixelatedCtx.shadowOffsetY = 0;
+      }
     }
   }
 };
@@ -517,31 +485,21 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas
+  // Draw main canvas - 每次数据变化时都重新绘制
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current) {
-      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting);
+      drawPixelatedCanvas(
+        mappedPixelData, 
+        canvasRef.current, 
+        gridDimensions, 
+        highlightColorKey, 
+        isHighlighting,
+        showColorKey,
+        selectedColorSystem || 'MARD'
+      );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]);
-
-  // 色号画布引用
-  const colorKeyCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Draw color key canvas
-  useEffect(() => {
-    if (!showColorKey || !mappedPixelData || !gridDimensions || !colorKeyCanvasRef.current || !canvasRef.current) {
-      // 清空色号画布
-      if (colorKeyCanvasRef.current) {
-        const ctx = colorKeyCanvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, colorKeyCanvasRef.current.width, colorKeyCanvasRef.current.height);
-        }
-      }
-      return;
-    }
-    
-    drawColorKeyCanvas(mappedPixelData, colorKeyCanvasRef.current, canvasRef.current, gridDimensions, selectedColorSystem || 'MARD');
-  }, [showColorKey, mappedPixelData, gridDimensions, selectedColorSystem]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mappedPixelData, gridDimensions, darkModeState, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem]);
 
   // Initialize preview canvas size
   useEffect(() => {
@@ -1040,18 +998,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       />
-      {/* 色号画布 - 叠加在主画布上，随缩放一起放大 */}
-      {showColorKey && (
-        <canvas
-          ref={colorKeyCanvasRef}
-          className="absolute top-0 left-0 pointer-events-none z-15"
-          style={{
-            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-            transformOrigin: '0 0',
-            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
-          }}
-        />
-      )}
       {/* 预览画布 - 叠加在主画布上 */}
       <canvas
         ref={previewCanvasRef}
