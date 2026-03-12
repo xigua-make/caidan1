@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent, useCallback } from 'react';
 import { MappedPixel } from '../utils/pixelation';
+import { getColorKeyByHex, ColorSystem } from '../utils/colorSystemUtils';
 
 // 工具类型
 type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
@@ -39,6 +40,13 @@ interface PixelatedPreviewCanvasProps {
   previewEndPos?: { row: number; col: number } | null;
   isDrawing?: boolean;
   selection?: { startRow: number; startCol: number; endRow: number; endCol: number } | null;
+  // 显示色号
+  showColorLabels?: boolean;
+  selectedColorSystem?: ColorSystem;
+  // 网格线设置
+  showGridLines?: boolean;
+  gridLineInterval?: number;
+  gridLineColor?: string;
 }
 
 // 绘制像素化画布的函数
@@ -47,7 +55,12 @@ const drawPixelatedCanvas = (
   canvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
   highlightColorKey?: string | null,
-  isHighlighting?: boolean
+  isHighlighting?: boolean,
+  showColorLabels?: boolean,
+  colorSystem?: ColorSystem,
+  showGridLines?: boolean,
+  gridLineInterval?: number,
+  gridLineColorProp?: string
 ) => {
   if (!canvas || !dims || !dataToDraw) {
     console.warn("drawPixelatedCanvas: Missing required parameters");
@@ -62,7 +75,8 @@ const drawPixelatedCanvas = (
 
   const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
   const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6';
-  const gridLineColor = isDarkMode ? '#4B5563' : '#DDDDDD';
+  const defaultGridLineColor = isDarkMode ? '#4B5563' : '#DDDDDD';
+  const gridLineColor = gridLineColorProp || defaultGridLineColor;
 
   const { N, M } = dims;
   const outputWidth = canvas.width;
@@ -101,8 +115,96 @@ const drawPixelatedCanvas = (
         }
       }
 
-      pixelatedCtx.strokeStyle = gridLineColor;
+      pixelatedCtx.strokeStyle = defaultGridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
+    }
+  }
+  
+  // 绘制分组网格线（每N格一条粗线）
+  if (showGridLines && gridLineInterval && gridLineInterval > 1) {
+    pixelatedCtx.strokeStyle = gridLineColor;
+    pixelatedCtx.lineWidth = 2;
+    
+    // 垂直线
+    for (let i = 0; i <= N; i += gridLineInterval) {
+      const x = i * cellWidthOutput;
+      pixelatedCtx.beginPath();
+      pixelatedCtx.moveTo(x, 0);
+      pixelatedCtx.lineTo(x, outputHeight);
+      pixelatedCtx.stroke();
+    }
+    
+    // 水平线
+    for (let j = 0; j <= M; j += gridLineInterval) {
+      const y = j * cellHeightOutput;
+      pixelatedCtx.beginPath();
+      pixelatedCtx.moveTo(0, y);
+      pixelatedCtx.lineTo(outputWidth, y);
+      pixelatedCtx.stroke();
+    }
+  }
+};
+
+// 绘制色号标签层
+const drawColorLabels = (
+  dataToDraw: MappedPixel[][],
+  labelCanvas: HTMLCanvasElement | null,
+  dims: { N: number; M: number } | null,
+  colorSystem: ColorSystem,
+  currentScale: number
+) => {
+  if (!labelCanvas || !dims || !dataToDraw) return;
+  
+  const ctx = labelCanvas.getContext('2d');
+  if (!ctx) return;
+
+  const { N, M } = dims;
+  const outputWidth = labelCanvas.width;
+  const outputHeight = labelCanvas.height;
+  const cellWidthOutput = outputWidth / N;
+  const cellHeightOutput = outputHeight / M;
+
+  // 清除色号层
+  ctx.clearRect(0, 0, outputWidth, outputHeight);
+  
+  // 只有当格子足够大时才显示色号
+  const minCellSize = 15; // 最小显示色号的格子尺寸
+  if (cellWidthOutput < minCellSize || cellHeightOutput < minCellSize) return;
+
+  for (let j = 0; j < M; j++) {
+    for (let i = 0; i < N; i++) {
+      const cellData = dataToDraw[j]?.[i];
+      if (!cellData || cellData.isExternal || !cellData.color) continue;
+
+      const drawX = i * cellWidthOutput;
+      const drawY = j * cellHeightOutput;
+      
+      // 获取色号
+      const colorKey = getColorKeyByHex(cellData.color, colorSystem);
+      
+      // 判断颜色深浅来决定文字颜色
+      const hex = cellData.color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
+      
+      // 根据格子大小调整字体
+      const fontSize = Math.min(cellWidthOutput, cellHeightOutput) * 0.6;
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
+      ctx.shadowColor = isLightColor ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 2;
+      
+      // 绘制色号
+      ctx.fillText(
+        colorKey,
+        drawX + cellWidthOutput / 2,
+        drawY + cellHeightOutput / 2
+      );
+      ctx.shadowBlur = 0;
     }
   }
 };
@@ -365,6 +467,11 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   previewEndPos,
   isDrawing: isDrawingProp = false,
   selection,
+  showColorLabels = false,
+  selectedColorSystem = 'MARD',
+  showGridLines = false,
+  gridLineInterval = 5,
+  gridLineColor = '#FF0000',
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -382,6 +489,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   
   // 预览画布引用
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  
+  // 色号标签画布引用
+  const colorLabelCanvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // 参考图层画布引用
   const referenceCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -440,9 +550,20 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting);
+      drawPixelatedCanvas(
+        mappedPixelData, 
+        canvasRef.current, 
+        gridDimensions, 
+        highlightColorKey, 
+        isHighlighting,
+        showColorLabels,
+        selectedColorSystem,
+        showGridLines,
+        gridLineInterval,
+        gridLineColor
+      );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor]);
 
   // Initialize preview canvas size
   useEffect(() => {
@@ -450,7 +571,31 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       previewCanvasRef.current.width = canvasRef.current.width;
       previewCanvasRef.current.height = canvasRef.current.height;
     }
+    // Initialize color label canvas size
+    if (canvasRef.current && colorLabelCanvasRef.current) {
+      colorLabelCanvasRef.current.width = canvasRef.current.width;
+      colorLabelCanvasRef.current.height = canvasRef.current.height;
+    }
   }, [mappedPixelData, gridDimensions]);
+
+  // Draw color labels when scale or showColorLabels changes
+  useEffect(() => {
+    if (mappedPixelData && gridDimensions && colorLabelCanvasRef.current && showColorLabels) {
+      drawColorLabels(
+        mappedPixelData,
+        colorLabelCanvasRef.current,
+        gridDimensions,
+        selectedColorSystem,
+        scale
+      );
+    } else if (colorLabelCanvasRef.current) {
+      // Clear color labels when disabled
+      const ctx = colorLabelCanvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
+      }
+    }
+  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem, scale]);
 
   // Initialize reference canvas size
   useEffect(() => {
@@ -638,7 +783,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const beforeX = (mouseX - offsetX) / scale;
     const beforeY = (mouseY - offsetY) / scale;
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 10);
+    const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 50);
     setOffsetX(mouseX - beforeX * newScale);
     setOffsetY(mouseY - beforeY * newScale);
     setScale(newScale);
@@ -724,7 +869,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const dy = touch2.clientY - touch1.clientY;
       const newDistance = Math.sqrt(dx * dx + dy * dy);
       const zoomFactor = newDistance / touchDistanceRef.current;
-      const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 10);
+      const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 50);
       const newCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
       const scaleRatio = newScale / scale;
       setOffsetX(newCenter.x - (newCenter.x - offsetX) * scaleRatio);
@@ -809,6 +954,16 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="absolute top-0 left-0 pointer-events-none z-20"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+        }}
+      />
+      {/* 色号标签画布 - 叠加在预览画布上 */}
+      <canvas
+        ref={colorLabelCanvasRef}
+        className="absolute top-0 left-0 pointer-events-none z-25"
+        style={{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'

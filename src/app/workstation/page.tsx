@@ -265,9 +265,23 @@ export default function Workstation() {
   // 默认颜色（当没有选择颜色时使用）
   const defaultColor = fullBeadPalette.length > 0 ? fullBeadPalette[0].hex : '#FFFFFF';
   
-  // 参考图层状态
-  const [referenceOpacity, setReferenceOpacity] = useState<number>(25);
-  const [showReferenceLayer, setShowReferenceLayer] = useState<boolean>(true);
+  // 显示色号状态
+  const [showColorLabels, setShowColorLabels] = useState<boolean>(false);
+  
+  // 网格线状态
+  const [showGridLines, setShowGridLines] = useState<boolean>(false);
+  const [gridLineInterval, setGridLineInterval] = useState<number>(5);
+  const [gridLineColor, setGridLineColor] = useState<string>('#FF0000');
+  
+  // 网格线颜色选项
+  const gridLineColorOptions = [
+    { value: '#6B7280', name: '灰色' },
+    { value: '#FF0000', name: '红色' },
+    { value: '#3B82F6', name: '蓝色' },
+    { value: '#22C55E', name: '绿色' },
+    { value: '#8B5CF6', name: '紫色' },
+    { value: '#F97316', name: '橙色' },
+  ];
   
   // 色板显示状态
   const [showFullPalette, setShowFullPalette] = useState<boolean>(true);
@@ -2297,9 +2311,11 @@ export default function Workstation() {
                   selectedColor={selectedColor?.color}
                   brushSize={brushSize}
                   rectangleFilled={rectangleFilled}
-                  originalImageSrc={originalImageSrc}
-                  showReferenceLayer={showReferenceLayer}
-                  referenceOpacity={referenceOpacity}
+                  showColorLabels={showColorLabels}
+                  selectedColorSystem={selectedColorSystem}
+                  showGridLines={showGridLines}
+                  gridLineInterval={gridLineInterval}
+                  gridLineColor={gridLineColor}
                   previewStartPos={drawStartPos}
                   previewEndPos={drawEndPos}
                   isDrawing={isDrawing}
@@ -2685,6 +2701,21 @@ export default function Workstation() {
                   />
                 </div>
                 
+                {/* 显示色号开关 */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">显示色号</span>
+                  <button
+                    onClick={() => setShowColorLabels(!showColorLabels)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                      showColorLabels
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    }`}
+                  >
+                    {showColorLabels ? '开启' : '关闭'}
+                  </button>
+                </div>
+                
                 {/* 形状与镜像工具 */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -2760,36 +2791,56 @@ export default function Workstation() {
                 </button>
               </div>
 
-              {/* 参考图层区块 */}
+              {/* 网格线区块 */}
               <div className="bg-white dark:bg-gray-700 rounded-xl p-3 space-y-3 shadow-sm border border-gray-100 dark:border-gray-600">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">参考图层</h4>
+                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">网格线</h4>
                   <button
-                    onClick={() => setShowReferenceLayer(!showReferenceLayer)}
+                    onClick={() => setShowGridLines(!showGridLines)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                      showReferenceLayer
+                      showGridLines
                         ? 'bg-blue-500 text-white'
                         : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
                     }`}
                   >
-                    {showReferenceLayer ? '隐藏' : '显示'}
+                    {showGridLines ? '隐藏' : '显示'}
                   </button>
                 </div>
                 
-                {/* 透明度滑块 */}
+                {/* 网格线间隔 */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">透明度</span>
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{referenceOpacity}%</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">网格线间隔（每N格画一条线）</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{gridLineInterval}</span>
                   </div>
                   <input
                     type="range"
-                    min="0"
-                    max="100"
-                    value={referenceOpacity}
-                    onChange={(e) => setReferenceOpacity(parseInt(e.target.value))}
+                    min="2"
+                    max="20"
+                    value={gridLineInterval}
+                    onChange={(e) => setGridLineInterval(parseInt(e.target.value))}
                     className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                   />
+                </div>
+                
+                {/* 网格线颜色 */}
+                <div className="space-y-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">网格线颜色</span>
+                  <div className="flex gap-2">
+                    {gridLineColorOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setGridLineColor(option.value)}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          gridLineColor === option.value
+                            ? 'border-blue-500 ring-2 ring-blue-300'
+                            : 'border-gray-300 dark:border-gray-500'
+                        }`}
+                        style={{ backgroundColor: option.value }}
+                        title={option.name}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 
