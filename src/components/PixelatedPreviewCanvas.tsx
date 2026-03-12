@@ -52,7 +52,9 @@ const drawPixelatedCanvas = (
   canvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
   highlightColorKey?: string | null,
-  isHighlighting?: boolean
+  isHighlighting?: boolean,
+  showColorKey?: boolean,
+  selectedColorSystem?: ColorSystem
 ) => {
   if (!canvas || !dims || !dataToDraw) {
     console.warn("drawPixelatedCanvas: Missing required parameters");
@@ -77,6 +79,9 @@ const drawPixelatedCanvas = (
 
   pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
   pixelatedCtx.lineWidth = 0.5;
+
+  // 计算色号字体大小
+  const colorKeyFontSize = Math.max(6, Math.min(cellWidthOutput, cellHeightOutput) * 0.4);
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
@@ -108,68 +113,29 @@ const drawPixelatedCanvas = (
 
       pixelatedCtx.strokeStyle = gridLineColor;
       pixelatedCtx.strokeRect(drawX + 0.5, drawY + 0.5, cellWidthOutput, cellHeightOutput);
-    }
-  }
-};
-
-// 绘制色号层的函数
-const drawColorKeyLayer = (
-  dataToDraw: MappedPixel[][],
-  canvas: HTMLCanvasElement | null,
-  mainCanvas: HTMLCanvasElement | null,
-  dims: { N: number; M: number } | null,
-  selectedColorSystem: ColorSystem
-) => {
-  if (!canvas || !dims || !dataToDraw || !mainCanvas) return;
-  
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const { N, M } = dims;
-  // 色号画布大小等于主画布大小（和主画布一样大）
-  const outputWidth = mainCanvas.width;
-  const outputHeight = mainCanvas.height;
-  
-  // 设置画布大小
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
-
-  // 清空画布（透明背景）
-  ctx.clearRect(0, 0, outputWidth, outputHeight);
-
-  const cellWidth = outputWidth / N;
-  const cellHeight = outputHeight / M;
-  
-  // 计算字体大小，根据格子大小动态调整
-  const fontSize = Math.max(8, Math.min(cellWidth, cellHeight) * 0.45);
-
-  for (let j = 0; j < M; j++) {
-    for (let i = 0; i < N; i++) {
-      const cellData = dataToDraw[j]?.[i];
-      if (!cellData || cellData.isExternal || !cellData.color) continue;
-
-      const drawX = i * cellWidth;
-      const drawY = j * cellHeight;
-
-      const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
       
-      // 判断颜色深浅来决定文字颜色
-      const hex = cellData.color.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16);
-      const g = parseInt(hex.substr(2, 2), 16);
-      const b = parseInt(hex.substr(4, 2), 16);
-      const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
-      
-      ctx.font = `bold ${fontSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
-      
-      // 添加文字阴影增强可读性
-      ctx.shadowColor = isLightColor ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)';
-      ctx.shadowBlur = 2;
-      ctx.fillText(colorKey, drawX + cellWidth / 2, drawY + cellHeight / 2);
-      ctx.shadowBlur = 0;
+      // 绘制色号
+      if (showColorKey && !cellData.isExternal && cellData.color && selectedColorSystem) {
+        const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
+        
+        // 判断颜色深浅来决定文字颜色
+        const hex = cellData.color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        
+        pixelatedCtx.font = `bold ${colorKeyFontSize}px Arial`;
+        pixelatedCtx.textAlign = 'center';
+        pixelatedCtx.textBaseline = 'middle';
+        pixelatedCtx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
+        
+        // 添加文字阴影增强可读性
+        pixelatedCtx.shadowColor = isLightColor ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+        pixelatedCtx.shadowBlur = 1;
+        pixelatedCtx.fillText(colorKey, drawX + cellWidthOutput / 2, drawY + cellHeightOutput / 2);
+        pixelatedCtx.shadowBlur = 0;
+      }
     }
   }
 };
@@ -453,9 +419,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // 预览画布引用
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   
-  // 色号画布引用
-  const colorKeyCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  
   // 参考图层画布引用
   const referenceCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const referenceImageRef = useRef<HTMLImageElement | null>(null);
@@ -513,25 +476,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // Draw main canvas
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting);
+      drawPixelatedCanvas(mappedPixelData, canvasRef.current, gridDimensions, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem);
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting]);
-
-  // Draw color key layer
-  useEffect(() => {
-    if (!showColorKey || !mappedPixelData || !gridDimensions || !colorKeyCanvasRef.current || !canvasRef.current) {
-      // 清空色号画布
-      if (colorKeyCanvasRef.current) {
-        const ctx = colorKeyCanvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, colorKeyCanvasRef.current.width, colorKeyCanvasRef.current.height);
-        }
-      }
-      return;
-    }
-    
-    drawColorKeyLayer(mappedPixelData, colorKeyCanvasRef.current, canvasRef.current, gridDimensions, selectedColorSystem);
-  }, [showColorKey, mappedPixelData, gridDimensions, selectedColorSystem]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorKey, selectedColorSystem]);
 
   // Initialize preview canvas size
   useEffect(() => {
@@ -1025,17 +972,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         className="border border-gray-300 dark:border-gray-600 rounded block relative z-10"
         style={{
           imageRendering: scale > 1 ? 'pixelated' : 'auto',
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          transformOrigin: '0 0',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
-        }}
-      />
-      {/* 色号画布 - 叠加在主画布上，随缩放放大 */}
-      <canvas
-        ref={colorKeyCanvasRef}
-        className="absolute top-0 left-0 pointer-events-none z-15"
-        style={{
-          imageRendering: 'auto',
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           transformOrigin: '0 0',
           transition: isDragging ? 'none' : 'transform 0.1s ease-out'
