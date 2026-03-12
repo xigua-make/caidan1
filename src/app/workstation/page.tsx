@@ -427,7 +427,7 @@ export default function Workstation() {
       }, 50);
       return () => clearTimeout(timeoutId);
     }
-  }, [originalImageSrc, granularity, similarityThreshold, activeBeadPalette, pixelationMode, pixelateImage]);
+  }, [originalImageSrc, granularity, similarityThreshold, activeBeadPalette, pixelationMode, remapTrigger, pixelateImage]);
 
   // 文件输入触发函数
   const triggerFileInput = useCallback(() => {
@@ -479,37 +479,157 @@ export default function Workstation() {
   }, []);
 
   const handleConfirmParameters = useCallback(() => {
-    const newGranularity = parseInt(granularityInput, 10);
-    const newThreshold = parseInt(similarityThresholdInput, 10);
+    const minGranularity = 10;
+    const maxGranularity = 300;
+    let newGranularity = parseInt(granularityInput, 10);
+
+    if (isNaN(newGranularity) || newGranularity < minGranularity) {
+      newGranularity = minGranularity;
+    } else if (newGranularity > maxGranularity) {
+      newGranularity = maxGranularity;
+    }
+
+    const minSimilarity = 0;
+    const maxSimilarity = 100;
+    let newSimilarity = parseInt(similarityThresholdInput, 10);
     
-    if (!isNaN(newGranularity) && newGranularity >= 10 && newGranularity <= 300) {
+    if (isNaN(newSimilarity) || newSimilarity < minSimilarity) {
+      newSimilarity = minSimilarity;
+    } else if (newSimilarity > maxSimilarity) {
+      newSimilarity = maxSimilarity;
+    }
+
+    const granularityChanged = newGranularity !== granularity;
+    const similarityChanged = newSimilarity !== similarityThreshold;
+    
+    if (granularityChanged) {
       setGranularity(newGranularity);
     }
     
-    if (!isNaN(newThreshold) && newThreshold >= 0 && newThreshold <= 100) {
-      setSimilarityThreshold(newThreshold);
+    if (similarityChanged) {
+      setSimilarityThreshold(newSimilarity);
     }
-  }, [granularityInput, similarityThresholdInput]);
+    
+    // 只有在有值变化时才触发重映射
+    if (granularityChanged || similarityChanged) {
+      setRemapTrigger(prev => prev + 1);
+      setIsManualColoringMode(false);
+      setSelectedColor(null);
+    }
+
+    setGranularityInput(newGranularity.toString());
+    setSimilarityThresholdInput(newSimilarity.toString());
+  }, [granularityInput, similarityThresholdInput, granularity, similarityThreshold]);
 
   // 像素化模式变更
   const handlePixelationModeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
-    setPixelationMode(e.target.value as PixelationMode);
+    const newMode = e.target.value as PixelationMode;
+    if (Object.values(PixelationMode).includes(newMode)) {
+      setPixelationMode(newMode);
+      setRemapTrigger(prev => prev + 1);
+      setIsManualColoringMode(false);
+      setSelectedColor(null);
+    }
   }, []);
 
-  // 自动去背景
+  // 自动去背景 - 识别边缘主色并洪水填充去除
   const handleAutoRemoveBackground = useCallback(() => {
-    if (!mappedPixelData || !gridDimensions) return;
-    
-    const newMappedPixelData = mappedPixelData.map(row => 
-      row.map(cell => {
-        if (cell.isExternal) return cell;
-        return { ...cell, isExternal: true };
-      })
-    );
-    
-    setMappedPixelData(newMappedPixelData);
-    recalculateColorCounts(newMappedPixelData);
-  }, [mappedPixelData, gridDimensions]);
+    if (!mappedPixelData || !gridDimensions) {
+      alert('请先生成图纸后再使用一键去背景。');
+      return;
+    }
+
+    const { N, M } = gridDimensions;
+    const borderCounts = new Map<string, number>();
+
+    const countBorderCell = (row: number, col: number) => {
+      const cell = mappedPixelData[row]?.[col];
+      if (!cell || cell.isExternal || cell.key === TRANSPARENT_KEY) return;
+      borderCounts.set(cell.key, (borderCounts.get(cell.key) || 0) + 1);
+    };
+
+    for (let col = 0; col < N; col++) {
+      countBorderCell(0, col);
+      if (M > 1) countBorderCell(M - 1, col);
+    }
+    for (let row = 1; row < M - 1; row++) {
+      countBorderCell(row, 0);
+      if (N > 1) countBorderCell(row, N - 1);
+    }
+
+    if (borderCounts.size === 0) {
+      alert('边缘没有可识别的背景颜色。');
+      return;
+    }
+
+    let targetKey = '';
+    let maxCount = -1;
+    borderCounts.forEach((count, key) => {
+      if (count > maxCount) {
+        maxCount = count;
+        targetKey = key;
+      }
+    });
+
+    const newPixelData = mappedPixelData.map(row => row.map(cell => ({ ...cell })));
+    const visited = Array(M).fill(null).map(() => Array(N).fill(false));
+    const stack: { row: number; col: number }[] = [];
+
+    const pushIfTarget = (row: number, col: number) => {
+      if (row < 0 || row >= M || col < 0 || col >= N || visited[row][col]) {
+        return;
+      }
+      const cell = newPixelData[row][col];
+      if (!cell || cell.isExternal || cell.key !== targetKey) return;
+      visited[row][col] = true;
+      stack.push({ row, col });
+    };
+
+    for (let col = 0; col < N; col++) {
+      pushIfTarget(0, col);
+      if (M > 1) pushIfTarget(M - 1, col);
+    }
+    for (let row = 1; row < M - 1; row++) {
+      pushIfTarget(row, 0);
+      if (N > 1) pushIfTarget(row, N - 1);
+    }
+
+    if (stack.length === 0) {
+      alert('未找到可去除的背景区域。');
+      return;
+    }
+
+    while (stack.length > 0) {
+      const { row, col } = stack.pop()!;
+      newPixelData[row][col] = { ...transparentColorData };
+      pushIfTarget(row - 1, col);
+      pushIfTarget(row + 1, col);
+      pushIfTarget(row, col - 1);
+      pushIfTarget(row, col + 1);
+    }
+
+    setMappedPixelData(newPixelData);
+
+    const newColorCounts: { [hexKey: string]: { count: number; color: string } } = {};
+    let newTotalCount = 0;
+    newPixelData.flat().forEach(cell => {
+      if (cell && !cell.isExternal && cell.key !== TRANSPARENT_KEY) {
+        const cellHex = cell.color.toUpperCase();
+        if (!newColorCounts[cellHex]) {
+          newColorCounts[cellHex] = {
+            count: 0,
+            color: cellHex
+          };
+        }
+        newColorCounts[cellHex].count++;
+        newTotalCount++;
+      }
+    });
+
+    setColorCounts(newColorCounts);
+    setTotalBeadCount(newTotalCount);
+    setInitialGridColorKeys(new Set(Object.keys(newColorCounts)));
+  }, [mappedPixelData, gridDimensions, TRANSPARENT_KEY]);
 
   // 重新计算颜色计数
   const recalculateColorCounts = useCallback((data: MappedPixel[][]) => {
@@ -612,18 +732,92 @@ export default function Workstation() {
     });
   };
 
-  // 颜色点击移除
-  const handleColorClick = useCallback((key: string) => {
-    setExcludedColorKeys(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
+  // 颜色点击移除 - 完整的重映射逻辑
+  const handleColorClick = useCallback((hexKey: string) => {
+    const currentExcluded = excludedColorKeys;
+    const isExcluding = !currentExcluded.has(hexKey);
+
+    if (isExcluding) {
+      // 排除颜色
+      if (initialGridColorKeys.size === 0) {
+        alert("无法排除颜色，初始颜色数据尚未准备好，请稍候。");
+        return;
       }
-      return newSet;
-    });
-  }, []);
+
+      const nextExcludedKeys = new Set(currentExcluded);
+      nextExcludedKeys.add(hexKey);
+
+      // 从初始网格颜色集合开始
+      const potentialRemapHexKeys = new Set(initialGridColorKeys);
+      potentialRemapHexKeys.delete(hexKey);
+      currentExcluded.forEach(excludedHexKey => {
+        potentialRemapHexKeys.delete(excludedHexKey);
+      });
+
+      // 创建重映射调色板
+      const remapTargetPalette = fullBeadPalette.filter(color => potentialRemapHexKeys.has(color.hex.toUpperCase()));
+
+      if (remapTargetPalette.length === 0) {
+        alert(`无法排除颜色 ${hexKey}，因为图中最初存在的其他可用颜色也已被排除。请先恢复部分其他颜色。`);
+        return;
+      }
+
+      // 查找被排除颜色的RGB值用于重映射
+      const excludedColorData = fullBeadPalette.find(p => p.hex.toUpperCase() === hexKey);
+      if (!excludedColorData || !mappedPixelData || !gridDimensions) {
+        alert("无法排除颜色，缺少必要数据。");
+        return;
+      }
+
+      // 创建深拷贝并重映射
+      const newMappedData = mappedPixelData.map(row => row.map(cell => ({...cell})));
+      const { N, M } = gridDimensions;
+
+      for (let j = 0; j < M; j++) {
+        for (let i = 0; i < N; i++) {
+          const cell = newMappedData[j]?.[i];
+          if (cell && !cell.isExternal && cell.color.toUpperCase() === hexKey) {
+            const replacementColor = findClosestPaletteColor(excludedColorData.rgb, remapTargetPalette);
+            newMappedData[j][i] = { 
+              ...cell, 
+              key: replacementColor.key, 
+              color: replacementColor.hex 
+            };
+          }
+        }
+      }
+
+      // 更新状态
+      setExcludedColorKeys(nextExcludedKeys);
+      setMappedPixelData(newMappedData);
+
+      // 重新计算计数
+      const newCounts: { [hexKey: string]: { count: number; color: string } } = {};
+      let newTotalCount = 0;
+      newMappedData.flat().forEach(cell => {
+        if (cell && cell.color && !cell.isExternal) {
+          const cellHex = cell.color.toUpperCase();
+          if (!newCounts[cellHex]) {
+            newCounts[cellHex] = { count: 0, color: cellHex };
+          }
+          newCounts[cellHex].count++;
+          newTotalCount++;
+        }
+      });
+      setColorCounts(newCounts);
+      setTotalBeadCount(newTotalCount);
+
+    } else {
+      // 恢复颜色 - 触发完全重映射
+      const nextExcludedKeys = new Set(currentExcluded);
+      nextExcludedKeys.delete(hexKey);
+      setExcludedColorKeys(nextExcludedKeys);
+      setRemapTrigger(prev => prev + 1);
+    }
+
+    setIsManualColoringMode(false);
+    setSelectedColor(null);
+  }, [excludedColorKeys, initialGridColorKeys, mappedPixelData, gridDimensions]);
 
   // 获取排序后的颜色列表
   const sortedColorCounts = useMemo(() => {
