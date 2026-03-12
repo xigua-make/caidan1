@@ -293,6 +293,7 @@ export default function Workstation() {
   
   // 色板显示状态
   const [showFullPalette, setShowFullPalette] = useState<boolean>(true);
+  const [colorSearchQuery, setColorSearchQuery] = useState<string>(''); // 色号搜索关键词
   
   // 颜色替换状态
   const [colorReplaceState, setColorReplaceState] = useState<{
@@ -300,7 +301,7 @@ export default function Workstation() {
     step: 'select-source' | 'select-target';
     sourceColor?: { key: string; color: string };
   }>({
-    isActive: false,
+    isActive: true,
     step: 'select-source'
   });
   
@@ -2272,10 +2273,10 @@ export default function Workstation() {
         </div>
       </header>
 
-      {/* 主内容区域 - 使用Grid布局实现响应式，添加padding-top补偿fixed header */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_384px] gap-0 lg:gap-0 pt-[60px] lg:pt-[56px]">
-        {/* 左侧画布区域 - 不跟随工具栏滚动 */}
-        <main ref={mainRef} className="relative flex flex-col min-h-0 h-full overflow-hidden">
+      {/* 主内容区域 - 使用flex布局，画布和工具栏独立滚动 */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row pt-[60px] lg:pt-[56px]">
+        {/* 左侧画布区域 - 固定不滚动 */}
+        <main ref={mainRef} className="flex-1 min-w-0 h-full overflow-hidden flex flex-col">
           {!originalImageSrc ? (
             <>
               {/* 桌面端：西瓜Logo预览 */}
@@ -2378,8 +2379,8 @@ export default function Workstation() {
           <canvas ref={originalCanvasRef} className="hidden" />
         </main>
 
-        {/* 右侧功能面板 - 独立滚动，加大宽度 */}
-        <aside className="h-full overflow-hidden bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 flex-shrink-0 lg:w-96">
+        {/* 右侧功能面板 - 独立滚动 */}
+        <aside className="w-full lg:w-96 h-full overflow-hidden bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 flex-shrink-0">
           {workstationMode === 'auto' ? (
             /* 自动优化模式右侧栏 - 独立滚动 */
             <div className="h-full overflow-y-auto p-4 space-y-4">
@@ -2916,12 +2917,28 @@ export default function Workstation() {
                   </span>
                 </button>
                 
+                {/* 搜索框 */}
+                <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-600">
+                  <input
+                    type="text"
+                    placeholder="搜索色号（如 A01, B02）"
+                    value={colorSearchQuery}
+                    onChange={(e) => setColorSearchQuery(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
                 {/* 颜色列表区域 */}
                 <div className="p-3">
                   {showFullPalette ? (
                     /* 完整色板 - 6列网格布局，圆角色块，色号在色块内 */
                     <div className="grid grid-cols-6 gap-1.5 max-h-64 overflow-y-auto">
-                      {fullBeadPalette.map((colorItem) => {
+                      {fullBeadPalette
+                        .filter((colorItem) => {
+                          if (!colorSearchQuery) return true;
+                          return colorItem.mardKey.toUpperCase().includes(colorSearchQuery);
+                        })
+                        .map((colorItem) => {
                         const hexColor = colorItem.hex;
                         const displayKey = colorItem.mardKey;
                         const isSelected = selectedColor && selectedColor.color.toUpperCase() === hexColor.toUpperCase();
@@ -2932,7 +2949,7 @@ export default function Workstation() {
                           <button
                             key={hexColor}
                             onClick={() => {
-                              if (colorReplaceState.isActive && colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
+                              if (colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
                                 handleColorReplace(colorReplaceState.sourceColor, { key: displayKey, color: hexColor });
                               } else {
                                 setSelectedColor({ key: displayKey, color: hexColor, isExternal: false });
@@ -2963,7 +2980,13 @@ export default function Workstation() {
                       {sortedColorCounts.length === 0 ? (
                         <div className="col-span-6 text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
                       ) : (
-                        sortedColorCounts.map(({ key, color, count }) => {
+                        sortedColorCounts
+                          .filter(({ color }) => {
+                            if (!colorSearchQuery) return true;
+                            const displayKey = getColorKeyByHex(color, selectedColorSystem);
+                            return displayKey.toUpperCase().includes(colorSearchQuery);
+                          })
+                          .map(({ key, color, count }) => {
                           const displayKey = getColorKeyByHex(color, selectedColorSystem);
                           const isSelected = selectedColor && selectedColor.color.toUpperCase() === color.toUpperCase();
                           const rgb = hexToRgb(color);
@@ -2999,50 +3022,22 @@ export default function Workstation() {
                 </div>
               </div>
 
-              {/* 替换杂色区块 - 参考网站风格 */}
+              {/* 替换杂色区块 - 默认开启 */}
               <div className="bg-white dark:bg-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600 overflow-hidden">
-                {/* 标题 - 左上角 */}
-                <div className="px-3 py-2">
-                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">替换杂色</h4>
-                </div>
-                
-                {/* 切换栏 - 带开关 */}
-                <div className="bg-gray-100 dark:bg-gray-600 py-2 px-3 flex items-center justify-center gap-3">
+                {/* 标题栏 */}
+                <div className="bg-gray-100 dark:bg-gray-600 py-2 px-3">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {colorReplaceState.isActive ? '替换模式' : '替换杂色'}
+                    {colorReplaceState.step === 'select-target' ? '选择目标颜色' : '替换杂色'}
                   </span>
-                  {/* 开关 */}
-                  <button
-                    onClick={() => {
-                      if (colorReplaceState.isActive) {
-                        setColorReplaceState({ isActive: false, step: 'select-source' });
-                      } else {
-                        setColorReplaceState({ isActive: true, step: 'select-source' });
-                      }
-                    }}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${
-                      colorReplaceState.isActive 
-                        ? 'bg-blue-500' 
-                        : 'bg-gray-300 dark:bg-gray-500'
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        colorReplaceState.isActive ? 'translate-x-7' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
                 </div>
                 
                 {/* 内容区域 */}
                 <div className="p-3">
                   {/* 说明文字 */}
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 text-center">
-                    {colorReplaceState.isActive 
-                      ? (colorReplaceState.step === 'select-source' 
-                          ? '点击颜色替换为想要的颜色' 
-                          : `已选择 ${colorReplaceState.sourceColor?.key}，点击色板选择目标颜色`)
-                      : '开启后可批量替换颜色'
+                    {colorReplaceState.step === 'select-source' 
+                      ? '点击颜色替换为想要的颜色' 
+                      : `已选择 ${colorReplaceState.sourceColor?.key}，点击色板选择目标颜色`
                     }
                   </p>
                   
@@ -3061,19 +3056,13 @@ export default function Workstation() {
                             <button
                               key={key}
                               onClick={() => {
-                                if (colorReplaceState.isActive && colorReplaceState.step === 'select-source') {
-                                  setColorReplaceState({
-                                    isActive: true,
-                                    step: 'select-target',
-                                    sourceColor: { key: displayKey, color: color }
-                                  });
-                                }
+                                setColorReplaceState({
+                                  isActive: true,
+                                  step: 'select-target',
+                                  sourceColor: { key: displayKey, color: color }
+                                });
                               }}
-                              className={`w-full aspect-square rounded-lg border-2 transition-all hover:scale-105 flex items-center justify-center ${
-                                colorReplaceState.isActive
-                                  ? 'hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer'
-                                  : 'border-transparent cursor-default'
-                              }`}
+                              className="w-full aspect-square rounded-lg border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-all hover:scale-105 flex items-center justify-center"
                               style={{ backgroundColor: color }}
                               title={`${displayKey} - ${count}颗`}
                             >
@@ -3105,8 +3094,21 @@ export default function Workstation() {
                           重选
                         </button>
                       </div>
+                      {/* 搜索框 */}
+                      <input
+                        type="text"
+                        placeholder="搜索色号"
+                        value={colorSearchQuery}
+                        onChange={(e) => setColorSearchQuery(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
                       <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto">
-                        {fullBeadPalette.map((colorItem) => {
+                        {fullBeadPalette
+                          .filter((colorItem) => {
+                            if (!colorSearchQuery) return true;
+                            return colorItem.mardKey.toUpperCase().includes(colorSearchQuery);
+                          })
+                          .map((colorItem) => {
                           const hexColor = colorItem.hex;
                           const displayKey = colorItem.mardKey;
                           const rgb = hexToRgb(hexColor);
@@ -3135,7 +3137,7 @@ export default function Workstation() {
                   {/* 一键恢复按钮 */}
                   <button
                     onClick={() => {
-                      setColorReplaceState({ isActive: false, step: 'select-source' });
+                      setColorReplaceState({ isActive: true, step: 'select-source' });
                       setRemapTrigger(prev => prev + 1);
                     }}
                     className="w-full mt-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
