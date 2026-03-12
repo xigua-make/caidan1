@@ -2273,10 +2273,10 @@ export default function Workstation() {
         </div>
       </header>
 
-      {/* 主内容区域 - 使用flex布局，画布和工具栏独立滚动 */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row pt-[60px] lg:pt-[56px]">
-        {/* 左侧画布区域 - 固定不滚动 */}
-        <main ref={mainRef} className="flex-1 min-w-0 h-full overflow-hidden flex flex-col">
+      {/* 主内容区域 - 使用Grid布局实现响应式，添加padding-top补偿fixed header */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_384px] gap-0 lg:gap-0 pt-[60px] lg:pt-[56px]">
+        {/* 左侧画布区域 */}
+        <main ref={mainRef} className="relative flex flex-col min-h-0 h-full overflow-hidden">
           {!originalImageSrc ? (
             <>
               {/* 桌面端：西瓜Logo预览 */}
