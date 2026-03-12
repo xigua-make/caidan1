@@ -292,6 +292,7 @@ export default function Workstation() {
   
   // 移动端面板状态
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState<boolean>(false);
+  const [isMobileColorSystemOpen, setIsMobileColorSystemOpen] = useState<boolean>(false);
   
   // 下载设置状态
   const [isDownloadSettingsOpen, setIsDownloadSettingsOpen] = useState<boolean>(false);
@@ -399,6 +400,36 @@ export default function Workstation() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // 防止移动端手势导致的页面退出或刷新
+  useEffect(() => {
+    // 防止双指缩放导致的页面行为
+    const preventDefaultTouchMove = (e: TouchEvent) => {
+      // 只在有图片时阻止默认行为
+      if (originalImageSrc && mappedPixelData) {
+        // 双指触摸时阻止默认行为
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    // 防止双击缩放
+    const preventDoubleClick = (e: MouseEvent) => {
+      if (originalImageSrc && mappedPixelData) {
+        e.preventDefault();
+      }
+    };
+
+    // 添加事件监听
+    document.addEventListener('touchmove', preventDefaultTouchMove, { passive: false });
+    document.addEventListener('dblclick', preventDoubleClick, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchmove', preventDefaultTouchMove);
+      document.removeEventListener('dblclick', preventDoubleClick);
+    };
+  }, [originalImageSrc, mappedPixelData]);
 
   // 模式切换处理
   useEffect(() => {
@@ -2026,7 +2057,7 @@ export default function Workstation() {
   }, [colorCounts]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden" style={{ touchAction: 'pan-y' }}>
       {/* 顶部导航栏 - 固定显示，不随页面滚动隐藏 */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200/70 dark:border-gray-700/70 shadow-sm">
         {/* 桌面端布局 */}
@@ -2153,14 +2184,14 @@ export default function Workstation() {
                 手动
               </button>
               <button
-                onClick={() => setWorkstationMode('focus')}
+                onClick={() => setIsMobileColorSystemOpen(true)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all ${
-                  workstationMode === 'focus'
-                    ? 'bg-green-500 text-white shadow-sm'
+                  isMobileColorSystemOpen
+                    ? 'bg-purple-500 text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-300'
                 }`}
               >
-                拼豆
+                色号
               </button>
             </div>
             
@@ -2871,6 +2902,105 @@ export default function Workstation() {
                 selectedColorSystem={selectedColorSystem}
                 onColorSystemChange={setSelectedColorSystem}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 移动端色号选择弹窗 */}
+      {isMobileColorSystemOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[100] flex items-end md:hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-t-2xl shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col animate-slide-up">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">色号系统</h3>
+              <button
+                onClick={() => setIsMobileColorSystemOpen(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* 色号系统选择 */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'MARD', name: 'MARD' },
+                  { key: 'COCO', name: 'COCO' },
+                  { key: '漫漫', name: '漫漫' },
+                  { key: '盼盼', name: '盼盼' },
+                  { key: '咪小窝', name: '咪小窝' },
+                ].map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() => {
+                      setSelectedColorSystem(option.key as ColorSystem);
+                      setIsMobileColorSystemOpen(false);
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      selectedColorSystem === option.key
+                        ? 'bg-purple-500 text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {option.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* 色板预览 */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  当前色板: {activeBeadPalette.length} 色
+                </span>
+                <button
+                  onClick={() => {
+                    setIsMobileColorSystemOpen(false);
+                    setIsCustomPaletteEditorOpen(true);
+                  }}
+                  className="text-xs text-blue-500 hover:text-blue-600"
+                >
+                  编辑色板
+                </button>
+              </div>
+              
+              {/* 色板网格 */}
+              <div className="grid grid-cols-8 gap-1">
+                {activeBeadPalette.slice(0, 96).map((colorItem) => {
+                  const hexColor = colorItem.hex;
+                  const rgb = hexToRgb(hexColor);
+                  const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+                  const displayKey = colorItem.mardKey || getColorKeyByHex(hexColor.toUpperCase(), selectedColorSystem);
+                  
+                  return (
+                    <button
+                      key={hexColor}
+                      onClick={() => {
+                        setSelectedColor({ key: displayKey, color: hexColor, isExternal: false });
+                        setIsMobileColorSystemOpen(false);
+                      }}
+                      className="aspect-square rounded border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:scale-110 transition-transform"
+                      style={{ backgroundColor: hexColor }}
+                      title={`${displayKey} - ${hexColor}`}
+                    >
+                      <span className={`text-[7px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`} style={{ textShadow: isLightColor ? '0 0 1px rgba(255,255,255,0.5)' : '0 0 1px rgba(0,0,0,0.5)' }}>
+                        {displayKey}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {activeBeadPalette.length > 96 && (
+                <p className="text-center text-xs text-gray-400 mt-2">
+                  显示前96色，共 {activeBeadPalette.length} 色
+                </p>
+              )}
             </div>
           </div>
         </div>

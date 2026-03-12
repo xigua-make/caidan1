@@ -643,6 +643,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // --- Touch event handlers ---
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    // 始终阻止默认行为，防止页面滚动和其他干扰
+    event.preventDefault();
+    event.stopPropagation();
+    
     if (event.touches.length === 1) {
       const touch = event.touches[0];
       touchStartPosRef.current = { x: touch.clientX, y: touch.clientY, pageX: touch.pageX, pageY: touch.pageY };
@@ -652,12 +656,18 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         dragStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX, offsetY };
       } else {
         // 开始触摸绘制
+        setIsLocalDrawing(true);
         const pos = getGridPosition(touch.clientX, touch.clientY);
         if (pos && onDrawStart) {
           onDrawStart(pos.col, pos.row);
         }
       }
     } else if (event.touches.length === 2) {
+      // 双指缩放：取消当前绘制操作
+      if (isLocalDrawing) {
+        setIsLocalDrawing(false);
+      }
+      
       const touch1 = event.touches[0];
       const touch2 = event.touches[1];
       const dx = touch2.clientX - touch1.clientX;
@@ -668,16 +678,19 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   };
 
   const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    // 始终阻止默认行为
     event.preventDefault();
+    event.stopPropagation();
+    
     if (event.touches.length === 1 && dragStartRef.current) {
       const touch = event.touches[0];
       const dx = touch.clientX - dragStartRef.current.x;
       const dy = touch.clientY - dragStartRef.current.y;
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         touchMovedRef.current = true;
       }
       
-      if (isManualColoringMode) {
+      if (isManualColoringMode && isLocalDrawing) {
         const pos = getGridPosition(touch.clientX, touch.clientY);
         if (pos && onDrawMove) {
           onDrawMove(pos.col, pos.row);
@@ -705,9 +718,15 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   };
 
   const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     // 结束触摸绘制
-    if (isManualColoringMode && onDrawEnd) {
-      onDrawEnd(previewEndPos?.col || 0, previewEndPos?.row || 0);
+    if (isLocalDrawing) {
+      setIsLocalDrawing(false);
+      if (onDrawEnd && previewEndPos) {
+        onDrawEnd(previewEndPos.col, previewEndPos.row);
+      }
     }
     
     dragStartRef.current = null;
