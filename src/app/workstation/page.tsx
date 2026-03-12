@@ -2378,11 +2378,11 @@ export default function Workstation() {
           <canvas ref={originalCanvasRef} className="hidden" />
         </main>
 
-        {/* 右侧功能面板 - 移动端在底部，桌面端在右侧 */}
-        <aside className="h-full overflow-y-auto bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 lg:w-80">
+        {/* 右侧功能面板 - 独立滚动，加大宽度 */}
+        <aside className="h-full bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 lg:w-96 flex-shrink-0">
           {workstationMode === 'auto' ? (
-            /* 自动优化模式右侧栏 */
-            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            /* 自动优化模式右侧栏 - 独立滚动 */
+            <div className="h-full overflow-y-auto p-4 space-y-4">
               {/* 处理参数模块 */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">处理参数</h3>
@@ -2496,8 +2496,8 @@ export default function Workstation() {
               </div>
             </div>
           ) : workstationMode === 'manual' ? (
-            /* 手动编辑模式右侧栏 */
-            <div className="p-4 space-y-3 overflow-y-auto">
+            /* 手动编辑模式右侧栏 - 独立滚动 */
+            <div className="h-full overflow-y-auto p-4 space-y-4">
               {/* 顶部标题区 */}
               <div className="flex items-center justify-between">
                 <div>
@@ -2901,24 +2901,26 @@ export default function Workstation() {
 
               {/* 画笔颜色选择区块 - 参考网站风格 */}
               <div className="bg-white dark:bg-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600 overflow-hidden">
-                {/* 标题栏 - 可点击切换 */}
+                {/* 标题 - 左上角 */}
+                <div className="px-3 py-2">
+                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">画笔颜色选择</h4>
+                </div>
+                
+                {/* 色板切换栏 - 可点击切换 */}
                 <button
                   onClick={() => setShowFullPalette(!showFullPalette)}
-                  className="w-full bg-gray-100 dark:bg-gray-600 py-2 px-3 text-center"
+                  className="w-full bg-gray-100 dark:bg-gray-600 py-2 px-3 text-center hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
                 >
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {showFullPalette ? `完整色板(${fullBeadPalette.length})` : `图片颜色(${sortedColorCounts.length})`}
-                  </span>
-                  <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
-                    {showFullPalette ? '点击收起' : '点击展开完整色板'}
                   </span>
                 </button>
                 
                 {/* 颜色列表区域 */}
                 <div className="p-3">
                   {showFullPalette ? (
-                    /* 完整色板 - 6列网格布局 */
-                    <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto">
+                    /* 完整色板 - 6列网格布局，圆角色块，色号在色块内 */
+                    <div className="grid grid-cols-6 gap-1.5 max-h-64 overflow-y-auto">
                       {fullBeadPalette.map((colorItem) => {
                         const hexColor = colorItem.hex;
                         const displayKey = colorItem.mardKey;
@@ -2940,7 +2942,7 @@ export default function Workstation() {
                                 handleHighlightColor(hexColor);
                               }
                             }}
-                            className={`relative w-full aspect-square rounded border-2 transition-all hover:scale-105 flex items-start justify-start p-0.5 ${
+                            className={`relative w-full aspect-square rounded-lg border-2 transition-all hover:scale-105 flex items-center justify-center ${
                               isSelected && currentTool !== 'eraser'
                                 ? 'border-red-500'
                                 : 'border-transparent hover:border-gray-300 dark:hover:border-gray-500'
@@ -2948,7 +2950,7 @@ export default function Workstation() {
                             style={{ backgroundColor: hexColor }}
                             title={`${displayKey} - ${hexColor}`}
                           >
-                            <span className={`text-[8px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
+                            <span className={`text-[10px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
                               {displayKey}
                             </span>
                           </button>
@@ -2956,14 +2958,16 @@ export default function Workstation() {
                       })}
                     </div>
                   ) : (
-                    /* 图片颜色 - 列表布局，显示数量 */
-                    <div className="max-h-48 overflow-y-auto space-y-1">
+                    /* 图片颜色 - 6列网格布局 */
+                    <div className="grid grid-cols-6 gap-1.5 max-h-64 overflow-y-auto">
                       {sortedColorCounts.length === 0 ? (
-                        <div className="text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
+                        <div className="col-span-6 text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
                       ) : (
                         sortedColorCounts.map(({ key, color, count }) => {
                           const displayKey = getColorKeyByHex(color, selectedColorSystem);
                           const isSelected = selectedColor && selectedColor.color.toUpperCase() === color.toUpperCase();
+                          const rgb = hexToRgb(color);
+                          const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
                           
                           return (
                             <button
@@ -2975,26 +2979,16 @@ export default function Workstation() {
                                 setIsManualColoringMode(true);
                                 handleHighlightColor(color);
                               }}
-                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded transition-all ${
+                              className={`relative w-full aspect-square rounded-lg border-2 transition-all hover:scale-105 flex items-center justify-center ${
                                 isSelected && currentTool !== 'eraser'
-                                  ? 'bg-blue-50 dark:bg-blue-900/30'
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-600/50'
+                                  ? 'border-red-500'
+                                  : 'border-transparent hover:border-gray-300 dark:hover:border-gray-500'
                               }`}
+                              style={{ backgroundColor: color }}
+                              title={`${displayKey} - ${count}颗`}
                             >
-                              {/* 颜色方块 */}
-                              <div
-                                className={`w-6 h-6 rounded border-2 flex-shrink-0 ${
-                                  isSelected && currentTool !== 'eraser' ? 'border-red-500' : 'border-transparent'
-                                }`}
-                                style={{ backgroundColor: color }}
-                              />
-                              {/* 色号 */}
-                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-1 text-left">
+                              <span className={`text-[10px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
                                 {displayKey}
-                              </span>
-                              {/* 数量 */}
-                              <span className="text-xs text-gray-400 dark:text-gray-500">
-                                {count}颗
                               </span>
                             </button>
                           );
@@ -3005,13 +2999,18 @@ export default function Workstation() {
                 </div>
               </div>
 
-              {/* 色板区块 - 移除，已整合到上方 */}
-
               {/* 替换杂色区块 - 参考网站风格 */}
               <div className="bg-white dark:bg-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600 overflow-hidden">
-                {/* 标题栏 - 带开关 */}
+                {/* 标题 - 左上角 */}
+                <div className="px-3 py-2">
+                  <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">替换杂色</h4>
+                </div>
+                
+                {/* 切换栏 - 带开关 */}
                 <div className="bg-gray-100 dark:bg-gray-600 py-2 px-3 flex items-center justify-center gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">替换杂色</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {colorReplaceState.isActive ? '替换模式' : '替换杂色'}
+                  </span>
                   {/* 开关 */}
                   <button
                     onClick={() => {
@@ -3021,15 +3020,15 @@ export default function Workstation() {
                         setColorReplaceState({ isActive: true, step: 'select-source' });
                       }
                     }}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
                       colorReplaceState.isActive 
                         ? 'bg-blue-500' 
                         : 'bg-gray-300 dark:bg-gray-500'
                     }`}
                   >
                     <div
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        colorReplaceState.isActive ? 'translate-x-5' : 'translate-x-0.5'
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        colorReplaceState.isActive ? 'translate-x-7' : 'translate-x-1'
                       }`}
                     />
                   </button>
@@ -3045,19 +3044,18 @@ export default function Workstation() {
                           : `已选择 ${colorReplaceState.sourceColor?.key}，点击色板选择目标颜色`)
                       : '开启后可批量替换颜色'
                     }
-                    {sortedColorCounts.length > 0 && (
-                      <span className="ml-1">总计: {sortedColorCounts.reduce((sum, c) => sum + c.count, 0)}颗</span>
-                    )}
                   </p>
                   
                   {/* 颜色列表 - 只在选择源颜色时显示 */}
                   {colorReplaceState.step === 'select-source' && (
-                    <div className="max-h-32 overflow-y-auto space-y-1">
+                    <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto">
                       {sortedColorCounts.length === 0 ? (
-                        <div className="text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
+                        <div className="col-span-6 text-center text-gray-400 text-xs py-4">暂无颜色数据</div>
                       ) : (
                         sortedColorCounts.map(({ key, color, count }) => {
                           const displayKey = getColorKeyByHex(color, selectedColorSystem);
+                          const rgb = hexToRgb(color);
+                          const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
                           
                           return (
                             <button
@@ -3071,24 +3069,16 @@ export default function Workstation() {
                                   });
                                 }
                               }}
-                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded transition-all ${
+                              className={`w-full aspect-square rounded-lg border-2 transition-all hover:scale-105 flex items-center justify-center ${
                                 colorReplaceState.isActive
-                                  ? 'hover:bg-gray-50 dark:hover:bg-gray-600/50 cursor-pointer'
-                                  : 'cursor-default'
+                                  ? 'hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer'
+                                  : 'border-transparent cursor-default'
                               }`}
+                              style={{ backgroundColor: color }}
+                              title={`${displayKey} - ${count}颗`}
                             >
-                              {/* 颜色方块 */}
-                              <div
-                                className="w-6 h-6 rounded flex-shrink-0"
-                                style={{ backgroundColor: color }}
-                              />
-                              {/* 色号 */}
-                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 flex-1 text-left">
+                              <span className={`text-[10px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
                                 {displayKey}
-                              </span>
-                              {/* 数量 */}
-                              <span className="text-xs text-gray-400 dark:text-gray-500">
-                                {count}颗
                               </span>
                             </button>
                           );
@@ -3115,7 +3105,7 @@ export default function Workstation() {
                           重选
                         </button>
                       </div>
-                      <div className="grid grid-cols-6 gap-1.5 max-h-32 overflow-y-auto">
+                      <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto">
                         {fullBeadPalette.map((colorItem) => {
                           const hexColor = colorItem.hex;
                           const displayKey = colorItem.mardKey;
@@ -3128,11 +3118,11 @@ export default function Workstation() {
                               onClick={() => {
                                 handleColorReplace(colorReplaceState.sourceColor!, { key: displayKey, color: hexColor });
                               }}
-                              className="w-full aspect-square rounded border border-gray-200 dark:border-gray-600 flex items-start justify-start p-0.5 hover:scale-105 transition-transform"
+                              className="w-full aspect-square rounded-lg border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-500 flex items-center justify-center hover:scale-105 transition-all"
                               style={{ backgroundColor: hexColor }}
                               title={`${displayKey} - ${hexColor}`}
                             >
-                              <span className={`text-[8px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
+                              <span className={`text-[10px] font-bold leading-none ${isLightColor ? 'text-gray-800' : 'text-white'}`}>
                                 {displayKey}
                               </span>
                             </button>
