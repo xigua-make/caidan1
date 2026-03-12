@@ -117,8 +117,9 @@ const drawPixelatedCanvas = (
     }
   }
   
-  // 绘制细网格线（每个格子之间）
-  pixelatedCtx.strokeStyle = defaultGridLineColor;
+  // 绘制细网格线（每个格子之间）- 参考网站使用 #AAAAAA
+  const thinGridLineColor = '#AAAAAA';
+  pixelatedCtx.strokeStyle = thinGridLineColor;
   pixelatedCtx.lineWidth = 1;
   for (let j = 0; j <= M; j++) {
     const y = j * cellHeightOutput;
@@ -135,10 +136,10 @@ const drawPixelatedCanvas = (
     pixelatedCtx.stroke();
   }
   
-  // 绘制分组网格线（每N格一条粗线）
+  // 绘制分组网格线（每N格一条粗线）- 参考网站使用 2-2.5px
   if (showGridLines && gridLineInterval && gridLineInterval > 1) {
     pixelatedCtx.strokeStyle = gridLineColor;
-    pixelatedCtx.lineWidth = 3;
+    pixelatedCtx.lineWidth = 2.5; // 参考网站使用 2-2.5px
     
     // 垂直线
     for (let i = 0; i <= N; i += gridLineInterval) {
@@ -182,11 +183,23 @@ const drawColorLabels = (
   // 清除色号层
   ctx.clearRect(0, 0, outputWidth, outputHeight);
   
-  // 计算缩放后的实际格子大小，只有当实际显示大小足够大时才显示色号
+  // 计算缩放后的实际格子大小（参考网站逻辑）
   const actualCellWidth = cellWidthOutput * currentScale;
   const actualCellHeight = cellHeightOutput * currentScale;
-  const minCellSize = 20; // 最小显示色号的实际显示尺寸
-  if (actualCellWidth < minCellSize || actualCellHeight < minCellSize) return;
+  const minCellSize = Math.min(actualCellWidth, actualCellHeight);
+  
+  // 参考网站：如果格子实际大小小于6px就不显示色号
+  if (minCellSize < 6) return;
+
+  // 计算字体缩放因子（参考网站逻辑：根据纵横比调整）
+  let fontScale = 1;
+  if (M > N && N > 0) {
+    const ratio = M / N;
+    if (ratio >= 2.2) fontScale = 0.48;
+    else if (ratio >= 1.8) fontScale = 0.58;
+    else if (ratio >= 1.5) fontScale = 0.7;
+    else if (ratio >= 1.2) fontScale = 0.85;
+  }
 
   for (let j = 0; j < M; j++) {
     for (let i = 0; i < N; i++) {
@@ -198,22 +211,33 @@ const drawColorLabels = (
       
       // 获取色号
       const colorKey = getColorKeyByHex(cellData.color, colorSystem);
+      if (!colorKey) continue;
       
       // 判断颜色深浅来决定文字颜色
       const hex = cellData.color.replace('#', '');
       const r = parseInt(hex.substr(0, 2), 16);
       const g = parseInt(hex.substr(2, 2), 16);
       const b = parseInt(hex.substr(4, 2), 16);
-      const isLightColor = (r * 299 + g * 587 + b * 114) / 1000 > 128;
+      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      const isLightColor = luminance > 0.6;
       
-      // 根据格子大小调整字体
-      const fontSize = Math.min(cellWidthOutput, cellHeightOutput) * 0.6;
-      ctx.font = `bold ${fontSize}px Arial`;
+      // 参考网站的字体大小计算逻辑
+      let fontSize = Math.floor(Math.min(14, 0.8 * cellHeightOutput * fontScale, 0.7 * minCellSize * fontScale));
+      
+      // 确保字体能放下色号文本
+      const maxWidth = 0.9 * cellWidthOutput;
+      ctx.font = `bold ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif`;
+      while (fontSize >= 5 && ctx.measureText(colorKey).width > maxWidth) {
+        fontSize -= 1;
+        ctx.font = `bold ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif`;
+      }
+      
+      // 如果字体太小就不显示
+      if (fontSize < 5) continue;
+      
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
-      ctx.shadowColor = isLightColor ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 2;
+      ctx.fillStyle = isLightColor ? '#111827' : '#F9FAFB';
       
       // 绘制色号
       ctx.fillText(
@@ -221,7 +245,6 @@ const drawColorLabels = (
         drawX + cellWidthOutput / 2,
         drawY + cellHeightOutput / 2
       );
-      ctx.shadowBlur = 0;
     }
   }
 };
