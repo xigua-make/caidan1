@@ -161,6 +161,14 @@ export default function Workstation() {
   // 矩形填充模式
   const [rectangleFilled, setRectangleFilled] = useState<boolean>(false);
   
+  // 绘制状态（用于拖拽绘制）
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [drawStartPos, setDrawStartPos] = useState<{ row: number; col: number } | null>(null);
+  const [drawEndPos, setDrawEndPos] = useState<{ row: number; col: number } | null>(null);
+  
+  // 默认颜色（当没有选择颜色时使用）
+  const defaultColor = fullBeadPalette.length > 0 ? fullBeadPalette[0].hex : '#FFFFFF';
+  
   // 参考图层状态
   const [referenceOpacity, setReferenceOpacity] = useState<number>(25);
   const [showReferenceLayer, setShowReferenceLayer] = useState<boolean>(true);
@@ -1611,6 +1619,222 @@ export default function Workstation() {
     setSelectedColor(null);
   }, [excludedColorKeys, mappedPixelData, gridDimensions]);
 
+  // 获取画布坐标对应的网格坐标
+  const getGridPosition = useCallback((canvasX: number, canvasY: number): { row: number; col: number } | null => {
+    if (!gridDimensions || !pixelatedCanvasRef.current) return null;
+    
+    const { N, M } = gridDimensions;
+    const canvas = pixelatedCanvasRef.current;
+    const cellWidth = canvas.width / N;
+    const cellHeight = canvas.height / M;
+    
+    const col = Math.floor(canvasX / cellWidth);
+    const row = Math.floor(canvasY / cellHeight);
+    
+    if (col >= 0 && col < N && row >= 0 && row < M) {
+      return { row, col };
+    }
+    return null;
+  }, [gridDimensions]);
+
+  // 绘制开始
+  const handleDrawStart = useCallback((canvasX: number, canvasY: number) => {
+    const pos = getGridPosition(canvasX, canvasY);
+    if (!pos || !mappedPixelData) return;
+    
+    // 保存历史记录
+    saveToHistory(mappedPixelData);
+    
+    setDrawStartPos(pos);
+    setDrawEndPos(pos);
+    setIsDrawing(true);
+    
+    // 对于移动工具，保存选区内容
+    if (currentTool === 'move' && selection) {
+      // 检查点击是否在选区内
+      if (pos.row >= selection.startRow && pos.row <= selection.endRow &&
+          pos.col >= selection.startCol && pos.col <= selection.endCol) {
+        // 复制选区内容到剪贴板
+        const copiedPixels: { row: number; col: number; pixel: MappedPixel }[] = [];
+        for (let r = selection.startRow; r <= selection.endRow; r++) {
+          for (let c = selection.startCol; c <= selection.endCol; c++) {
+            copiedPixels.push({
+              row: r - selection.startRow,
+              col: c - selection.startCol,
+              pixel: { ...mappedPixelData[r][c] }
+            });
+          }
+        }
+        setClipboard({
+          width: selection.endCol - selection.startCol + 1,
+          height: selection.endRow - selection.startRow + 1,
+          pixels: copiedPixels
+        });
+      }
+    }
+    
+    // 对于画笔和橡皮擦，立即执行一次操作
+    if (currentTool === 'brush' || currentTool === 'eraser') {
+      const color = currentTool === 'brush' ? (selectedColor?.color || defaultColor) : null;
+      applyBrushStroke(pos.row, pos.col, color, brushSize);
+    }
+  }, [getGridPosition, currentTool, selectedColor, defaultColor, brushSize, mappedPixelData, saveToHistory, selection]);
+
+  // 绘制移动
+  const handleDrawMove = useCallback((canvasX: number, canvasY: number) => {
+    if (!isDrawing) return;
+    
+    const pos = getGridPosition(canvasX, canvasY);
+    if (!pos) return;
+    
+    setDrawEndPos(pos);
+    
+    // 对于画笔和橡皮擦，实时绘制
+    if (currentTool === 'brush' || currentTool === 'eraser') {
+      const color = currentTool === 'brush' ? (selectedColor?.color || defaultColor) : null;
+      applyBrushStroke(pos.row, pos.col, color, brushSize);
+    }
+  }, [isDrawing, getGridPosition, currentTool, selectedColor, defaultColor, brushSize]);
+
+  // 绘制结束
+  const handleDrawEnd = useCallback((canvasX: number, canvasY: number) => {
+    if (!isDrawing || !drawStartPos || !drawEndPos || !mappedPixelData) {
+      setIsDrawing(false);
+      return;
+    }
+    
+    const pos = getGridPosition(canvasX, canvasY);
+    if (!pos) {
+      setIsDrawing(false);
+      return;
+    }
+    
+    setDrawEndPos(pos);
+    
+    // 根据工具类型执行最终操作
+    let newPixelData = mappedPixelData.map(r => r.map(c => ({ ...c })));
+    const color = selectedColor?.color || null;
+    
+    switch (currentTool) {
+      case 'line':
+        newPixelData = drawLine(newPixelData, drawStartPos.row, drawStartPos.col, pos.row, pos.col, color);
+        setMappedPixelData(newPixelData);
+        break;
+      case 'rectangle':
+        newPixelData = drawRectangle(newPixelData, drawStartPos.row, drawStartPos.col, pos.row, pos.col, color);
+        setMappedPixelData(newPixelData);
+        break;
+      case 'select':
+        createSelection(drawStartPos.row, drawStartPos.col, pos.row, pos.col);
+        break;
+      case 'move':
+        // 移动选区内容
+        if (selection && clipboard) {
+          const dx = pos.col - drawStartPos.col;
+          const dy = pos.row - drawStartPos.row;
+          
+          // 清空原选区内容
+          for (let r = selection.startRow; r <= selection.endRow; r++) {
+            for (let c = selection.startCol; c <= selection.endCol; c++) {
+              if (r >= 0 && r < newPixelData.length && c >= 0 && c < newPixelData[0].length) {
+                newPixelData[r][c] = { ...transparentColorData };
+              }
+            }
+          }
+          
+          // 在新位置绘制选区内容
+          const newStartRow = selection.startRow + dy;
+          const newStartCol = selection.startCol + dx;
+          
+          clipboard.pixels.forEach(({ row, col, pixel }) => {
+            const targetRow = newStartRow + row;
+            const targetCol = newStartCol + col;
+            
+            if (targetRow >= 0 && targetRow < newPixelData.length &&
+                targetCol >= 0 && targetCol < newPixelData[0].length) {
+              newPixelData[targetRow][targetCol] = { ...pixel };
+            }
+          });
+          
+          // 更新选区位置
+          setSelection({
+            startRow: newStartRow,
+            startCol: newStartCol,
+            endRow: newStartRow + clipboard.height - 1,
+            endCol: newStartCol + clipboard.width - 1
+          });
+          
+          setMappedPixelData(newPixelData);
+          recalculateColorCounts(newPixelData);
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setIsDrawing(false);
+    setDrawStartPos(null);
+    setDrawEndPos(null);
+  }, [isDrawing, drawStartPos, drawEndPos, getGridPosition, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, selection, clipboard, recalculateColorCounts]);
+
+  // 应用画笔/橡皮擦笔触
+  const applyBrushStroke = useCallback((row: number, col: number, color: string | null, size: number) => {
+    if (!mappedPixelData || !gridDimensions) return;
+    
+    const { N, M } = gridDimensions;
+    const newMappedData = mappedPixelData.map(r => r.map(c => ({ ...c })));
+    const halfSize = Math.floor(size / 2);
+    
+    for (let dy = -halfSize; dy <= halfSize; dy++) {
+      for (let dx = -halfSize; dx <= halfSize; dx++) {
+        const newRow = row + dy;
+        const newCol = col + dx;
+        
+        if (newRow >= 0 && newRow < M && newCol >= 0 && newCol < N) {
+          if (color) {
+            // 画笔：设置颜色
+            const colorData = findColorData(color);
+            newMappedData[newRow][newCol] = {
+              key: colorData?.key || color.toUpperCase(),
+              color: color,
+              isExternal: false
+            };
+          } else {
+            // 橡皮擦：设为透明
+            newMappedData[newRow][newCol] = { ...transparentColorData };
+          }
+        }
+      }
+    }
+    
+    setMappedPixelData(newMappedData);
+  }, [mappedPixelData, gridDimensions]);
+
+  // 创建选区
+  const createSelection = useCallback((startRow: number, startCol: number, endRow: number, endCol: number) => {
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minCol = Math.min(startCol, endCol);
+    const maxCol = Math.max(startCol, endCol);
+    
+    setSelection({
+      startRow: minRow,
+      startCol: minCol,
+      endRow: maxRow,
+      endCol: maxCol
+    });
+  }, []);
+
+  // 查找颜色数据
+  const findColorData = useCallback((hexColor: string) => {
+    // 使用工具函数获取颜色键
+    const key = getColorKeyByHex(hexColor, selectedColorSystem);
+    return {
+      key,
+      color: hexColor
+    };
+  }, [selectedColorSystem]);
+
   // 获取排序后的颜色列表
   const sortedColorCounts = useMemo(() => {
     if (!colorCounts) return [];
@@ -1742,6 +1966,9 @@ export default function Workstation() {
                   onInteraction={handleCanvasInteraction}
                   highlightColorKey={highlightColorKey}
                   onHighlightComplete={handleHighlightComplete}
+                  onDrawStart={handleDrawStart}
+                  onDrawMove={handleDrawMove}
+                  onDrawEnd={handleDrawEnd}
                 />
               </div>
             </div>

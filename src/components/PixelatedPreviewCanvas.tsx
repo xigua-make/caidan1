@@ -18,10 +18,10 @@ interface PixelatedPreviewCanvasProps {
   ) => void;
   highlightColorKey?: string | null;
   onHighlightComplete?: () => void;
-  // 新增：绘制状态回调
-  onDrawStart?: (clientX: number, clientY: number) => void;
-  onDrawMove?: (clientX: number, clientY: number) => void;
-  onDrawEnd?: (clientX: number, clientY: number) => void;
+  // 绘制事件回调
+  onDrawStart?: (gridX: number, gridY: number) => void;
+  onDrawMove?: (gridX: number, gridY: number) => void;
+  onDrawEnd?: (gridX: number, gridY: number) => void;
 }
 
 // 绘制像素化画布的函数
@@ -108,6 +108,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   onInteraction,
   highlightColorKey,
   onHighlightComplete,
+  onDrawStart,
+  onDrawMove,
+  onDrawEnd,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -119,6 +122,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false); // 绘制状态
+
   const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   
   // 容器引用，用于计算居中位置
@@ -208,9 +213,19 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const dy = event.clientY - dragStartRef.current.y;
       setOffsetX(dragStartRef.current.offsetX + dx);
       setOffsetY(dragStartRef.current.offsetY + dy);
-    } else if (isManualColoringMode) {
-      // 手动模式下也传递交互信息（用于实时绘制）
-      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
+    } else if (isManualColoringMode && isDrawing) {
+      // 手动模式正在绘制：调用绘制移动回调
+      if (onDrawMove && canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        const canvasX = (event.clientX - rect.left) * scaleX;
+        const canvasY = (event.clientY - rect.top) * scaleY;
+        
+        // 这里我们需要知道网格尺寸才能计算网格坐标
+        // 暂时传递画布坐标，让父组件处理
+        onDrawMove(canvasX, canvasY);
+      }
     } else {
       // 非手动模式下：显示tooltip
       onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
@@ -228,7 +243,17 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
     if (event.button === 0) {
       if (isManualColoringMode) {
-        // 手动模式下，直接执行操作
+        // 手动模式下，开始绘制
+        setIsDrawing(true);
+        if (onDrawStart && canvasRef.current) {
+          const rect = canvasRef.current.getBoundingClientRect();
+          const scaleX = canvasRef.current.width / rect.width;
+          const scaleY = canvasRef.current.height / rect.height;
+          const canvasX = (event.clientX - rect.left) * scaleX;
+          const canvasY = (event.clientY - rect.top) * scaleY;
+          onDrawStart(canvasX, canvasY);
+        }
+        // 同时调用原有的交互（用于颜色替换等）
         onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
       } else {
         // 非手动模式下，开始拖拽
@@ -243,11 +268,22 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   };
 
-  // 鼠标释放：结束拖拽
+  // 鼠标释放：结束拖拽或绘制
   const handleMouseUp = (event: MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
       setIsDragging(false);
       dragStartRef.current = null;
+    }
+    if (isDrawing) {
+      setIsDrawing(false);
+      if (onDrawEnd && canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        const canvasX = (event.clientX - rect.left) * scaleX;
+        const canvasY = (event.clientY - rect.top) * scaleY;
+        onDrawEnd(canvasX, canvasY);
+      }
     }
   };
 
