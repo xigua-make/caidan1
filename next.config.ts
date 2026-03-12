@@ -22,7 +22,8 @@ const withPWA = require("next-pwa")({
 });
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // 禁用开发工具指示器（移除左下角 N 字悬浮按钮）
+  devIndicators: false,
 };
 
 export default withPWA(nextConfig);
