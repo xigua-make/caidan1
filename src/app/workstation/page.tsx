@@ -2273,8 +2273,8 @@ export default function Workstation() {
       </header>
 
       {/* 主内容区域 - 使用Grid布局实现响应式，添加padding-top补偿fixed header */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-0 lg:gap-0 pt-[60px] lg:pt-[56px]">
-        {/* 左侧画布区域 */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_384px] gap-0 lg:gap-0 pt-[60px] lg:pt-[56px]">
+        {/* 左侧画布区域 - 不跟随工具栏滚动 */}
         <main ref={mainRef} className="relative flex flex-col min-h-0 h-full overflow-hidden">
           {!originalImageSrc ? (
             <>
@@ -2379,7 +2379,7 @@ export default function Workstation() {
         </main>
 
         {/* 右侧功能面板 - 独立滚动，加大宽度 */}
-        <aside className="h-full bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 lg:w-96 flex-shrink-0">
+        <aside className="h-full overflow-hidden bg-white dark:bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-200/70 dark:border-gray-700/70 flex-shrink-0 lg:w-96">
           {workstationMode === 'auto' ? (
             /* 自动优化模式右侧栏 - 独立滚动 */
             <div className="h-full overflow-y-auto p-4 space-y-4">
