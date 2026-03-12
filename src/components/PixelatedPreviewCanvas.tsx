@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, TouchEvent, MouseEvent, useState } from 'react';
+import React, { useRef, useEffect, TouchEvent, MouseEvent, useState, WheelEvent } from 'react';
 import { MappedPixel } from '../utils/pixelation';
 
 interface PixelatedPreviewCanvasProps {
@@ -110,6 +110,17 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const touchMovedRef = useRef<boolean>(false);
   const [isHighlighting, setIsHighlighting] = useState(false);
 
+  // 缩放和拖拽状态
+  const [scale, setScale] = useState(1);
+  const [offsetX, setOffsetX] = useState(0);
+  const [offsetY, setOffsetY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
+  
+  // 触摸缩放相关
+  const touchDistanceRef = useRef<number | null>(null);
+  const touchCenterRef = useRef<{ x: number; y: number } | null>(null);
+
   // Effect to detect dark mode changes and update state
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -157,79 +168,189 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
   }, [highlightColorKey, mappedPixelData, gridDimensions, onHighlightComplete]);
 
+  // 重置缩放和偏移（当图片改变时）
+  useEffect(() => {
+    setScale(1);
+    setOffsetX(0);
+    setOffsetY(0);
+  }, [mappedPixelData]);
+
   // --- 鼠标事件处理 ---
   
-  // 鼠标移动时显示提示
+  // 鼠标移动时显示提示或拖拽
   const handleMouseMove = (event: MouseEvent<HTMLCanvasElement>) => {
-    // 只有在非手动模式下才通过mousemove显示tooltip，避免干扰手动上色
-    if (!isManualColoringMode) {
-        onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
+    if (isDragging && dragStartRef.current) {
+      // 拖拽模式：更新偏移量
+      const dx = event.clientX - dragStartRef.current.x;
+      const dy = event.clientY - dragStartRef.current.y;
+      setOffsetX(dragStartRef.current.offsetX + dx);
+      setOffsetY(dragStartRef.current.offsetY + dy);
+    } else if (!isManualColoringMode) {
+      // 非手动模式下：显示tooltip
+      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
     }
   };
 
   // 鼠标离开时隐藏提示
   const handleMouseLeave = () => {
-    // 鼠标离开时总是隐藏tooltip
+    setIsDragging(false);
+    dragStartRef.current = null;
     onInteraction(0, 0, 0, 0, false, true);
   };
 
-  // 鼠标点击处理（用于手动上色模式）
-  const handleClick = (event: MouseEvent<HTMLCanvasElement>) => {
-    // 鼠标点击行为保持不变：
-    // 手动模式下：上色
-    // 非手动模式下：切换tooltip
-    onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, isManualColoringMode);
+  // 鼠标按下：开始拖拽（仅在非手动模式）
+  const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
+    if (!isManualColoringMode && event.button === 0) {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        offsetX: offsetX,
+        offsetY: offsetY
+      };
+    }
+  };
+
+  // 鼠标释放：结束拖拽
+  const handleMouseUp = (event: MouseEvent<HTMLCanvasElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    } else if (isManualColoringMode) {
+      // 手动模式下，执行上色操作
+      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
+    } else {
+      // 非手动模式下，切换tooltip
+      onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, false);
+    }
+  };
+
+  // 鼠标滚轮缩放
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    
+    const container = event.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    // 计算鼠标在缩放前相对于画布的位置
+    const beforeX = (mouseX - offsetX) / scale;
+    const beforeY = (mouseY - offsetY) / scale;
+    
+    // 计算新的缩放比例
+    const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 10);
+    
+    // 调整偏移量，使鼠标位置保持不变
+    const newOffsetX = mouseX - beforeX * newScale;
+    const newOffsetY = mouseY - beforeY * newScale;
+    
+    setScale(newScale);
+    setOffsetX(newOffsetX);
+    setOffsetY(newOffsetY);
   };
 
   // --- 触摸事件处理 ---
-  // 用于检测触摸移动的参考
-  const handleTouchStart = (event: TouchEvent<HTMLCanvasElement>) => {
-    const touch = event.touches[0];
-    if (!touch) return;
-
-    // 记录起始位置并重置移动标志
-    touchStartPosRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      pageX: touch.pageX,
-      pageY: touch.pageY
-    };
-    touchMovedRef.current = false;
-
-    // 在非手动模式下，触摸开始时仍然可以立即显示/切换tooltip，提供即时反馈
-    if (!isManualColoringMode) {
-        onInteraction(touch.clientX, touch.clientY, touch.pageX, touch.pageY, false);
-    }
-    // 注意：此处不再触发手动上色 (isClick: true)
-  };
   
-  // 触摸移动时检测是否需要隐藏提示
-  const handleTouchMove = (event: TouchEvent<HTMLCanvasElement>) => {
-    const touch = event.touches[0];
-    if (!touch || !touchStartPosRef.current) return;
-    
-    const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
-    const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
-    
-    // 如果移动超过阈值，则标记为已移动，并隐藏tooltip
-    // 增加一个稍大的阈值，以更好地区分点击和微小的手指抖动/滑动意图
-    if (!touchMovedRef.current && (dx > 10 || dy > 10)) {
-      touchMovedRef.current = true;
-      // 一旦确定是移动，就隐藏tooltip
-      onInteraction(0, 0, 0, 0, false, true);
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      
+      // 记录起始位置并重置移动标志
+      touchStartPosRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        pageX: touch.pageX,
+        pageY: touch.pageY
+      };
+      touchMovedRef.current = false;
+      
+      // 开始拖拽
+      if (!isManualColoringMode) {
+        dragStartRef.current = {
+          x: touch.clientX,
+          y: touch.clientY,
+          offsetX: offsetX,
+          offsetY: offsetY
+        };
+      }
+    } else if (event.touches.length === 2) {
+      // 双指缩放：记录初始距离和中心点
+      const touch1 = event.touches[0];
+      const touch2 = event.touches[1];
+      
+      const dx = touch2.clientX - touch1.clientX;
+      const dy = touch2.clientY - touch1.clientY;
+      touchDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
+      
+      touchCenterRef.current = {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2
+      };
     }
   };
-  
-  // 触摸结束时不再自动隐藏提示框
-  const handleTouchEnd = () => {
+
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    
+    if (event.touches.length === 1 && dragStartRef.current) {
+      // 单指拖拽
+      const touch = event.touches[0];
+      const dx = touch.clientX - dragStartRef.current.x;
+      const dy = touch.clientY - dragStartRef.current.y;
+      
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        touchMovedRef.current = true;
+      }
+      
+      setOffsetX(dragStartRef.current.offsetX + dx);
+      setOffsetY(dragStartRef.current.offsetY + dy);
+    } else if (event.touches.length === 2 && touchDistanceRef.current && touchCenterRef.current) {
+      // 双指缩放
+      const touch1 = event.touches[0];
+      const touch2 = event.touches[1];
+      
+      const dx = touch2.clientX - touch1.clientX;
+      const dy = touch2.clientY - touch1.clientY;
+      const newDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      // 计算新的缩放比例
+      const zoomFactor = newDistance / touchDistanceRef.current;
+      const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 10);
+      
+      // 计算新的中心点
+      const newCenter = {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2
+      };
+      
+      // 调整偏移量
+      const centerX = touchCenterRef.current.x;
+      const centerY = touchCenterRef.current.y;
+      const scaleRatio = newScale / scale;
+      
+      setOffsetX(newCenter.x - (newCenter.x - offsetX) * scaleRatio);
+      setOffsetY(newCenter.y - (newCenter.y - offsetY) * scaleRatio);
+      setScale(newScale);
+      
+      // 更新参考值
+      touchDistanceRef.current = newDistance;
+      touchCenterRef.current = newCenter;
+    }
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    // 结束拖拽
+    dragStartRef.current = null;
+    touchDistanceRef.current = null;
+    touchCenterRef.current = null;
+    
     // 检查是否是手动模式，并且触摸没有移动（判定为点击）
     if (isManualColoringMode && !touchMovedRef.current && touchStartPosRef.current) {
-      // 使用触摸开始时的坐标来执行上色操作
       const { x, y, pageX, pageY } = touchStartPosRef.current;
-      onInteraction(x, y, pageX, pageY, true); // isClick: true 表示执行上色
+      onInteraction(x, y, pageX, pageY, true);
     }
-    // 如果是非手动模式下的点击 (isManualColoringMode=false, touchMovedRef=false)
-    // Tooltip 的显示/隐藏切换已在 touchstart 处理，touchend 时无需额外操作
 
     // 重置触摸状态
     touchStartPosRef.current = null;
@@ -237,23 +358,31 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
+    <div
+      onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd} // 添加 onTouchCancel 以处理触摸中断的情况
-      className={`border border-gray-300 dark:border-gray-600 max-w-full h-auto rounded block ${
-        isManualColoringMode ? 'cursor-pointer' : 'cursor-grab' // 改为 grab 光标提示可以拖动
-      }`}
-      style={{
-        imageRendering: 'pixelated',
-        // touchAction: 'none' // 移除此行以允许页面滚动和缩放
-      }}
-    />
+      onTouchCancel={handleTouchEnd}
+      className="w-full h-full overflow-hidden relative"
+      style={{ cursor: isDragging ? 'grabbing' : (isManualColoringMode ? 'pointer' : 'grab') }}
+    >
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onClick={(e) => e.stopPropagation()}
+        className="border border-gray-300 dark:border-gray-600 rounded block"
+        style={{
+          imageRendering: scale > 1 ? 'pixelated' : 'auto',
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+        }}
+      />
+    </div>
   );
 };
 
