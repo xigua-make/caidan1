@@ -2492,7 +2492,7 @@ export default function Workstation() {
                     style={{ backgroundColor: selectedColor.color }}
                   ></div>
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {selectedColor.key} {selectedColor.color}
+                    {getColorKeyByHex(selectedColor.color, selectedColorSystem)} {selectedColor.color}
                   </span>
                 </div>
               )}
