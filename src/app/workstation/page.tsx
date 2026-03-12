@@ -758,7 +758,8 @@ export default function Workstation() {
     startCol: number,
     endRow: number,
     endCol: number,
-    color: string | null
+    color: string | null,
+    filled: boolean = false
   ) => {
     let newPixelData = [...pixelData];
     const minRow = Math.min(startRow, endRow);
@@ -766,14 +767,23 @@ export default function Workstation() {
     const minCol = Math.min(startCol, endCol);
     const maxCol = Math.max(startCol, endCol);
     
-    // 绘制四条边
-    for (let col = minCol; col <= maxCol; col++) {
-      newPixelData = drawPixelWithMirror(newPixelData, minRow, col, color);
-      newPixelData = drawPixelWithMirror(newPixelData, maxRow, col, color);
-    }
-    for (let row = minRow; row <= maxRow; row++) {
-      newPixelData = drawPixelWithMirror(newPixelData, row, minCol, color);
-      newPixelData = drawPixelWithMirror(newPixelData, row, maxCol, color);
+    if (filled) {
+      // 实心矩形：填充整个区域
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          newPixelData = drawPixelWithMirror(newPixelData, row, col, color);
+        }
+      }
+    } else {
+      // 空心矩形：绘制四条边
+      for (let col = minCol; col <= maxCol; col++) {
+        newPixelData = drawPixelWithMirror(newPixelData, minRow, col, color);
+        newPixelData = drawPixelWithMirror(newPixelData, maxRow, col, color);
+      }
+      for (let row = minRow; row <= maxRow; row++) {
+        newPixelData = drawPixelWithMirror(newPixelData, row, minCol, color);
+        newPixelData = drawPixelWithMirror(newPixelData, row, maxCol, color);
+      }
     }
     
     return newPixelData;
@@ -897,7 +907,7 @@ export default function Workstation() {
         break;
         
       case 'rectangle':
-        newPixelData = drawRectangle(newPixelData, startRow, startCol, endRow, endCol, selectedColor?.color || null);
+        newPixelData = drawRectangle(newPixelData, startRow, startCol, endRow, endCol, selectedColor?.color || null, rectangleFilled);
         break;
         
       case 'select':
@@ -918,7 +928,7 @@ export default function Workstation() {
     
     setMappedPixelData(newPixelData);
     recalculateColorCounts(newPixelData);
-  }, [mappedPixelData, currentTool, selectedColor, drawLine, drawRectangle, recalculateColorCounts, saveToHistory]);
+  }, [mappedPixelData, currentTool, selectedColor, drawLine, drawRectangle, rectangleFilled, recalculateColorCounts, saveToHistory]);
 
   // 处理选区复制
   const handleCopySelection = useCallback(() => {
@@ -1824,7 +1834,7 @@ export default function Workstation() {
         recalculateColorCounts(newPixelData);
         break;
       case 'rectangle':
-        newPixelData = drawRectangle(newPixelData, drawStartPos.row, drawStartPos.col, pos.row, pos.col, color);
+        newPixelData = drawRectangle(newPixelData, drawStartPos.row, drawStartPos.col, pos.row, pos.col, color, rectangleFilled);
         setMappedPixelData(newPixelData);
         recalculateColorCounts(newPixelData);
         break;
@@ -1880,7 +1890,7 @@ export default function Workstation() {
     setDrawStartPos(null);
     setDrawEndPos(null);
     lastDrawPosRef.current = null; // 重置上一次绘制位置
-  }, [isDrawing, drawStartPos, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, selection, clipboard, recalculateColorCounts]);
+  }, [isDrawing, drawStartPos, currentTool, mappedPixelData, selectedColor, drawLine, drawRectangle, rectangleFilled, selection, clipboard, recalculateColorCounts]);
 
   // 创建选区
   const createSelection = useCallback((startRow: number, startCol: number, endRow: number, endCol: number) => {
@@ -2044,6 +2054,7 @@ export default function Workstation() {
                   currentTool={currentTool}
                   selectedColor={selectedColor?.color}
                   brushSize={brushSize}
+                  rectangleFilled={rectangleFilled}
                   previewStartPos={drawStartPos}
                   previewEndPos={drawEndPos}
                   isDrawing={isDrawing}

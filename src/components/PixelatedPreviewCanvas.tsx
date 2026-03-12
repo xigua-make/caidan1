@@ -29,6 +29,7 @@ interface PixelatedPreviewCanvasProps {
   currentTool?: ToolType;
   selectedColor?: string | null;
   brushSize?: number;
+  rectangleFilled?: boolean;
   // 预览状态
   previewStartPos?: { row: number; col: number } | null;
   previewEndPos?: { row: number; col: number } | null;
@@ -113,7 +114,8 @@ const drawPreviewLayer = (
   startPos: { row: number; col: number } | null | undefined,
   endPos: { row: number; col: number } | null | undefined,
   isDrawing: boolean,
-  selection: { startRow: number; startCol: number; endRow: number; endCol: number } | null | undefined
+  selection: { startRow: number; startCol: number; endRow: number; endCol: number } | null | undefined,
+  rectangleFilled?: boolean
 ) => {
   if (!previewCanvas || !dims || !mainCanvas) return;
   
@@ -265,10 +267,18 @@ const drawPreviewLayer = (
         const width = (maxCol - minCol + 1) * cellWidth;
         const height = (maxRow - minRow + 1) * cellHeight;
         
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.8;
-        ctx.strokeRect(x, y, width, height);
+        ctx.globalAlpha = 0.6;
+        
+        if (rectangleFilled) {
+          // 实心矩形预览
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y, width, height);
+        } else {
+          // 空心矩形预览
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, width, height);
+        }
         ctx.globalAlpha = 1;
       }
       break;
@@ -343,6 +353,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   currentTool = 'brush',
   selectedColor,
   brushSize = 1,
+  rectangleFilled = false,
   previewStartPos,
   previewEndPos,
   isDrawing: isDrawingProp = false,
@@ -439,9 +450,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       previewStartPos,
       previewEndPos,
       isDrawingProp,
-      selection
+      selection,
+      rectangleFilled
     );
-  }, [gridDimensions, currentTool, selectedColor, brushSize, previewStartPos, previewEndPos, isDrawingProp, selection]);
+  }, [gridDimensions, currentTool, selectedColor, brushSize, previewStartPos, previewEndPos, isDrawingProp, selection, rectangleFilled]);
 
   // Handle highlight
   useEffect(() => {
