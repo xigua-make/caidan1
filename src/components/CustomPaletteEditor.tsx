@@ -65,6 +65,15 @@ function groupColorsByPrefix(colors: PaletteColor[], selectedColorSystem: ColorS
   return groups;
 }
 
+// 色号系统选项
+const colorSystemOptions = [
+  { key: 'MARD', name: 'MARD' },
+  { key: 'COCO', name: 'COCO' },
+  { key: '漫漫', name: '漫漫' },
+  { key: '盼盼', name: '盼盼' },
+  { key: '咪小窝', name: '咪小窝' },
+];
+
 interface CustomPaletteEditorProps {
   allColors: PaletteColor[];
   currentSelections: PaletteSelections;
@@ -74,6 +83,7 @@ interface CustomPaletteEditorProps {
   onExportCustomPalette: () => void;
   onImportCustomPalette: () => void;
   selectedColorSystem: ColorSystem;
+  onColorSystemChange: (colorSystem: ColorSystem) => void;
 }
 
 const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
@@ -85,6 +95,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   onExportCustomPalette,
   onImportCustomPalette,
   selectedColorSystem,
+  onColorSystemChange,
 }) => {
   // 用于跟踪当前展开的颜色组
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -167,6 +178,26 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+        </div>
+      </div>
+      
+      {/* 色号系统选择 */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">色号系统</label>
+        <div className="flex flex-wrap gap-2">
+          {(['MARD', 'COCO', '漫漫', '盼盼', '咪小窝'] as ColorSystem[]).map((system) => (
+            <button
+              key={system}
+              onClick={() => onColorSystemChange(system)}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                selectedColorSystem === system
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {system}
+            </button>
+          ))}
         </div>
       </div>
       

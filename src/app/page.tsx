@@ -2190,6 +2190,7 @@ export default function Home() {
                       onExportCustomPalette={handleExportCustomPalette}
                       onImportCustomPalette={triggerImportPalette}
                       selectedColorSystem={selectedColorSystem}
+                      onColorSystemChange={setSelectedColorSystem}
                     />
                   </div>
                 </div>

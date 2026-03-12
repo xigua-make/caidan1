@@ -1179,6 +1179,7 @@ export default function Workstation() {
                 onExportCustomPalette={handleExportCustomPalette}
                 onImportCustomPalette={triggerImportPalette}
                 selectedColorSystem={selectedColorSystem}
+                onColorSystemChange={setSelectedColorSystem}
               />
             </div>
           </div>
