@@ -49,6 +49,8 @@ interface PixelatedPreviewCanvasProps {
   gridLineColor?: string;
   // 显示坐标轴
   showCoordinates?: boolean;
+  // 文字模式
+  isTextMode?: boolean;
 }
 
 // 只绘制像素颜色的函数（用于离屏canvas缓存）
@@ -609,6 +611,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   gridLineInterval = 5,
   gridLineColor = '#FF0000',
   showCoordinates = false,
+  isTextMode = false,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -696,6 +699,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // 离屏canvas缓存 - 用于高性能缩放
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastPixelDataRef = useRef<MappedPixel[][] | null>(null);
+  const lastHighlightColorRef = useRef<string | null | undefined>(undefined);
   
   // 绘制过程中的实时预览缓存
   const drawingOverlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -769,10 +773,13 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       
-      // 检查像素数据是否变化
+      // 检查像素数据是否变化，或者高亮颜色是否变化
       const pixelDataChanged = lastPixelDataRef.current !== mappedPixelData;
-      if (pixelDataChanged) {
-        // 像素数据变化时，只绘制像素颜色到离屏canvas（基础尺寸）
+      const highlightChanged = lastHighlightColorRef.current !== highlightColorKey;
+      
+      if (pixelDataChanged || highlightChanged) {
+        // 像素数据或高亮颜色变化时，重新绘制到离屏canvas
+        const isHighlighting = highlightColorKey !== null;
         drawPixelColors(
           mappedPixelData, 
           offscreenCanvasRef.current, 
@@ -781,6 +788,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           isHighlighting
         );
         lastPixelDataRef.current = mappedPixelData;
+        lastHighlightColorRef.current = highlightColorKey;
         // 清空待绘制像素缓存
         pendingPixelsRef.current.clear();
       }
@@ -816,7 +824,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         canvas, 
         gridDimensions, 
         highlightColorKey, 
-        isHighlighting,
+        highlightColorKey !== null, // 使用 highlightColorKey 判断是否高亮
         showColorLabels,
         selectedColorSystem,
         showGridLines,
@@ -825,7 +833,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         true // 跳过像素绘制，只绘制网格线和色号
       );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize, isLocalDrawing]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize, isLocalDrawing]);
 
   // Initialize preview canvas size when scale changes
   useEffect(() => {
@@ -1072,6 +1080,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
     if (event.button === 0) {
+      // 文字模式或手动编辑模式下触发交互
       if (isManualColoringMode) {
         setIsLocalDrawing(true);
         const pos = getGridPosition(event.clientX, event.clientY);
@@ -1079,7 +1088,11 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           onDrawStart(pos.col, pos.row);
         }
         onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
+      } else if (isTextMode) {
+        // 文字模式：只触发交互，不进入拖拽
+        onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
       } else {
+        // 非编辑模式：拖拽
         setIsDragging(true);
         dragStartRef.current = {
           x: event.clientX,
@@ -1182,6 +1195,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
             onDrawStart(pos.col, pos.row);
           }
         }
+      } else if (isTextMode) {
+        // 文字模式：触发交互
+        onInteraction(touch.clientX, touch.clientY, touch.pageX, touch.pageY, true);
       } else {
         // 非手动模式：拖拽画布
         dragStartRef.current = { x: touch.clientX, y: touch.clientY, offsetX, offsetY };

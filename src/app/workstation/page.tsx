@@ -2466,6 +2466,7 @@ export default function Workstation() {
                   previewEndPos={drawEndPos}
                   isDrawing={isDrawing}
                   selection={selection}
+                  isTextMode={isTextMode}
                 />
               </div>
             </div>
