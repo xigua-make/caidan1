@@ -631,6 +631,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
   const touchMovedRef = useRef<boolean>(false);
   const [isHighlighting, setIsHighlighting] = useState(false);
+  
+  // 高亮色号提示框状态
+  const [showHighlightBadge, setShowHighlightBadge] = useState(false);
+  const highlightBadgeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 缩放和拖拽状态 - 参考网站的实现方式
   const [scale, setScale] = useState(1);
@@ -991,9 +995,38 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   useEffect(() => {
     if (highlightColorKey) {
       setIsHighlighting(true);
+      
+      // 显示高亮色号提示框
+      setShowHighlightBadge(true);
+      
+      // 清除之前的定时器
+      if (highlightBadgeTimeoutRef.current) {
+        clearTimeout(highlightBadgeTimeoutRef.current);
+      }
+      
+      // 3秒后隐藏提示框（但保持高亮效果）
+      highlightBadgeTimeoutRef.current = setTimeout(() => {
+        setShowHighlightBadge(false);
+        highlightBadgeTimeoutRef.current = null;
+      }, 3000);
     } else {
       setIsHighlighting(false);
+      setShowHighlightBadge(false);
+      
+      // 清除定时器
+      if (highlightBadgeTimeoutRef.current) {
+        clearTimeout(highlightBadgeTimeoutRef.current);
+        highlightBadgeTimeoutRef.current = null;
+      }
     }
+    
+    // 清理函数
+    return () => {
+      if (highlightBadgeTimeoutRef.current) {
+        clearTimeout(highlightBadgeTimeoutRef.current);
+        highlightBadgeTimeoutRef.current = null;
+      }
+    };
   }, [highlightColorKey]);
 
   // Reset zoom and offset - only when grid dimensions change (not on pixel data changes)
@@ -1578,6 +1611,21 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           transform: `translate(${offsetX}px, ${offsetY}px)`,
         }}
       />
+      
+      {/* 高亮色号提示框 - 显示当前高亮的颜色色号，3秒后自动消失 */}
+      {showHighlightBadge && highlightColorKey && (
+        <div 
+          className="absolute top-2 right-2 bg-gray-900/90 dark:bg-gray-800/90 text-white text-xs px-2 py-1 rounded shadow-lg flex items-center gap-1.5 z-30 pointer-events-none"
+        >
+          <span
+            className="inline-block w-3 h-3 rounded-sm border border-gray-400 flex-shrink-0"
+            style={{ backgroundColor: highlightColorKey }}
+          />
+          <span className="font-mono font-semibold">
+            {getColorKeyByHex(highlightColorKey, selectedColorSystem)}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
