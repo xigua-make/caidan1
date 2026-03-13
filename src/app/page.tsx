@@ -1857,8 +1857,8 @@ export default function Home() {
       {/* Apply dark mode styles to the header */}
       <header className="w-full md:max-w-4xl text-center mt-4 mb-6 sm:mt-6 sm:mb-8 relative overflow-hidden">
         {/* Adjust decorative background colors for dark mode */}
-        <div className="absolute top-0 left-0 w-48 h-48 bg-blue-100 dark:bg-blue-900 rounded-full opacity-30 dark:opacity-20 blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-48 h-48 bg-pink-100 dark:bg-pink-900 rounded-full opacity-30 dark:opacity-20 blur-3xl"></div>
+        <div className="absolute top-0 left-0 w-48 h-48 bg-blue-100 dark:bg-blue-900 rounded-full opacity-30 dark:opacity-20 blur-xl"></div>
+        <div className="absolute bottom-0 right-0 w-48 h-48 bg-pink-100 dark:bg-pink-900 rounded-full opacity-30 dark:opacity-20 blur-xl"></div>
 
         {/* Adjust decorative dots color */}
         <div className="absolute top-0 right-0 grid grid-cols-5 gap-1 opacity-20 dark:opacity-10">
@@ -1894,7 +1894,7 @@ export default function Home() {
             <div className="relative flex flex-col items-center space-y-3">
               {/* Brand name - 小瓜 with ultra fancy effects */}
               <div className="relative">
-                <h1 className="relative text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 to-cyan-400 tracking-wider drop-shadow-2xl transform hover:scale-105 transition-transform duration-300 animate-bounce">
+                <h1 className="relative text-4xl sm:text-6xl font-black bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent tracking-wider drop-shadow-2xl transform hover:scale-105 transition-transform duration-300 animate-bounce" style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   小瓜
                 </h1>
                 
@@ -1917,7 +1917,7 @@ export default function Home() {
               
               {/* Tool name - 拼豆底稿生成器 with hyper cute style */}
               <div className="relative">
-                <h2 className="relative text-xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 to-emerald-400 tracking-widest transform hover:scale-102 transition-all duration-300">
+                <h2 className="relative text-xl sm:text-3xl font-bold bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 to-emerald-400 bg-clip-text text-transparent tracking-widest transform hover:scale-102 transition-all duration-300" style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   拼豆底稿生成器
                 </h2>
                 
