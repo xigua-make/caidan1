@@ -961,17 +961,14 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     );
   }, [gridDimensions, currentTool, selectedColor, brushSize, previewStartPos, previewEndPos, isDrawingProp, selection, rectangleFilled]);
 
-  // Handle highlight
+  // Handle highlight - 高亮状态持续，直到用户手动取消
   useEffect(() => {
-    if (highlightColorKey && mappedPixelData && gridDimensions) {
+    if (highlightColorKey) {
       setIsHighlighting(true);
-      const timer = setTimeout(() => {
-        setIsHighlighting(false);
-        onHighlightComplete?.();
-      }, 300);
-      return () => clearTimeout(timer);
+    } else {
+      setIsHighlighting(false);
     }
-  }, [highlightColorKey, mappedPixelData, gridDimensions, onHighlightComplete]);
+  }, [highlightColorKey]);
 
   // Reset zoom and offset - only when grid dimensions change (not on pixel data changes)
   useEffect(() => {
