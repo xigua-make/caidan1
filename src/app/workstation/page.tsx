@@ -319,8 +319,8 @@ export default function Workstation() {
   
   // 空白画布弹窗状态
   const [isBlankCanvasModalOpen, setIsBlankCanvasModalOpen] = useState<boolean>(false);
-  const [blankCanvasWidth, setBlankCanvasWidth] = useState<number>(100);
-  const [blankCanvasHeight, setBlankCanvasHeight] = useState<number>(100);
+  const [blankCanvasWidthInput, setBlankCanvasWidthInput] = useState<string>('100');
+  const [blankCanvasHeightInput, setBlankCanvasHeightInput] = useState<string>('100');
   
   // 自定义色板状态
   const [customPaletteSelections, setCustomPaletteSelections] = useState<PaletteSelections>({});
@@ -2512,8 +2512,8 @@ export default function Workstation() {
                 
                 <button
                   onClick={() => {
-                    setBlankCanvasWidth(100);
-                    setBlankCanvasHeight(100);
+                    setBlankCanvasWidthInput('100');
+                    setBlankCanvasHeightInput('100');
                     setIsBlankCanvasModalOpen(true);
                   }}
                   className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
@@ -2672,11 +2672,11 @@ export default function Workstation() {
                   onClick={() => {
                     // 如果已有画布，使用当前尺寸
                     if (gridDimensions) {
-                      setBlankCanvasWidth(gridDimensions.N);
-                      setBlankCanvasHeight(gridDimensions.M);
+                      setBlankCanvasWidthInput(String(gridDimensions.N));
+                      setBlankCanvasHeightInput(String(gridDimensions.M));
                     } else {
-                      setBlankCanvasWidth(100);
-                      setBlankCanvasHeight(100);
+                      setBlankCanvasWidthInput('100');
+                      setBlankCanvasHeightInput('100');
                     }
                     setIsBlankCanvasModalOpen(true);
                   }}
@@ -3449,8 +3449,8 @@ export default function Workstation() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">宽度</label>
                     <input
                       type="number"
-                      value={blankCanvasWidth}
-                      onChange={(e) => setBlankCanvasWidth(Math.max(10, Math.min(300, parseInt(e.target.value) || 100)))}
+                      value={blankCanvasWidthInput}
+                      onChange={(e) => setBlankCanvasWidthInput(e.target.value)}
                       className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       min="10"
                       max="300"
@@ -3461,8 +3461,8 @@ export default function Workstation() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">高度</label>
                     <input
                       type="number"
-                      value={blankCanvasHeight}
-                      onChange={(e) => setBlankCanvasHeight(Math.max(10, Math.min(300, parseInt(e.target.value) || 100)))}
+                      value={blankCanvasHeightInput}
+                      onChange={(e) => setBlankCanvasHeightInput(e.target.value)}
                       className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       min="10"
                       max="300"
@@ -3470,7 +3470,7 @@ export default function Workstation() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                  画布尺寸: {blankCanvasWidth} × {blankCanvasHeight} = {blankCanvasWidth * blankCanvasHeight} 格
+                  画布尺寸: {Math.max(10, Math.min(300, parseInt(blankCanvasWidthInput) || 100))} × {Math.max(10, Math.min(300, parseInt(blankCanvasHeightInput) || 100))} = {Math.max(10, Math.min(300, parseInt(blankCanvasWidthInput) || 100)) * Math.max(10, Math.min(300, parseInt(blankCanvasHeightInput) || 100))} 格
                 </p>
               </div>
               
@@ -3487,11 +3487,11 @@ export default function Workstation() {
                     <button
                       key={`${w}x${h}`}
                       onClick={() => {
-                        setBlankCanvasWidth(w);
-                        setBlankCanvasHeight(h);
+                        setBlankCanvasWidthInput(String(w));
+                        setBlankCanvasHeightInput(String(h));
                       }}
                       className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                        blankCanvasWidth === w && blankCanvasHeight === h
+                        parseInt(blankCanvasWidthInput) === w && parseInt(blankCanvasHeightInput) === h
                           ? 'bg-blue-500 text-white'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
@@ -3512,7 +3512,11 @@ export default function Workstation() {
                 取消
               </button>
               <button
-                onClick={() => handleCreateBlankCanvas(blankCanvasWidth, blankCanvasHeight)}
+                onClick={() => {
+                  const width = Math.max(10, Math.min(300, parseInt(blankCanvasWidthInput) || 100));
+                  const height = Math.max(10, Math.min(300, parseInt(blankCanvasHeightInput) || 100));
+                  handleCreateBlankCanvas(width, height);
+                }}
                 className="flex-1 py-2 text-sm font-medium text-white bg-purple-500 hover:bg-purple-600 rounded-lg transition-colors"
               >
                 创建画布
