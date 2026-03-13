@@ -1915,10 +1915,10 @@ export default function Home() {
                 <div className="absolute bottom-1 right-0 w-1 h-1 bg-purple-300 rounded-full animate-pulse delay-1000"></div>
               </div>
               
-              {/* Tool name - 小瓜拼豆生成器 with hyper cute style */}
+              {/* Tool name - 拼豆底稿生成器 with hyper cute style */}
               <div className="relative">
                 <h2 className="relative text-xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 to-emerald-400 tracking-widest transform hover:scale-102 transition-all duration-300">
-                  小瓜拼豆生成器
+                  拼豆底稿生成器
                 </h2>
                 
                 {/* Super cute geometric shapes */}

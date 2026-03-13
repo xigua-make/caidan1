@@ -2325,10 +2325,11 @@ export default function Workstation() {
                 <div className="absolute top-4 right-3 w-1 h-1.5 bg-gray-900 rounded-full -rotate-45"></div>
               </div>
             </a>
-            <div className="flex items-center">
-              <span className="text-base font-bold text-gray-800 dark:text-gray-100">
-                小瓜拼豆生成器
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+                小瓜
               </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">拼豆底稿生成器</span>
             </div>
           </div>
 
@@ -2395,9 +2396,12 @@ export default function Workstation() {
           {/* Logo + 品牌名 */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <a href="/" className="w-9 h-9 rounded-lg border border-gray-200/70 dark:border-gray-700/70 shadow-sm overflow-hidden bg-white flex items-center justify-center">
-              <img src="/logo.png" alt="小瓜拼豆生成器" className="w-8 h-8 object-contain" />
+              <img src="/logo.png" alt="小瓜拼豆" className="w-8 h-8 object-contain" />
             </a>
-            <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">小瓜拼豆生成器</div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">小瓜</div>
+              <div className="text-[10px] text-gray-500 dark:text-gray-400">拼豆底稿生成器</div>
+            </div>
           </div>
           
           {/* 右侧：模式切换 + 按钮 */}
