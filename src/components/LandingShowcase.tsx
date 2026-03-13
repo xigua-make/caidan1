@@ -211,8 +211,26 @@ export default function LandingShowcase() {
                   
                   {/* 多端适配标签 */}
                   <div className="absolute bottom-3 left-3 flex gap-2">
-                    <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">手机</span>
-                    <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">电脑</span>
+                    <button 
+                      onClick={() => handleVideoTypeChange('mobile')}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        activeVideo === 'mobile' 
+                          ? 'text-white bg-blue-500' 
+                          : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
+                      }`}
+                    >
+                      手机
+                    </button>
+                    <button 
+                      onClick={() => handleVideoTypeChange('desktop')}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        activeVideo === 'desktop' 
+                          ? 'text-white bg-blue-500' 
+                          : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
+                      }`}
+                    >
+                      电脑
+                    </button>
                   </div>
                 </>
               )}
