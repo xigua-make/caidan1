@@ -712,29 +712,24 @@ export async function downloadImage({
         
         const cellData = colorCounts[key];
         
-        // 绘制色块
-        ctx.fillStyle = cellData.color;
-        ctx.strokeStyle = '#CCCCCC';
-        ctx.fillRect(itemX, rowY - (swatchSize / 2), swatchSize, swatchSize);
-        ctx.strokeRect(itemX + 0.5, rowY - (swatchSize / 2) + 0.5, swatchSize - 1, swatchSize - 1);
-        
-        // 绘制色号
+        // 绘制色号（在左边）
         ctx.fillStyle = '#333333';
         ctx.textAlign = 'left';
-        ctx.fillText(getColorKeyByHex(key, selectedColorSystem), itemX + swatchSize + 5, rowY);
+        const colorKey = getColorKeyByHex(key, selectedColorSystem);
+        ctx.fillText(colorKey, itemX, rowY);
         
-        // 绘制数量 - 在每个项目的右侧
-        const countText = `${cellData.count} 颗`;
-        ctx.textAlign = 'right';
+        // 绘制色块（在色号右边）
+        const swatchX = itemX + ctx.measureText(colorKey).width + 5;
+        ctx.fillStyle = cellData.color;
+        ctx.strokeStyle = '#CCCCCC';
+        ctx.fillRect(swatchX, rowY - (swatchSize / 2), swatchSize, swatchSize);
+        ctx.strokeRect(swatchX + 0.5, rowY - (swatchSize / 2) + 0.5, swatchSize - 1, swatchSize - 1);
         
-        // 根据列数计算数字的位置
-        // 如果只有一列，就靠右绘制
-        if (renderNumColumns === 1) {
-          ctx.fillText(countText, downloadWidth - statsPadding, rowY);
-        } else {
-          // 多列时，在每个单元格右侧偏内绘制
-          ctx.fillText(countText, itemX + itemWidth - 10, rowY);
-        }
+        // 绘制数量 - 格式为 x数量（如 x194）
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'left';
+        const countText = `x${cellData.count}`;
+        ctx.fillText(countText, swatchX + swatchSize + 5, rowY);
       });
       
       // 计算实际需要的行数
