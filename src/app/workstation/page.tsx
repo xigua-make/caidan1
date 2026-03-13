@@ -2343,7 +2343,7 @@ export default function Workstation() {
                   : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-600'
               }`}
             >
-              自动优化
+              预先调整
             </button>
             <button
               onClick={() => setWorkstationMode('manual')}
@@ -2353,7 +2353,7 @@ export default function Workstation() {
                   : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-600'
               }`}
             >
-              手动编辑
+              精细调整
             </button>
           </div>
 
@@ -2681,7 +2681,7 @@ export default function Workstation() {
               {/* 顶部标题区 */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">手动编辑</h3>
+                  <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">精细调整</h3>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">空格拖拽·滚轮缩放·Ctrl+Z 撤销</p>
                 </div>
                 <div className="flex items-center gap-2">
