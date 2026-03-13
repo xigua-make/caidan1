@@ -493,6 +493,11 @@ export default function Workstation() {
       return;
     }
 
+    // 如果是空白画布模式，跳过图片加载
+    if (imageSrc === 'blank-canvas') {
+      return;
+    }
+
     // 找到备用颜色
     const t1FallbackColor = currentPalette.find(p => p.key === 'T1')
                          || currentPalette.find(p => p.hex.toUpperCase() === '#FFFFFF')
@@ -697,6 +702,10 @@ export default function Workstation() {
   // 图片变化时触发像素化
   // 注意：依赖 customPaletteSelections 而不是 activeBeadPalette，避免排除颜色时触发重新像素化
   useEffect(() => {
+    // 跳过空白画布模式
+    if (originalImageSrc === 'blank-canvas') {
+      return;
+    }
     if (originalImageSrc && activeBeadPalette.length > 0) {
       const timeoutId = setTimeout(() => {
         if (originalImageSrc && originalCanvasRef.current && pixelatedCanvasRef.current && activeBeadPalette.length > 0) {

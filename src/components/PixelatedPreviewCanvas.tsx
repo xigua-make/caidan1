@@ -14,9 +14,9 @@ const isIOS = (): boolean => {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
-// iOS canvas 最大尺寸限制（iOS 14+ 约为 4096x4096，但实际受内存限制更小）
-const IOS_MAX_CANVAS_DIMENSION = 3800;
-const IOS_MAX_CANVAS_AREA = 14000000; // 约 14MB 像素
+// iOS canvas 最大尺寸限制（保守估计，避免内存问题）
+const IOS_MAX_CANVAS_DIMENSION = 3000;
+const IOS_MAX_CANVAS_AREA = 9000000; // 约 9MB 像素
 
 interface PixelatedPreviewCanvasProps {
   mappedPixelData: MappedPixel[][] | null;

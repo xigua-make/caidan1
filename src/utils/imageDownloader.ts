@@ -9,9 +9,9 @@ function isIOS(): boolean {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-// iOS canvas 最大尺寸限制
-const IOS_MAX_CANVAS_DIMENSION = 3800;
-const IOS_MAX_CANVAS_AREA = 14000000;
+// iOS canvas 最大尺寸限制（保守估计，避免内存问题）
+const IOS_MAX_CANVAS_DIMENSION = 3000;
+const IOS_MAX_CANVAS_AREA = 9000000; // 约 9MB 像素，更保守
 
 // 用于获取对比色的工具函数 - 从page.tsx复制
 function getContrastColor(hex: string): string {
@@ -799,7 +799,8 @@ export async function downloadImage({
     }
 
     // iOS 设备：如果 canvas 尺寸仍然超过限制，创建缩放版本
-    if (isIOS()) {
+    // 注意：iOS 在绘制前已经调整了 downloadCellSize，这里只是额外的安全检查
+    if (isIOS() && downloadCanvas.width > 0 && downloadCanvas.height > 0) {
       const canvasArea = downloadCanvas.width * downloadCanvas.height;
       if (canvasArea > IOS_MAX_CANVAS_AREA || downloadCanvas.width > IOS_MAX_CANVAS_DIMENSION || downloadCanvas.height > IOS_MAX_CANVAS_DIMENSION) {
         // 计算缩放因子
@@ -820,6 +821,10 @@ export async function downloadImage({
         const scaledCtx = scaledCanvas.getContext('2d');
         
         if (scaledCtx) {
+          // 先填充白色背景
+          scaledCtx.fillStyle = '#FFFFFF';
+          scaledCtx.fillRect(0, 0, scaledWidth, scaledHeight);
+          // 再绘制缩放后的内容
           scaledCtx.imageSmoothingEnabled = true;
           scaledCtx.drawImage(downloadCanvas, 0, 0, scaledWidth, scaledHeight);
           downloadCanvas = scaledCanvas;
