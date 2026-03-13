@@ -2481,6 +2481,8 @@ export default function Workstation() {
                       }
                       newPixelData.push(row);
                     }
+                    // 设置一个特殊标记表示空白画布模式
+                    setOriginalImageSrc('blank-canvas');
                     setMappedPixelData(newPixelData);
                     setGridDimensions({ N: 100, M: 100 });
                     setGridWidth(100);

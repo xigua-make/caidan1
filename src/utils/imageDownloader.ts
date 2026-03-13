@@ -342,7 +342,7 @@ export async function downloadImage({
     }
   
     // 调整画布大小，包含标题栏、坐标轴、统计区域和小红书标识区域（四边都有坐标）
-    const downloadWidth = gridWidth + (axisLabelSize * 2) + extraLeftMargin + extraRightMargin;
+    let downloadWidth = gridWidth + (axisLabelSize * 2) + extraLeftMargin + extraRightMargin;
     let downloadHeight = titleBarHeight + gridHeight + (axisLabelSize * 2) + statsHeight + extraTopMargin + extraBottomMargin + xiaohongshuAreaHeight;
   
     let downloadCanvas = document.createElement('canvas');
@@ -798,17 +798,75 @@ export async function downloadImage({
       }
     }
 
+    // iOS 设备：如果 canvas 尺寸仍然超过限制，创建缩放版本
+    if (isIOS()) {
+      const canvasArea = downloadCanvas.width * downloadCanvas.height;
+      if (canvasArea > IOS_MAX_CANVAS_AREA || downloadCanvas.width > IOS_MAX_CANVAS_DIMENSION || downloadCanvas.height > IOS_MAX_CANVAS_DIMENSION) {
+        // 计算缩放因子
+        const scaleByWidth = (IOS_MAX_CANVAS_DIMENSION - 50) / downloadCanvas.width;
+        const scaleByHeight = (IOS_MAX_CANVAS_DIMENSION - 50) / downloadCanvas.height;
+        const scaleByArea = Math.sqrt(IOS_MAX_CANVAS_AREA / canvasArea);
+        const finalScale = Math.min(scaleByWidth, scaleByHeight, scaleByArea, 0.9);
+        
+        const scaledWidth = Math.floor(downloadCanvas.width * finalScale);
+        const scaledHeight = Math.floor(downloadCanvas.height * finalScale);
+        
+        console.log(`iOS 设备：canvas 尺寸 ${downloadCanvas.width}x${downloadCanvas.height} 超限，缩放为 ${scaledWidth}x${scaledHeight}`);
+        
+        // 创建缩放后的 canvas
+        const scaledCanvas = document.createElement('canvas');
+        scaledCanvas.width = scaledWidth;
+        scaledCanvas.height = scaledHeight;
+        const scaledCtx = scaledCanvas.getContext('2d');
+        
+        if (scaledCtx) {
+          scaledCtx.imageSmoothingEnabled = true;
+          scaledCtx.drawImage(downloadCanvas, 0, 0, scaledWidth, scaledHeight);
+          downloadCanvas = scaledCanvas;
+        }
+      }
+    }
+
     try {
-      const dataURL = downloadCanvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = showCellNumbers
-        ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
-        : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
-      link.href = dataURL;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      console.log("Grid image download initiated.");
+      // iOS 设备使用 Blob 方式下载，更可靠
+      const useBlob = isIOS();
+      
+      if (useBlob) {
+        // 使用 toBlob 方式（iOS 更兼容）
+        downloadCanvas.toBlob((blob) => {
+          if (!blob) {
+            console.error("下载图纸失败: 无法生成图片 Blob");
+            alert("无法生成图纸下载链接，请尝试降低图纸尺寸。");
+            return;
+          }
+          
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = showCellNumbers
+            ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
+            : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
+          link.href = url;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // 延迟释放URL
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          console.log("Grid image download initiated (Blob mode).");
+        }, 'image/png');
+      } else {
+        // 非 iOS 设备使用 dataURL 方式
+        const dataURL = downloadCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = showCellNumbers
+          ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
+          : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
+        link.href = dataURL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log("Grid image download initiated.");
+      }
       
       // 如果启用了CSV导出，同时导出CSV文件
       if (options.exportCsv) {
