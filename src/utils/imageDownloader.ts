@@ -292,17 +292,25 @@ export async function downloadImage({
       // 统计区域顶部额外间距
       const statsTopMargin = 24; // 与下方渲染时保持一致
       
-      // 固定为8列
-      const numColumns = 8;
+      // 根据可用宽度动态计算列数
+      const numColumns = Math.max(1, Math.min(4, Math.floor(preCalcAvailableWidth / 250)));
       
-      // 计算色块大小 - 为数量文字预留空间
-      const swatchSize = Math.floor((preCalcAvailableWidth - (numColumns - 1) * 35) / numColumns);
+      // 根据可用宽度动态计算样式参数，使用更积极的线性缩放
+      const baseSwatchSize = 18; // 略微增大基础大小
+      // baseStatsFontSize 和 statsFontSize 在前面已经计算了，这里不需要重复
+      // const baseItemPadding = 10;
+      
+      // 调整缩放公式，使大宽度更明显增大
+      // widthFactor 在前面已经计算了，这里不需要重复
+      const swatchSize = Math.floor(baseSwatchSize + (widthFactor * 20)); // 增大最大增量幅度
+      // statsFontSize 在前面已经计算了，这里不需要重复
+      // const itemPadding = Math.floor(baseItemPadding + (widthFactor * 12)); // 增大最大增量幅度 // 移除未使用的 itemPadding
       
       // 计算实际需要的行数
       const numRows = Math.ceil(colorKeys.length / numColumns);
       
-      // 计算单行高度 - 色块高度 + 少量间距
-      const statsRowHeight = swatchSize + 8;
+      // 计算单行高度 - 根据色块大小和内边距动态调整
+      const statsRowHeight = Math.max(swatchSize + 8, 25);
       
       // 标题和页脚高度
       const titleHeight = 40; // 标题和分隔线的总高度
@@ -654,18 +662,22 @@ export async function downloadImage({
       // 计算统计区域的可用宽度
       const availableStatsWidth = downloadWidth - (statsPadding * 2);
       
-      // 固定为8列
-      const renderNumColumns = 8;
+      // 根据可用宽度动态计算列数 - 这里使用实际渲染时的宽度
+      const renderNumColumns = Math.max(1, Math.min(4, Math.floor(availableStatsWidth / 250)));
       
-      // 计算色块大小 - 为数量文字预留空间
-      const swatchSize = Math.floor((availableStatsWidth - (renderNumColumns - 1) * 35) / renderNumColumns);
-      const swatchGap = 35; // 色块之间的间距（包含数量文字的空间）
+      // 根据可用宽度动态计算样式参数，使用更积极的线性缩放
+      const baseSwatchSize = 18; // 略微增大基础大小
+      // baseStatsFontSize 和 statsFontSize 在前面已经计算了，这里不需要重复
+      // const baseItemPadding = 10;
       
-      // 色号字体大小 - 根据色块大小调整
-      const colorKeyFontSize = Math.max(8, Math.floor(swatchSize * 0.35));
+      // 调整缩放公式，使大宽度更明显增大
+      // widthFactor 在前面已经计算了，这里不需要重复
+      const swatchSize = Math.floor(baseSwatchSize + (widthFactor * 20)); // 增大最大增量幅度
+      // statsFontSize 在前面已经计算了，这里不需要重复
+      // const itemPadding = Math.floor(baseItemPadding + (widthFactor * 12)); // 增大最大增量幅度 // 移除未使用的 itemPadding
       
-      // 计算每个项目所占的宽度（色块+数量文字）
-      const itemWidth = swatchGap;
+      // 计算每个项目所占的宽度
+      const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
       
       // 绘制统计区域标题
       ctx.fillStyle = '#333333';
@@ -680,8 +692,11 @@ export async function downloadImage({
       ctx.stroke();
       
       const titleHeight = 30; // 标题和分隔线的总高度
-      // 行高 = 色块高度 + 少量间距
-      const statsRowHeight = swatchSize + 8;
+      // 根据色块大小动态调整行高
+      const statsRowHeight = Math.max(swatchSize + 8, 25); // 确保行高足够放下色块和文字
+      
+      // 设置表格字体
+      ctx.font = `${statsFontSize}px sans-serif`;
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
@@ -693,36 +708,28 @@ export async function downloadImage({
         const itemX = statsPadding + (colIndex * itemWidth);
         
         // 计算当前行的Y位置
-        const rowY = statsY + titleHeight + (rowIndex * statsRowHeight);
+        const rowY = statsY + titleHeight + (rowIndex * statsRowHeight) + (swatchSize / 2);
         
         const cellData = colorCounts[key];
         
-        // 绘制色块
+        // 绘制色号（在左边）
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'left';
+        const colorKey = getColorKeyByHex(key, selectedColorSystem);
+        ctx.fillText(colorKey, itemX, rowY);
+        
+        // 绘制色块（在色号右边）
+        const swatchX = itemX + ctx.measureText(colorKey).width + 5;
         ctx.fillStyle = cellData.color;
         ctx.strokeStyle = '#CCCCCC';
-        ctx.fillRect(itemX, rowY, swatchSize, swatchSize);
-        ctx.strokeRect(itemX + 0.5, rowY + 0.5, swatchSize - 1, swatchSize - 1);
+        ctx.fillRect(swatchX, rowY - (swatchSize / 2), swatchSize, swatchSize);
+        ctx.strokeRect(swatchX + 0.5, rowY - (swatchSize / 2) + 0.5, swatchSize - 1, swatchSize - 1);
         
-        // 在色块内绘制色号
-        const colorKey = getColorKeyByHex(key, selectedColorSystem);
-        
-        // 判断颜色深浅，决定文字颜色
-        const rgb = hexToRgb(cellData.color);
-        const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : true;
-        
-        ctx.fillStyle = isLightColor ? '#333333' : '#FFFFFF';
-        ctx.font = `bold ${colorKeyFontSize}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(colorKey, itemX + swatchSize / 2, rowY + swatchSize / 2);
-        
-        // 绘制数量 - 在色块右侧，格式为 x数量
+        // 绘制数量 - 格式为 x数量（如 x194）
         ctx.fillStyle = '#333333';
-        ctx.font = `${Math.max(10, colorKeyFontSize)}px sans-serif`;
         ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
         const countText = `x${cellData.count}`;
-        ctx.fillText(countText, itemX + swatchSize + 3, rowY + swatchSize / 2);
+        ctx.fillText(countText, swatchX + swatchSize + 5, rowY);
       });
       
       // 计算实际需要的行数
