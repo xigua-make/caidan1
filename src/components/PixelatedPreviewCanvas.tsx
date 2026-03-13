@@ -137,22 +137,27 @@ const drawPixelatedCanvas = (
   }
   
   // 性能优化：使用 Path2D 批量绘制细网格线
-  const thinGridLineColor = '#AAAAAA';
-  pixelatedCtx.strokeStyle = thinGridLineColor;
-  pixelatedCtx.lineWidth = 1;
+  // 只在格子足够大时绘制细网格线（性能优化）
+  const shouldDrawThinLines = cellWidthOutput >= 3 && cellHeightOutput >= 3;
   
-  const thinLinesPath = new Path2D();
-  for (let j = 0; j <= M; j++) {
-    const y = j * cellHeightOutput;
-    thinLinesPath.moveTo(0, y);
-    thinLinesPath.lineTo(outputWidth, y);
+  if (shouldDrawThinLines) {
+    const thinGridLineColor = '#AAAAAA';
+    pixelatedCtx.strokeStyle = thinGridLineColor;
+    pixelatedCtx.lineWidth = 1;
+    
+    const thinLinesPath = new Path2D();
+    for (let j = 0; j <= M; j++) {
+      const y = j * cellHeightOutput;
+      thinLinesPath.moveTo(0, y);
+      thinLinesPath.lineTo(outputWidth, y);
+    }
+    for (let i = 0; i <= N; i++) {
+      const x = i * cellWidthOutput;
+      thinLinesPath.moveTo(x, 0);
+      thinLinesPath.lineTo(x, outputHeight);
+    }
+    pixelatedCtx.stroke(thinLinesPath);
   }
-  for (let i = 0; i <= N; i++) {
-    const x = i * cellWidthOutput;
-    thinLinesPath.moveTo(x, 0);
-    thinLinesPath.lineTo(x, outputHeight);
-  }
-  pixelatedCtx.stroke(thinLinesPath);
   
   // 绘制分组网格线（每N格一条粗线）- 参考网站使用 2-2.5px
   if (showGridLines && gridLineInterval && gridLineInterval > 1) {
@@ -549,6 +554,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const rafRef = useRef<number | null>(null);
   const pendingUpdateRef = useRef<{ scale?: number; offsetX?: number; offsetY?: number } | null>(null);
   
+  // 缩放过程中的优化：标记是否正在缩放
+  const isZoomingRef = useRef(false);
+  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // 防抖定时器 - 用于缩放时的性能优化
   const scaleDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastDrawScaleRef = useRef(1);
@@ -665,15 +674,19 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         canvas.height = newHeight;
       }
       
+      // 性能优化：在缩放过程中，如果格子太小，暂不绘制网格线和色号
+      const cellSize = baseCellSize * scale;
+      const showDetailInZoom = !isZoomingRef.current || cellSize >= 8;
+      
       drawPixelatedCanvas(
         mappedPixelData, 
         canvasRef.current, 
         gridDimensions, 
         highlightColorKey, 
         isHighlighting,
-        showColorLabels,
+        showColorLabels && showDetailInZoom,
         selectedColorSystem,
-        showGridLines,
+        showGridLines && showDetailInZoom,
         gridLineInterval,
         gridLineColor
       );
@@ -700,13 +713,25 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // Draw color labels when scale or showColorLabels changes
   useEffect(() => {
     if (mappedPixelData && gridDimensions && colorLabelCanvasRef.current && showColorLabels) {
-      drawColorLabels(
-        mappedPixelData,
-        colorLabelCanvasRef.current,
-        gridDimensions,
-        selectedColorSystem,
-        scale
-      );
+      // 性能优化：在缩放过程中，如果格子太小，暂不绘制色号
+      const cellSize = baseCellSize * scale;
+      const showDetailInZoom = !isZoomingRef.current || cellSize >= 8;
+      
+      if (showDetailInZoom) {
+        drawColorLabels(
+          mappedPixelData,
+          colorLabelCanvasRef.current,
+          gridDimensions,
+          selectedColorSystem,
+          scale
+        );
+      } else {
+        // 清除色号层
+        const ctx = colorLabelCanvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
+        }
+      }
     } else if (colorLabelCanvasRef.current) {
       // Clear color labels when disabled
       const ctx = colorLabelCanvasRef.current.getContext('2d');
@@ -912,6 +937,14 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
+    // 标记正在缩放
+    isZoomingRef.current = true;
+    
+    // 清除之前的缩放结束定时器
+    if (zoomTimeoutRef.current) {
+      clearTimeout(zoomTimeoutRef.current);
+    }
+    
     // 使用 ref 中的值而不是状态
     const currentScale = scaleRef.current;
     const currentOffsetX = offsetXRef.current;
@@ -955,6 +988,22 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       offsetX: newOffsetX,
       offsetY: newOffsetY,
     });
+    
+    // 设置缩放结束定时器（缩放结束后300ms触发重绘）
+    zoomTimeoutRef.current = setTimeout(() => {
+      isZoomingRef.current = false;
+      // 触发一次强制重绘
+      if (canvasRef.current && gridDimensions) {
+        const canvas = canvasRef.current;
+        const targetWidth = gridDimensions.N * baseCellSize * scaleRef.current;
+        const targetHeight = gridDimensions.M * baseCellSize * scaleRef.current;
+        
+        if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+        }
+      }
+    }, 300);
   };
 
   // --- Touch event handlers ---
