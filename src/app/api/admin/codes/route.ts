@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 禁用/启用激活码
+// 禁用/启用/编辑激活码
 export async function PATCH(request: NextRequest) {
   if (!verifyAdmin(request)) {
     return NextResponse.json(
@@ -168,20 +168,36 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, isActive } = body;
+    const { id, isActive, maxUses } = body;
 
-    if (!id || typeof isActive !== 'boolean') {
+    if (!id) {
       return NextResponse.json(
-        { success: false, error: '参数错误' },
+        { success: false, error: '缺少激活码ID' },
         { status: 400 }
       );
     }
 
     const client = getSupabaseClient();
 
+    // 构建更新对象
+    const updateData: { is_active?: boolean; max_uses?: number } = {};
+    if (typeof isActive === 'boolean') {
+      updateData.is_active = isActive;
+    }
+    if (typeof maxUses === 'number') {
+      updateData.max_uses = maxUses;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { success: false, error: '没有要更新的内容' },
+        { status: 400 }
+      );
+    }
+
     const { error } = await client
       .from('activation_codes')
-      .update({ is_active: isActive })
+      .update(updateData)
       .eq('id', id);
 
     if (error) {
@@ -194,7 +210,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: isActive ? '已启用' : '已禁用',
+      message: '保存成功',
     });
 
   } catch (error) {
