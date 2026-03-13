@@ -143,10 +143,10 @@ const drawPixelColors = (
       }
     }
     
-    // 为高亮格子绘制黄色边框
+    // 为高亮格子绘制黄色边框（细线）
     if (highlightedCells.length > 0) {
       ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       highlightedCells.forEach(({ x, y, w, h }) => {
         ctx.rect(x, y, w, h);
@@ -262,10 +262,10 @@ const drawPixelatedCanvas = (
         }
       }
       
-      // 为高亮格子绘制黄色边框
+      // 为高亮格子绘制黄色边框（细线）
       if (highlightedCells.length > 0) {
         pixelatedCtx.strokeStyle = '#FFD700';
-        pixelatedCtx.lineWidth = 2;
+        pixelatedCtx.lineWidth = 1;
         pixelatedCtx.beginPath();
         highlightedCells.forEach(({ x, y, w, h }) => {
           pixelatedCtx.rect(x, y, w, h);
