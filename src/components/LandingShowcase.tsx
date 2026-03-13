@@ -4,8 +4,16 @@ import React, { useState, useRef } from 'react';
 
 // 视频配置 - 将视频文件放到 public 目录下，然后修改这里的路径
 const VIDEO_CONFIG = {
-  // 视频文件路径（相对于 public 目录）
-  src: '/demo-video.mp4',
+  // 手机端视频
+  mobile: {
+    src: '/demo-video-mobile.mp4',
+    label: '手机',
+  },
+  // 电脑端视频
+  desktop: {
+    src: '/demo-video-desktop.mp4',
+    label: '电脑',
+  },
   // 封面图路径（视频未播放时显示）
   poster: '/demo-pixelated.png',
   // 视频时长显示
@@ -14,12 +22,15 @@ const VIDEO_CONFIG = {
   enabled: false,
 };
 
+type VideoType = 'mobile' | 'desktop';
+
 /**
  * 首页展示模块
  * 包含：效果展示、视频预览、功能卡片
  */
 export default function LandingShowcase() {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<VideoType>('mobile');
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handlePlayClick = () => {
@@ -36,6 +47,13 @@ export default function LandingShowcase() {
   const handleVideoEnd = () => {
     setIsPlaying(false);
   };
+
+  const handleVideoTypeChange = (type: VideoType) => {
+    setActiveVideo(type);
+    setIsPlaying(false);
+  };
+
+  const currentVideoSrc = VIDEO_CONFIG[activeVideo].src;
 
   return (
     <div className="w-full space-y-6 sm:space-y-8 mt-8 sm:mt-12">
@@ -101,6 +119,7 @@ export default function LandingShowcase() {
                 /* 真实视频播放器 */
                 <>
                   <video
+                    key={activeVideo}
                     ref={videoRef}
                     className="w-full h-full object-cover"
                     poster={VIDEO_CONFIG.poster}
@@ -110,7 +129,7 @@ export default function LandingShowcase() {
                     playsInline
                     controls={isPlaying}
                   >
-                    <source src={VIDEO_CONFIG.src} type="video/mp4" />
+                    <source src={currentVideoSrc} type="video/mp4" />
                     您的浏览器不支持视频播放
                   </video>
                   
@@ -138,21 +157,29 @@ export default function LandingShowcase() {
                     </div>
                   )}
                   
-                  {/* 提示文字 */}
-                  {!isPlaying && (
-                    <div className="absolute top-3 left-3 right-3 text-center">
-                      <span className="text-sm sm:text-base font-medium text-white bg-red-500/80 px-3 py-1 rounded-full">
-                        上传图片开始生成
-                      </span>
-                    </div>
-                  )}
-                  
                   {/* 多端适配标签 */}
                   {!isPlaying && (
                     <div className="absolute bottom-3 left-3 flex gap-2">
-                      <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">安卓</span>
-                      <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">苹果</span>
-                      <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">电脑</span>
+                      <button 
+                        onClick={() => handleVideoTypeChange('mobile')}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
+                          activeVideo === 'mobile' 
+                            ? 'text-white bg-blue-500' 
+                            : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
+                        }`}
+                      >
+                        手机
+                      </button>
+                      <button 
+                        onClick={() => handleVideoTypeChange('desktop')}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
+                          activeVideo === 'desktop' 
+                            ? 'text-white bg-blue-500' 
+                            : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
+                        }`}
+                      >
+                        电脑
+                      </button>
                     </div>
                   )}
                 </>
@@ -182,27 +209,15 @@ export default function LandingShowcase() {
                     {VIDEO_CONFIG.duration}
                   </div>
                   
-                  {/* 提示文字 */}
-                  <div className="absolute top-3 left-3 right-3 text-center">
-                    <span className="text-sm sm:text-base font-medium text-white bg-red-500/80 px-3 py-1 rounded-full">
-                      上传图片开始生成
-                    </span>
-                  </div>
-                  
                   {/* 多端适配标签 */}
                   <div className="absolute bottom-3 left-3 flex gap-2">
-                    <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">安卓</span>
-                    <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">苹果</span>
+                    <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">手机</span>
                     <span className="text-xs text-gray-300 bg-gray-800/70 px-2 py-1 rounded">电脑</span>
                   </div>
                 </>
               )}
             </div>
           </div>
-          
-          <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-3">
-            视频仅为效果示例，实际生成视频会根据你上传的图片自动制作
-          </p>
         </div>
       </section>
 
