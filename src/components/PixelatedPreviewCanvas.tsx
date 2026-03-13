@@ -113,20 +113,47 @@ const drawPixelColors = (
 
   // 高亮处理
   if (isHighlighting && highlightColorKey) {
+    const normalizedHighlightKey = highlightColorKey.toUpperCase();
+    
+    // 先绘制遮罩层（降低亮度）
     for (let j = 0; j < M; j++) {
       for (let i = 0; i < N; i++) {
         const cellData = dataToDraw[j]?.[i];
         if (!cellData) continue;
         
-        const shouldDim = cellData.isExternal || 
-          cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
+        // 统一颜色格式进行比较
+        const cellColor = (cellData.color || '').toUpperCase();
+        const shouldDim = cellData.isExternal || cellColor !== normalizedHighlightKey;
         
         if (shouldDim) {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
           ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
         }
       }
     }
+    
+    // 为高亮格子绘制黄色边框
+    ctx.strokeStyle = '#FFD700'; // 金黄色
+    ctx.lineWidth = Math.max(1, Math.min(cellWidth, cellHeight) * 0.1); // 边框宽度为格子大小的10%
+    ctx.strokeRect(0, 0, canvas.width, canvas.height); // 先重置
+    ctx.beginPath();
+    
+    for (let j = 0; j < M; j++) {
+      for (let i = 0; i < N; i++) {
+        const cellData = dataToDraw[j]?.[i];
+        if (!cellData) continue;
+        
+        const cellColor = (cellData.color || '').toUpperCase();
+        const isHighlighted = !cellData.isExternal && cellColor === normalizedHighlightKey;
+        
+        if (isHighlighted) {
+          const x = i * cellWidth;
+          const y = j * cellHeight;
+          ctx.rect(x, y, cellWidth, cellHeight);
+        }
+      }
+    }
+    ctx.stroke();
   }
 };
 
@@ -203,6 +230,9 @@ const drawPixelatedCanvas = (
 
     // 高亮处理
     if (isHighlighting && highlightColorKey) {
+      const normalizedHighlightKey = highlightColorKey.toUpperCase();
+      
+      // 先绘制遮罩层（降低亮度）
       for (let j = 0; j < M; j++) {
         for (let i = 0; i < N; i++) {
           const cellData = dataToDraw[j]?.[i];
@@ -211,15 +241,38 @@ const drawPixelatedCanvas = (
           const drawX = i * cellWidthOutput;
           const drawY = j * cellHeightOutput;
           
-          const shouldDim = cellData.isExternal || 
-            cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
+          // 统一颜色格式进行比较
+          const cellColor = (cellData.color || '').toUpperCase();
+          const shouldDim = cellData.isExternal || cellColor !== normalizedHighlightKey;
           
           if (shouldDim) {
-            pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
             pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
           }
         }
       }
+      
+      // 为高亮格子绘制黄色边框
+      pixelatedCtx.strokeStyle = '#FFD700'; // 金黄色
+      pixelatedCtx.lineWidth = Math.max(1, Math.min(cellWidthOutput, cellHeightOutput) * 0.1);
+      pixelatedCtx.beginPath();
+      
+      for (let j = 0; j < M; j++) {
+        for (let i = 0; i < N; i++) {
+          const cellData = dataToDraw[j]?.[i];
+          if (!cellData) continue;
+          
+          const cellColor = (cellData.color || '').toUpperCase();
+          const isHighlighted = !cellData.isExternal && cellColor === normalizedHighlightKey;
+          
+          if (isHighlighted) {
+            const drawX = i * cellWidthOutput;
+            const drawY = j * cellHeightOutput;
+            pixelatedCtx.rect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+          }
+        }
+      }
+      pixelatedCtx.stroke();
     }
   }
   
