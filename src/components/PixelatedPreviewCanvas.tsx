@@ -1168,7 +1168,15 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const beforeX = (mouseX - currentOffsetX) / currentScale;
     const beforeY = (mouseY - currentOffsetY) / currentScale;
     const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
+    
+    // 根据画布大小动态计算最大缩放值，确保 canvas 尺寸不超过浏览器限制
+    // 最大 canvas 尺寸限制为 4096px（Safari 等移动浏览器的安全限制）
+    const maxCanvasDimension = 4096;
+    const maxScaleByWidth = gridDimensions ? maxCanvasDimension / (gridDimensions.N * baseCellSize) : 50;
+    const maxScaleByHeight = gridDimensions ? maxCanvasDimension / (gridDimensions.M * baseCellSize) : 50;
+    const maxScale = Math.min(50, maxScaleByWidth, maxScaleByHeight);
+    
+    const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), maxScale);
     
     // 计算缩放后的画布尺寸
     const canvasWidth = gridDimensions ? gridDimensions.N * baseCellSize * newScale : 0;
@@ -1301,7 +1309,14 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const currentOffsetX = offsetXRef.current;
       const currentOffsetY = offsetYRef.current;
       
-      const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
+      // 根据画布大小动态计算最大缩放值，确保 canvas 尺寸不超过浏览器限制
+      // 最大 canvas 尺寸限制为 4096px（Safari 等移动浏览器的安全限制）
+      const maxCanvasDimension = 4096;
+      const maxScaleByWidth = gridDimensions ? maxCanvasDimension / (gridDimensions.N * baseCellSize) : 50;
+      const maxScaleByHeight = gridDimensions ? maxCanvasDimension / (gridDimensions.M * baseCellSize) : 50;
+      const maxScale = Math.min(50, maxScaleByWidth, maxScaleByHeight);
+      
+      const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), maxScale);
       const newCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
       
       // 计算缩放后的画布尺寸
