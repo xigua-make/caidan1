@@ -51,7 +51,7 @@ interface PixelatedPreviewCanvasProps {
   showCoordinates?: boolean;
 }
 
-// 绘制像素化画布的函数
+// 绘制像素化画布的函数（使用双缓冲优化）
 const drawPixelatedCanvas = (
   dataToDraw: MappedPixel[][],
   canvas: HTMLCanvasElement | null,
@@ -62,15 +62,19 @@ const drawPixelatedCanvas = (
   colorSystem?: ColorSystem,
   showGridLines?: boolean,
   gridLineInterval?: number,
-  gridLineColorProp?: string
+  gridLineColorProp?: string,
+  offscreenCanvas?: HTMLCanvasElement | null
 ) => {
   if (!canvas || !dims || !dataToDraw) {
     console.warn("drawPixelatedCanvas: Missing required parameters");
     return;
   }
   
+  // 使用离屏canvas进行双缓冲绘制
+  const targetCanvas = offscreenCanvas || canvas;
+  
   // 使用 willReadFrequently: false 优化性能
-  const pixelatedCtx = canvas.getContext('2d', { willReadFrequently: false });
+  const pixelatedCtx = targetCanvas.getContext('2d', { willReadFrequently: false });
   if (!pixelatedCtx) {
     console.error("Failed to get 2D context for pixelated canvas");
     return;
@@ -82,8 +86,8 @@ const drawPixelatedCanvas = (
   const gridLineColor = gridLineColorProp || defaultGridLineColor;
 
   const { N, M } = dims;
-  const outputWidth = canvas.width;
-  const outputHeight = canvas.height;
+  const outputWidth = targetCanvas.width;
+  const outputHeight = targetCanvas.height;
   const cellWidthOutput = outputWidth / N;
   const cellHeightOutput = outputHeight / M;
 
@@ -179,6 +183,15 @@ const drawPixelatedCanvas = (
       thickLinesPath.lineTo(outputWidth, y);
     }
     pixelatedCtx.stroke(thickLinesPath);
+  }
+  
+  // 双缓冲：如果使用了离屏canvas，将内容复制到主canvas
+  if (offscreenCanvas && offscreenCanvas !== canvas) {
+    const mainCtx = canvas.getContext('2d');
+    if (mainCtx) {
+      mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+      mainCtx.drawImage(offscreenCanvas, 0, 0);
+    }
   }
 };
 
@@ -554,15 +567,16 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   const rafRef = useRef<number | null>(null);
   const pendingUpdateRef = useRef<{ scale?: number; offsetX?: number; offsetY?: number } | null>(null);
   
-  // 缩放过程中的优化：标记是否正在缩放
-  const isZoomingRef = useRef(false);
-  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   // 防抖定时器 - 用于缩放时的性能优化
   const scaleDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastDrawScaleRef = useRef(1);
   const drawRafRef = useRef<number | null>(null);
   const pendingDrawRef = useRef<boolean>(false);
+  
+  // 缩放防抖：标记是否正在缩放，延迟重绘
+  const isZoomingRef = useRef(false);
+  const zoomEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [shouldRenderDetails, setShouldRenderDetails] = useState(true);
   
   // 批量更新状态的函数
   const flushUpdate = useCallback(() => {
@@ -610,6 +624,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // 参考图层画布引用
   const referenceCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const referenceImageRef = useRef<HTMLImageElement | null>(null);
+  
+  // 双缓冲画布引用 - 用于避免重绘时的白屏
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // 容器引用
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -661,7 +678,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas
+  // Draw main canvas (使用双缓冲优化)
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
       // 缩放时重新设置画布尺寸
@@ -674,24 +691,33 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         canvas.height = newHeight;
       }
       
-      // 性能优化：在缩放过程中，如果格子太小，暂不绘制网格线和色号
-      const cellSize = baseCellSize * scale;
-      const showDetailInZoom = !isZoomingRef.current || cellSize >= 8;
+      // 初始化或调整离屏canvas尺寸
+      if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement('canvas');
+      }
       
+      if (offscreenCanvasRef.current.width !== newWidth || offscreenCanvasRef.current.height !== newHeight) {
+        offscreenCanvasRef.current.width = newWidth;
+        offscreenCanvasRef.current.height = newHeight;
+      }
+      
+      // 性能优化：缩放过程中不绘制细节（网格线、色号），只绘制像素
+      // 这样可以显著提升流畅度，同时保持视觉效果不变
       drawPixelatedCanvas(
         mappedPixelData, 
         canvasRef.current, 
         gridDimensions, 
         highlightColorKey, 
         isHighlighting,
-        showColorLabels && showDetailInZoom,
+        showColorLabels && shouldRenderDetails, // 缩放过程中跳过色号
         selectedColorSystem,
-        showGridLines && showDetailInZoom,
+        showGridLines && shouldRenderDetails, // 缩放过程中跳过网格线
         gridLineInterval,
-        gridLineColor
+        gridLineColor,
+        offscreenCanvasRef.current
       );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize, shouldRenderDetails]);
 
   // Initialize preview canvas size when scale changes
   useEffect(() => {
@@ -712,26 +738,14 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // Draw color labels when scale or showColorLabels changes
   useEffect(() => {
-    if (mappedPixelData && gridDimensions && colorLabelCanvasRef.current && showColorLabels) {
-      // 性能优化：在缩放过程中，如果格子太小，暂不绘制色号
-      const cellSize = baseCellSize * scale;
-      const showDetailInZoom = !isZoomingRef.current || cellSize >= 8;
-      
-      if (showDetailInZoom) {
-        drawColorLabels(
-          mappedPixelData,
-          colorLabelCanvasRef.current,
-          gridDimensions,
-          selectedColorSystem,
-          scale
-        );
-      } else {
-        // 清除色号层
-        const ctx = colorLabelCanvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
-        }
-      }
+    if (mappedPixelData && gridDimensions && colorLabelCanvasRef.current && showColorLabels && shouldRenderDetails) {
+      drawColorLabels(
+        mappedPixelData,
+        colorLabelCanvasRef.current,
+        gridDimensions,
+        selectedColorSystem,
+        scale
+      );
     } else if (colorLabelCanvasRef.current) {
       // Clear color labels when disabled
       const ctx = colorLabelCanvasRef.current.getContext('2d');
@@ -739,7 +753,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
       }
     }
-  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem, scale]);
+  }, [mappedPixelData, gridDimensions, showColorLabels, selectedColorSystem, scale, shouldRenderDetails]);
 
   // Initialize reference canvas size
   useEffect(() => {
@@ -937,12 +951,15 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
-    // 标记正在缩放
-    isZoomingRef.current = true;
+    // 标记正在缩放，延迟重绘细节
+    if (!isZoomingRef.current) {
+      isZoomingRef.current = true;
+      setShouldRenderDetails(false);
+    }
     
     // 清除之前的缩放结束定时器
-    if (zoomTimeoutRef.current) {
-      clearTimeout(zoomTimeoutRef.current);
+    if (zoomEndTimeoutRef.current) {
+      clearTimeout(zoomEndTimeoutRef.current);
     }
     
     // 使用 ref 中的值而不是状态
@@ -989,21 +1006,11 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       offsetY: newOffsetY,
     });
     
-    // 设置缩放结束定时器（缩放结束后300ms触发重绘）
-    zoomTimeoutRef.current = setTimeout(() => {
+    // 设置缩放结束定时器（缩放结束后150ms触发完整重绘）
+    zoomEndTimeoutRef.current = setTimeout(() => {
       isZoomingRef.current = false;
-      // 触发一次强制重绘
-      if (canvasRef.current && gridDimensions) {
-        const canvas = canvasRef.current;
-        const targetWidth = gridDimensions.N * baseCellSize * scaleRef.current;
-        const targetHeight = gridDimensions.M * baseCellSize * scaleRef.current;
-        
-        if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
-        }
-      }
-    }, 300);
+      setShouldRenderDetails(true);
+    }, 150);
   };
 
   // --- Touch event handlers ---
