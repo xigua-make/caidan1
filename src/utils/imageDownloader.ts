@@ -451,94 +451,86 @@ export async function downloadImage({
 
       // X轴（顶部）数字 - 每个数字在独立的格子内
       for (let i = 0; i < N; i++) {
-        if ((i + 1) % gridInterval === 0 || i === 0 || i === N - 1) {
-          const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
-          const cellY = titleBarHeight + extraTopMargin;
-          
-          // 绘制单元格背景（浅蓝色）
-          ctx.fillStyle = '#E3F2FD';
-          ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          
-          // 绘制边框
-          ctx.strokeStyle = '#333333';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          
-          // 绘制数字
-          ctx.fillStyle = '#333333';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
-        }
+        const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
+        const cellY = titleBarHeight + extraTopMargin;
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
       }
       
       // X轴（底部）数字 - 每个数字在独立的格子内
       for (let i = 0; i < N; i++) {
-        if ((i + 1) % gridInterval === 0 || i === 0 || i === N - 1) {
-          const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
-          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight;
-          
-          // 绘制单元格背景（浅蓝色）
-          ctx.fillStyle = '#E3F2FD';
-          ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          
-          // 绘制边框
-          ctx.strokeStyle = '#333333';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          
-          // 绘制数字
-          ctx.fillStyle = '#333333';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
-        }
+        const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
+        const cellY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight;
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
       }
       
       // Y轴（左侧）数字 - 每个数字在独立的格子内
       for (let j = 0; j < M; j++) {
-        if ((j + 1) % gridInterval === 0 || j === 0 || j === M - 1) {
-          const cellX = extraLeftMargin;
-          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
-          
-          // 绘制单元格背景（浅蓝色）
-          ctx.fillStyle = '#E3F2FD';
-          ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          
-          // 绘制边框
-          ctx.strokeStyle = '#333333';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          
-          // 绘制数字
-          ctx.fillStyle = '#333333';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
-        }
+        const cellX = extraLeftMargin;
+        const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
       }
       
       // Y轴（右侧）数字 - 每个数字在独立的格子内
       for (let j = 0; j < M; j++) {
-        if ((j + 1) % gridInterval === 0 || j === 0 || j === M - 1) {
-          const cellX = extraLeftMargin + axisLabelSize + gridWidth;
-          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
-          
-          // 绘制单元格背景（浅蓝色）
-          ctx.fillStyle = '#E3F2FD';
-          ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          
-          // 绘制边框
-          ctx.strokeStyle = '#333333';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          
-          // 绘制数字
-          ctx.fillStyle = '#333333';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
-        }
+        const cellX = extraLeftMargin + axisLabelSize + gridWidth;
+        const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
       }
     }
     
