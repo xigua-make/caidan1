@@ -317,6 +317,11 @@ export default function Workstation() {
   const [textPosition, setTextPosition] = useState<{ row: number; col: number } | null>(null);
   const [isTextGenerationModalOpen, setIsTextGenerationModalOpen] = useState<boolean>(false);
   
+  // 空白画布弹窗状态
+  const [isBlankCanvasModalOpen, setIsBlankCanvasModalOpen] = useState<boolean>(false);
+  const [blankCanvasWidth, setBlankCanvasWidth] = useState<number>(100);
+  const [blankCanvasHeight, setBlankCanvasHeight] = useState<number>(100);
+  
   // 自定义色板状态
   const [customPaletteSelections, setCustomPaletteSelections] = useState<PaletteSelections>({});
   const [isCustomPaletteEditorOpen, setIsCustomPaletteEditorOpen] = useState<boolean>(false);
@@ -722,6 +727,32 @@ export default function Workstation() {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
+  }, []);
+
+  // 创建空白画布
+  const handleCreateBlankCanvas = useCallback((width: number, height: number) => {
+    const newPixelData: MappedPixel[][] = [];
+    for (let i = 0; i < height; i++) {
+      const row: MappedPixel[] = [];
+      for (let j = 0; j < width; j++) {
+        row.push({ key: TRANSPARENT_KEY, color: transparentColorData.color, isExternal: false });
+      }
+      newPixelData.push(row);
+    }
+    setOriginalImageSrc('blank-canvas');
+    setMappedPixelData(newPixelData);
+    setGridDimensions({ N: width, M: height });
+    setGridWidth(width);
+    setGridHeight(height);
+    setGridWidthInput(String(width));
+    setGridHeightInput(String(height));
+    setWorkstationMode('manual');
+    setIsManualColoringMode(true);
+    // 初始化历史记录
+    setHistory([newPixelData]);
+    setHistoryIndex(0);
+    // 关闭弹窗
+    setIsBlankCanvasModalOpen(false);
   }, []);
 
   // 处理文件选择
@@ -2481,33 +2512,14 @@ export default function Workstation() {
                 
                 <button
                   onClick={() => {
-                    // 创建 100x100 空白画布
-                    const newPixelData: MappedPixel[][] = [];
-                    for (let i = 0; i < 100; i++) {
-                      const row: MappedPixel[] = [];
-                      for (let j = 0; j < 100; j++) {
-                        row.push({ key: TRANSPARENT_KEY, color: transparentColorData.color, isExternal: false });
-                      }
-                      newPixelData.push(row);
-                    }
-                    // 设置一个特殊标记表示空白画布模式
-                    setOriginalImageSrc('blank-canvas');
-                    setMappedPixelData(newPixelData);
-                    setGridDimensions({ N: 100, M: 100 });
-                    setGridWidth(100);
-                    setGridHeight(100);
-                    setGridWidthInput('100');
-                    setGridHeightInput('100');
-                    setWorkstationMode('manual');
-                    setIsManualColoringMode(true);
-                    // 初始化历史记录
-                    setHistory([newPixelData]);
-                    setHistoryIndex(0);
+                    setBlankCanvasWidth(100);
+                    setBlankCanvasHeight(100);
+                    setIsBlankCanvasModalOpen(true);
                   }}
                   className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
                 >
                   <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">手动空白画板编辑</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">创建 100×100 空白画布，使用画笔自由设计</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">创建空白画布，使用画笔自由设计</p>
                 </button>
               </div>
             </>
@@ -2647,6 +2659,31 @@ export default function Workstation() {
                     <option value={PixelationMode.Average}>真实 (平均)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* 分隔线 */}
+              <hr className="border-gray-200 dark:border-gray-700" />
+
+              {/* 空白画布模块 */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">空白画布</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">创建空白画布进行手动设计</p>
+                <button
+                  onClick={() => {
+                    // 如果已有画布，使用当前尺寸
+                    if (gridDimensions) {
+                      setBlankCanvasWidth(gridDimensions.N);
+                      setBlankCanvasHeight(gridDimensions.M);
+                    } else {
+                      setBlankCanvasWidth(100);
+                      setBlankCanvasHeight(100);
+                    }
+                    setIsBlankCanvasModalOpen(true);
+                  }}
+                  className="w-full py-2 text-sm font-medium text-white bg-purple-500 hover:bg-purple-600 rounded-lg transition-colors"
+                >
+                  创建/调整空白画布
+                </button>
               </div>
 
               {/* 分隔线 */}
@@ -3381,6 +3418,109 @@ export default function Workstation() {
         onGenerate={handleTextGenerationFromModal}
         defaultGridSize={gridWidth}
       />
+
+      {/* 空白画布设置弹窗 */}
+      {isBlankCanvasModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">创建空白画布</h3>
+              <button
+                onClick={() => setIsBlankCanvasModalOpen(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* 内容 */}
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                设置空白画布的尺寸，然后进入精调模式进行绘制。
+              </p>
+              
+              {/* 尺寸输入 */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">宽度</label>
+                    <input
+                      type="number"
+                      value={blankCanvasWidth}
+                      onChange={(e) => setBlankCanvasWidth(Math.max(10, Math.min(300, parseInt(e.target.value) || 100)))}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      min="10"
+                      max="300"
+                    />
+                  </div>
+                  <span className="text-gray-400 pt-6">×</span>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">高度</label>
+                    <input
+                      type="number"
+                      value={blankCanvasHeight}
+                      onChange={(e) => setBlankCanvasHeight(Math.max(10, Math.min(300, parseInt(e.target.value) || 100)))}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      min="10"
+                      max="300"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  画布尺寸: {blankCanvasWidth} × {blankCanvasHeight} = {blankCanvasWidth * blankCanvasHeight} 格
+                </p>
+              </div>
+              
+              {/* 快捷尺寸按钮 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">快捷尺寸</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { w: 50, h: 50 },
+                    { w: 100, h: 100 },
+                    { w: 150, h: 150 },
+                    { w: 200, h: 200 },
+                  ].map(({ w, h }) => (
+                    <button
+                      key={`${w}x${h}`}
+                      onClick={() => {
+                        setBlankCanvasWidth(w);
+                        setBlankCanvasHeight(h);
+                      }}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        blankCanvasWidth === w && blankCanvasHeight === h
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {w}×{h}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* 底部按钮 */}
+            <div className="flex gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setIsBlankCanvasModalOpen(false)}
+                className="flex-1 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleCreateBlankCanvas(blankCanvasWidth, blankCanvasHeight)}
+                className="flex-1 py-2 text-sm font-medium text-white bg-purple-500 hover:bg-purple-600 rounded-lg transition-colors"
+              >
+                创建画布
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 自定义色板编辑器弹窗 */}
       {isCustomPaletteEditorOpen && (
