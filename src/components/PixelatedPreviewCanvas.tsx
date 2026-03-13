@@ -713,7 +713,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         scale
       );
     } else if (colorLabelCanvasRef.current) {
-      // Clear color labels when disabled
       const ctx = colorLabelCanvasRef.current.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, colorLabelCanvasRef.current.width, colorLabelCanvasRef.current.height);
