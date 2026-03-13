@@ -97,8 +97,24 @@ import { TRANSPARENT_KEY, transparentColorData } from '../utils/pixelEditingUtil
 import DonationModal from '../components/DonationModal';
 import FocusModePreDownloadModal from '../components/FocusModePreDownloadModal';
 import LandingShowcase from '../components/LandingShowcase';
+import ActivationModal from '../components/ActivationModal';
+import { useActivation } from '../hooks/useActivation';
+
+// 是否启用激活验证（设为 false 可关闭激活功能）
+const ENABLE_ACTIVATION = true;
 
 export default function Home() {
+  // 激活验证
+  const activation = useActivation();
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  
+  // 检查是否需要显示激活弹窗
+  useEffect(() => {
+    if (ENABLE_ACTIVATION && !activation.isLoading && !activation.isActivated) {
+      setShowActivationModal(true);
+    }
+  }, [activation.isLoading, activation.isActivated]);
+
   const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
   const [granularity, setGranularity] = useState<number>(50);
   const [granularityInput, setGranularityInput] = useState<string>("50");
@@ -1801,8 +1817,29 @@ export default function Home() {
     return sortColorsByHue(selectedColors);
   }, [customPaletteSelections, selectedColorSystem]);
 
+  // 如果启用激活验证且正在加载，显示加载中
+  if (ENABLE_ACTIVATION && activation.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">正在验证激活状态...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
+    {/* 激活弹窗 */}
+    {ENABLE_ACTIVATION && (
+      <ActivationModal
+        isOpen={showActivationModal}
+        onClose={() => setShowActivationModal(false)}
+        onActivate={activation.activate}
+      />
+    )}
+    
     {/* 添加自定义动画样式 */}
     <style dangerouslySetInnerHTML={{ __html: floatAnimation }} />
     
