@@ -2561,7 +2561,7 @@ export default function Workstation() {
                   isDrawing={isDrawing}
                   selection={selection}
                   isTextMode={isTextMode}
-                  onColorClick={handleHighlightColor}
+                  onColorClick={isHighlightMode ? handleHighlightColor : undefined}
                 />
               </div>
             </div>
