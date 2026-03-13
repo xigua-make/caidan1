@@ -51,6 +51,8 @@ interface PixelatedPreviewCanvasProps {
   showCoordinates?: boolean;
   // 文字模式
   isTextMode?: boolean;
+  // 点击颜色回调（拖拽模式下点击格子时触发）
+  onColorClick?: (colorHex: string) => void;
 }
 
 // 只绘制像素颜色的函数（用于离屏canvas缓存）
@@ -612,6 +614,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   gridLineColor = '#FF0000',
   showCoordinates = false,
   isTextMode = false,
+  onColorClick,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -695,6 +698,9 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   
   // 保存最后的触摸网格位置（用于触摸结束时）
   const lastTouchGridPosRef = useRef<{ row: number; col: number } | null>(null);
+  
+  // 用于检测单击（非拖拽）的 ref
+  const mouseDownInfoRef = useRef<{ x: number; y: number; time: number } | null>(null);
   
   // 离屏canvas缓存 - 用于高性能缩放
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1092,7 +1098,13 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         // 文字模式：只触发交互，不进入拖拽
         onInteraction(event.clientX, event.clientY, event.pageX, event.pageY, true);
       } else {
-        // 非编辑模式：拖拽
+        // 非编辑模式：记录点击信息用于检测单击
+        mouseDownInfoRef.current = {
+          x: event.clientX,
+          y: event.clientY,
+          time: Date.now()
+        };
+        // 开始拖拽
         setIsDragging(true);
         dragStartRef.current = {
           x: event.clientX,
@@ -1105,6 +1117,28 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   };
 
   const handleMouseUp = (event: MouseEvent<HTMLCanvasElement>) => {
+    // 检测是否是单击（非拖拽模式下点击格子高亮颜色）
+    if (mouseDownInfoRef.current && !isManualColoringMode && !isTextMode) {
+      const dx = Math.abs(event.clientX - mouseDownInfoRef.current.x);
+      const dy = Math.abs(event.clientY - mouseDownInfoRef.current.y);
+      const dt = Date.now() - mouseDownInfoRef.current.time;
+      
+      // 如果移动距离小于5像素且时间小于300ms，认为是单击
+      if (dx < 5 && dy < 5 && dt < 300) {
+        const pos = getGridPosition(event.clientX, event.clientY);
+        if (pos && mappedPixelData && gridDimensions) {
+          const cellData = mappedPixelData[pos.row]?.[pos.col];
+          if (cellData && !cellData.isExternal && cellData.color) {
+            // 调用颜色点击回调
+            if (onColorClick) {
+              onColorClick(cellData.color);
+            }
+          }
+        }
+      }
+      mouseDownInfoRef.current = null;
+    }
+    
     if (isDragging) {
       setIsDragging(false);
       dragStartRef.current = null;

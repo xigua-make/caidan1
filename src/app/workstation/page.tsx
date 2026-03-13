@@ -34,6 +34,7 @@ import GridTooltip from '../../components/GridTooltip';
 import CustomPaletteEditor from '../../components/CustomPaletteEditor';
 import FloatingColorPalette from '../../components/FloatingColorPalette';
 import FloatingToolbar from '../../components/FloatingToolbar';
+import TextGenerationModal from '../../components/TextGenerationModal';
 import { loadPaletteSelections, savePaletteSelections, presetToSelections, PaletteSelections } from '../../utils/localStorageUtils';
 import { TRANSPARENT_KEY, transparentColorData } from '../../utils/pixelEditingUtils';
 
@@ -314,6 +315,7 @@ export default function Workstation() {
   const [textInput, setTextInput] = useState<string>('');
   const [textFontSize, setTextFontSize] = useState<number>(12);
   const [textPosition, setTextPosition] = useState<{ row: number; col: number } | null>(null);
+  const [isTextGenerationModalOpen, setIsTextGenerationModalOpen] = useState<boolean>(false);
   
   // 自定义色板状态
   const [customPaletteSelections, setCustomPaletteSelections] = useState<PaletteSelections>({});
@@ -1708,15 +1710,9 @@ export default function Workstation() {
 
   // 高亮颜色
   const handleHighlightColor = useCallback((colorHex: string) => {
-    if (isHighlightMode) {
-      // 持续高亮模式：切换高亮颜色
-      setHighlightColorKey(prev => prev === colorHex ? null : colorHex);
-    } else {
-      // 短暂高亮模式
-      setHighlightColorKey(colorHex);
-      setTimeout(() => setHighlightColorKey(null), 300);
-    }
-  }, [isHighlightMode]);
+    // 在拖拽模式下点击格子：切换高亮颜色（点击相同颜色取消高亮）
+    setHighlightColorKey(prev => prev === colorHex ? null : colorHex);
+  }, []);
 
   // 切换高亮模式
   const toggleHighlightMode = useCallback(() => {
@@ -1728,6 +1724,92 @@ export default function Workstation() {
       return !prev;
     });
   }, []);
+
+  // 从弹窗生成文字画布
+  const handleTextGenerationFromModal = useCallback((text: string, gridSize: number) => {
+    // 创建临时canvas绘制文字
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // 计算合适的字体大小（根据格子数）
+    const fontSize = Math.max(20, Math.floor(gridSize * 0.8));
+    
+    // 设置canvas大小
+    canvas.width = gridSize;
+    canvas.height = gridSize;
+    
+    // 填充透明背景
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 绘制文字（居中）
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFFFFF';
+    
+    // 计算文字宽度以适应画布
+    const metrics = ctx.measureText(text);
+    let adjustedFontSize = fontSize;
+    if (metrics.width > gridSize * 0.9) {
+      adjustedFontSize = Math.floor(fontSize * (gridSize * 0.9) / metrics.width);
+      ctx.font = `bold ${adjustedFontSize}px Arial, sans-serif`;
+    }
+    
+    ctx.fillText(text, gridSize / 2, gridSize / 2);
+    
+    // 读取像素数据
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    
+    // 创建像素数据数组
+    const newMappedData: MappedPixel[][] = [];
+    const newGridDimensions = { N: gridSize, M: gridSize };
+    
+    // 默认颜色（黑色）
+    const defaultColor = '#000000';
+    const colorData = findColorData(defaultColor);
+    
+    for (let y = 0; y < gridSize; y++) {
+      const row: MappedPixel[] = [];
+      for (let x = 0; x < gridSize; x++) {
+        const pixelIndex = (y * gridSize + x) * 4;
+        const alpha = pixels[pixelIndex + 3];
+        
+        // 如果像素不透明（有文字）
+        if (alpha > 128) {
+          row.push({
+            key: colorData?.key || defaultColor.toUpperCase(),
+            color: defaultColor,
+            isExternal: false
+          });
+        } else {
+          // 透明格子
+          row.push({
+            key: TRANSPARENT_KEY,
+            color: transparentColorData.color,
+            isExternal: true
+          });
+        }
+      }
+      newMappedData.push(row);
+    }
+    
+    // 更新状态
+    setMappedPixelData(newMappedData);
+    setGridDimensions(newGridDimensions);
+    setGridWidth(gridSize);
+    setGridHeight(gridSize);
+    setGridWidthInput(gridSize.toString());
+    setGridHeightInput(gridSize.toString());
+    
+    // 重新计算颜色计数
+    recalculateColorCounts(newMappedData);
+    
+    // 清空历史并保存当前状态
+    setHistory([newMappedData]);
+    setHistoryIndex(0);
+  }, [recalculateColorCounts]);
 
   // 生成文字像素
   const generateTextPixels = useCallback((text: string, fontSize: number, startRow: number, startCol: number, color: string) => {
@@ -2467,6 +2549,7 @@ export default function Workstation() {
                   isDrawing={isDrawing}
                   selection={selection}
                   isTextMode={isTextMode}
+                  onColorClick={handleHighlightColor}
                 />
               </div>
             </div>
@@ -2901,43 +2984,13 @@ export default function Workstation() {
                     颜色高亮
                   </button>
                   <button
-                    onClick={toggleTextMode}
-                    disabled={!mappedPixelData}
-                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                      isTextMode
-                        ? 'bg-green-500 text-white'
-                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
-                    } disabled:opacity-40 disabled:cursor-not-allowed`}
-                    title="在画布上生成文字"
+                    onClick={() => setIsTextGenerationModalOpen(true)}
+                    className="py-2 px-2 rounded-lg text-xs font-medium transition-all bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="在空白画板上生成文字拼豆图"
                   >
                     文字生成
                   </button>
                 </div>
-                
-                {/* 文字生成输入框 */}
-                {isTextMode && (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="输入文字..."
-                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">字体大小:</span>
-                      <input
-                        type="number"
-                        value={textFontSize}
-                        onChange={(e) => setTextFontSize(parseInt(e.target.value) || 12)}
-                        min={8}
-                        max={32}
-                        className="w-16 px-2 py-1 text-xs border border-gray-200 dark:border-gray-500 rounded bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">点击画布放置文字</p>
-                  </div>
-                )}
               </div>
 
               {/* 选区与剪贴板区块 */}
@@ -3326,6 +3379,14 @@ export default function Workstation() {
         options={downloadOptions}
         onOptionsChange={setDownloadOptions}
         onDownload={handleDownloadRequest}
+      />
+
+      {/* 文字生成弹窗 */}
+      <TextGenerationModal
+        isOpen={isTextGenerationModalOpen}
+        onClose={() => setIsTextGenerationModalOpen(false)}
+        onGenerate={handleTextGenerationFromModal}
+        defaultGridSize={gridWidth}
       />
 
       {/* 自定义色板编辑器弹窗 */}
