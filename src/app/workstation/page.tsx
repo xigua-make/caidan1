@@ -294,7 +294,8 @@ export default function Workstation() {
   
   // 色板显示状态
   const [showFullPalette, setShowFullPalette] = useState<boolean>(true);
-  const [colorSearchQuery, setColorSearchQuery] = useState<string>(''); // 色号搜索关键词
+  const [colorSearchQuery, setColorSearchQuery] = useState<string>(''); // 画笔颜色选择搜索关键词
+  const [colorReplaceSearchQuery, setColorReplaceSearchQuery] = useState<string>(''); // 替换杂色搜索关键词
   
   // 颜色替换状态
   const [colorReplaceState, setColorReplaceState] = useState<{
@@ -3334,7 +3335,10 @@ export default function Workstation() {
                           {colorReplaceState.sourceColor.key} → ?
                         </span>
                         <button
-                          onClick={() => setColorReplaceState({ isActive: true, step: 'select-source' })}
+                          onClick={() => {
+                            setColorReplaceState({ isActive: true, step: 'select-source' });
+                            setColorReplaceSearchQuery('');
+                          }}
                           className="ml-auto text-xs text-gray-500 hover:text-gray-700"
                         >
                           重选
@@ -3344,15 +3348,15 @@ export default function Workstation() {
                       <input
                         type="text"
                         placeholder="搜索色号"
-                        value={colorSearchQuery}
-                        onChange={(e) => setColorSearchQuery(e.target.value.toUpperCase())}
+                        value={colorReplaceSearchQuery}
+                        onChange={(e) => setColorReplaceSearchQuery(e.target.value.toUpperCase())}
                         className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       <div className="grid grid-cols-6 gap-1.5 max-h-48 overflow-y-auto">
                         {fullBeadPalette
                           .filter((colorItem) => {
-                            if (!colorSearchQuery) return true;
-                            return colorItem.mardKey.toUpperCase().includes(colorSearchQuery);
+                            if (!colorReplaceSearchQuery) return true;
+                            return colorItem.mardKey.toUpperCase().includes(colorReplaceSearchQuery);
                           })
                           .map((colorItem) => {
                           const hexColor = colorItem.hex;
@@ -3385,6 +3389,7 @@ export default function Workstation() {
                     onClick={() => {
                       setColorReplaceState({ isActive: true, step: 'select-source' });
                       setRemapTrigger(prev => prev + 1);
+                      setColorReplaceSearchQuery('');
                     }}
                     className="w-full mt-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                   >
