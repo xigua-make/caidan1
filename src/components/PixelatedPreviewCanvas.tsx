@@ -51,45 +51,29 @@ interface PixelatedPreviewCanvasProps {
   showCoordinates?: boolean;
 }
 
-// 绘制像素化画布的函数
-const drawPixelatedCanvas = (
+// 只绘制像素颜色的函数（用于离屏canvas缓存）
+const drawPixelColors = (
   dataToDraw: MappedPixel[][],
   canvas: HTMLCanvasElement | null,
   dims: { N: number; M: number } | null,
   highlightColorKey?: string | null,
-  isHighlighting?: boolean,
-  showColorLabels?: boolean,
-  colorSystem?: ColorSystem,
-  showGridLines?: boolean,
-  gridLineInterval?: number,
-  gridLineColorProp?: string
+  isHighlighting?: boolean
 ) => {
-  if (!canvas || !dims || !dataToDraw) {
-    console.warn("drawPixelatedCanvas: Missing required parameters");
-    return;
-  }
+  if (!canvas || !dims || !dataToDraw) return;
   
-  // 使用 willReadFrequently: false 优化性能
-  const pixelatedCtx = canvas.getContext('2d', { willReadFrequently: false });
-  if (!pixelatedCtx) {
-    console.error("Failed to get 2D context for pixelated canvas");
-    return;
-  }
+  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+  if (!ctx) return;
 
   const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
   const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6';
-  const defaultGridLineColor = isDarkMode ? '#4B5563' : '#DDDDDD';
-  const gridLineColor = gridLineColorProp || defaultGridLineColor;
 
   const { N, M } = dims;
-  const outputWidth = canvas.width;
-  const outputHeight = canvas.height;
-  const cellWidthOutput = outputWidth / N;
-  const cellHeightOutput = outputHeight / M;
+  const cellWidth = canvas.width / N;
+  const cellHeight = canvas.height / M;
 
-  pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 性能优化：按颜色批量绘制格子
+  // 按颜色批量绘制格子
   const colorGroups = new Map<string, Array<{ i: number; j: number }>>();
   
   for (let j = 0; j < M; j++) {
@@ -105,13 +89,10 @@ const drawPixelatedCanvas = (
     }
   }
   
-  // 批量绘制相同颜色的格子
   colorGroups.forEach((cells, color) => {
-    pixelatedCtx.fillStyle = color;
+    ctx.fillStyle = color;
     cells.forEach(({ i, j }) => {
-      const drawX = i * cellWidthOutput;
-      const drawY = j * cellHeightOutput;
-      pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+      ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
     });
   });
 
@@ -122,15 +103,106 @@ const drawPixelatedCanvas = (
         const cellData = dataToDraw[j]?.[i];
         if (!cellData) continue;
         
-        const drawX = i * cellWidthOutput;
-        const drawY = j * cellHeightOutput;
-        
         const shouldDim = cellData.isExternal || 
           cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
         
         if (shouldDim) {
-          pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-          pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
+        }
+      }
+    }
+  }
+};
+
+// 绘制像素化画布的函数（网格线和色号）
+const drawPixelatedCanvas = (
+  dataToDraw: MappedPixel[][],
+  canvas: HTMLCanvasElement | null,
+  dims: { N: number; M: number } | null,
+  highlightColorKey?: string | null,
+  isHighlighting?: boolean,
+  showColorLabels?: boolean,
+  colorSystem?: ColorSystem,
+  showGridLines?: boolean,
+  gridLineInterval?: number,
+  gridLineColorProp?: string,
+  skipPixels?: boolean // 是否跳过像素绘制
+) => {
+  if (!canvas || !dims || !dataToDraw) {
+    console.warn("drawPixelatedCanvas: Missing required parameters");
+    return;
+  }
+  
+  const pixelatedCtx = canvas.getContext('2d', { willReadFrequently: false });
+  if (!pixelatedCtx) {
+    console.error("Failed to get 2D context for pixelated canvas");
+    return;
+  }
+
+  const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+  const defaultGridLineColor = isDarkMode ? '#4B5563' : '#DDDDDD';
+  const gridLineColor = gridLineColorProp || defaultGridLineColor;
+
+  const { N, M } = dims;
+  const outputWidth = canvas.width;
+  const outputHeight = canvas.height;
+  const cellWidthOutput = outputWidth / N;
+  const cellHeightOutput = outputHeight / M;
+  
+  // 计算当前缩放比例（基础格子大小为6px）
+  const baseCellSize = 6;
+  const currentScale = cellWidthOutput / baseCellSize;
+
+  // 如果不跳过像素绘制，则绘制像素颜色
+  if (!skipPixels) {
+    pixelatedCtx.clearRect(0, 0, outputWidth, outputHeight);
+    
+    const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6';
+    
+    // 性能优化：按颜色批量绘制格子
+    const colorGroups = new Map<string, Array<{ i: number; j: number }>>();
+    
+    for (let j = 0; j < M; j++) {
+      for (let i = 0; i < N; i++) {
+        const cellData = dataToDraw[j]?.[i];
+        if (!cellData) continue;
+        
+        const color = cellData.isExternal ? externalBackgroundColor : cellData.color;
+        if (!colorGroups.has(color)) {
+          colorGroups.set(color, []);
+        }
+        colorGroups.get(color)!.push({ i, j });
+      }
+    }
+    
+    // 批量绘制相同颜色的格子
+    colorGroups.forEach((cells, color) => {
+      pixelatedCtx.fillStyle = color;
+      cells.forEach(({ i, j }) => {
+        const drawX = i * cellWidthOutput;
+        const drawY = j * cellHeightOutput;
+        pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+      });
+    });
+
+    // 高亮处理
+    if (isHighlighting && highlightColorKey) {
+      for (let j = 0; j < M; j++) {
+        for (let i = 0; i < N; i++) {
+          const cellData = dataToDraw[j]?.[i];
+          if (!cellData) continue;
+          
+          const drawX = i * cellWidthOutput;
+          const drawY = j * cellHeightOutput;
+          
+          const shouldDim = cellData.isExternal || 
+            cellData.color.toUpperCase() !== highlightColorKey.toUpperCase();
+          
+          if (shouldDim) {
+            pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+          }
         }
       }
     }
@@ -138,12 +210,14 @@ const drawPixelatedCanvas = (
   
   // 性能优化：使用 Path2D 批量绘制细网格线
   // 只在格子足够大时绘制细网格线（性能优化）
+  // 网格线粗细保持固定（不随scale变化）
   const shouldDrawThinLines = cellWidthOutput >= 3 && cellHeightOutput >= 3;
   
   if (shouldDrawThinLines) {
     const thinGridLineColor = '#AAAAAA';
     pixelatedCtx.strokeStyle = thinGridLineColor;
-    pixelatedCtx.lineWidth = 1;
+    // 细网格线保持1px视觉粗细
+    pixelatedCtx.lineWidth = Math.max(0.5, 1 / currentScale);
     
     const thinLinesPath = new Path2D();
     for (let j = 0; j <= M; j++) {
@@ -159,10 +233,11 @@ const drawPixelatedCanvas = (
     pixelatedCtx.stroke(thinLinesPath);
   }
   
-  // 绘制分组网格线（每N格一条粗线）- 参考网站使用 2-2.5px
+  // 绘制分组网格线（每N格一条粗线）- 粗细保持固定
   if (showGridLines && gridLineInterval && gridLineInterval > 1) {
     pixelatedCtx.strokeStyle = gridLineColor;
-    pixelatedCtx.lineWidth = 2.5; // 参考网站使用 2-2.5px
+    // 粗网格线保持2.5px视觉粗细
+    pixelatedCtx.lineWidth = Math.max(1, 2.5 / currentScale);
     
     const thickLinesPath = new Path2D();
     // 垂直线
@@ -617,6 +692,10 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   
   // 保存最后的触摸网格位置（用于触摸结束时）
   const lastTouchGridPosRef = useRef<{ row: number; col: number } | null>(null);
+  
+  // 离屏canvas缓存 - 用于高性能缩放
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastPixelDataRef = useRef<MappedPixel[][] | null>(null);
 
   // 获取网格坐标
   const getGridPosition = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
@@ -657,22 +736,56 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     return () => observer.disconnect();
   }, [darkModeState]);
 
-  // Draw main canvas
+  // Draw main canvas (使用离屏canvas缓存优化缩放性能)
   useEffect(() => {
     if (mappedPixelData && gridDimensions && canvasRef.current && darkModeState !== null) {
-      // 缩放时重新设置画布尺寸
       const canvas = canvasRef.current;
-      const newWidth = gridDimensions.N * baseCellSize * scale;
-      const newHeight = gridDimensions.M * baseCellSize * scale;
+      const baseWidth = gridDimensions.N * baseCellSize;
+      const baseHeight = gridDimensions.M * baseCellSize;
+      const newWidth = baseWidth * scale;
+      const newHeight = baseHeight * scale;
       
+      // 设置主canvas尺寸
       if (canvas.width !== newWidth || canvas.height !== newHeight) {
         canvas.width = newWidth;
         canvas.height = newHeight;
       }
       
+      // 初始化或调整离屏canvas尺寸（基础尺寸）
+      if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement('canvas');
+      }
+      if (offscreenCanvasRef.current.width !== baseWidth || offscreenCanvasRef.current.height !== baseHeight) {
+        offscreenCanvasRef.current.width = baseWidth;
+        offscreenCanvasRef.current.height = baseHeight;
+      }
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // 检查像素数据是否变化
+      const pixelDataChanged = lastPixelDataRef.current !== mappedPixelData;
+      if (pixelDataChanged) {
+        // 像素数据变化时，只绘制像素颜色到离屏canvas（基础尺寸）
+        drawPixelColors(
+          mappedPixelData, 
+          offscreenCanvasRef.current, 
+          gridDimensions, 
+          highlightColorKey, 
+          isHighlighting
+        );
+        lastPixelDataRef.current = mappedPixelData;
+      }
+      
+      // 从离屏canvas放大绘制到主canvas（高性能）
+      ctx.imageSmoothingEnabled = false; // 禁用平滑，保持像素清晰
+      ctx.clearRect(0, 0, newWidth, newHeight);
+      ctx.drawImage(offscreenCanvasRef.current, 0, 0, baseWidth, baseHeight, 0, 0, newWidth, newHeight);
+      
+      // 在主canvas上绘制网格线和色号（根据scale调整）
       drawPixelatedCanvas(
         mappedPixelData, 
-        canvasRef.current, 
+        canvas, 
         gridDimensions, 
         highlightColorKey, 
         isHighlighting,
@@ -680,7 +793,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         selectedColorSystem,
         showGridLines,
         gridLineInterval,
-        gridLineColor
+        gridLineColor,
+        true // 跳过像素绘制，只绘制网格线和色号
       );
     }
   }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize]);
