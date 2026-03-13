@@ -635,11 +635,11 @@ export async function downloadImage({
       // 标题区域高度
       const titleHeight = 8;
       
-      // 行高 - 色块 + 上下空隙
-      const statsRowHeight = swatchSize + 12;
+      // 行高 - 色块 + 较大间距
+      const statsRowHeight = swatchSize + 20;
       
-      // 文字大小 - 约占色块的1/3
-      const fontSize = Math.max(6, Math.floor(swatchSize * 0.33));
+      // 文字大小 - 占色块的25%
+      const fontSize = Math.max(5, Math.floor(swatchSize * 0.25));
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
