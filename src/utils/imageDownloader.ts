@@ -635,8 +635,8 @@ export async function downloadImage({
       // 标题区域高度
       const titleHeight = 8;
       
-      // 行高 - 色块 + 小间距
-      const statsRowHeight = swatchSize + 4;
+      // 行高 - 色块 + 上下空隙
+      const statsRowHeight = swatchSize + 12;
       
       // 文字大小 - 约占色块的1/3
       const fontSize = Math.max(6, Math.floor(swatchSize * 0.33));
