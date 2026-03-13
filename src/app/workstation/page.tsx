@@ -307,6 +307,13 @@ export default function Workstation() {
   
   // 高亮颜色状态
   const [highlightColorKey, setHighlightColorKey] = useState<string | null>(null);
+  const [isHighlightMode, setIsHighlightMode] = useState<boolean>(false); // 持续高亮模式
+  
+  // 文字生成状态
+  const [isTextMode, setIsTextMode] = useState<boolean>(false);
+  const [textInput, setTextInput] = useState<string>('');
+  const [textFontSize, setTextFontSize] = useState<number>(12);
+  const [textPosition, setTextPosition] = useState<{ row: number; col: number } | null>(null);
   
   // 自定义色板状态
   const [customPaletteSelections, setCustomPaletteSelections] = useState<PaletteSelections>({});
@@ -1495,6 +1502,14 @@ export default function Workstation() {
     if (i >= 0 && i < N && j >= 0 && j < M) {
       const cellData = mappedPixelData[j][i];
 
+      // 文字生成模式
+      if (isClick && isTextMode && textInput.trim() && selectedColor) {
+        generateTextPixels(textInput, textFontSize, j, i, selectedColor.color);
+        setTextInput(''); // 清空输入
+        setIsTextMode(false); // 退出文字模式
+        return;
+      }
+
       // 颜色替换模式
       if (isClick && colorReplaceState.isActive && colorReplaceState.step === 'select-source') {
         if (cellData && !cellData.isExternal && cellData.key !== TRANSPARENT_KEY) {
@@ -1693,9 +1708,99 @@ export default function Workstation() {
 
   // 高亮颜色
   const handleHighlightColor = useCallback((colorHex: string) => {
-    setHighlightColorKey(colorHex);
-    setTimeout(() => setHighlightColorKey(null), 300);
+    if (isHighlightMode) {
+      // 持续高亮模式：切换高亮颜色
+      setHighlightColorKey(prev => prev === colorHex ? null : colorHex);
+    } else {
+      // 短暂高亮模式
+      setHighlightColorKey(colorHex);
+      setTimeout(() => setHighlightColorKey(null), 300);
+    }
+  }, [isHighlightMode]);
+
+  // 切换高亮模式
+  const toggleHighlightMode = useCallback(() => {
+    setIsHighlightMode(prev => {
+      if (prev) {
+        // 关闭高亮模式时，清除高亮
+        setHighlightColorKey(null);
+      }
+      return !prev;
+    });
   }, []);
+
+  // 生成文字像素
+  const generateTextPixels = useCallback((text: string, fontSize: number, startRow: number, startCol: number, color: string) => {
+    if (!mappedPixelData || !gridDimensions || !text.trim()) return;
+    
+    const { N, M } = gridDimensions;
+    
+    // 创建临时canvas绘制文字
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // 设置canvas大小（根据文字长度和字体大小）
+    ctx.font = `${fontSize}px Arial`;
+    const metrics = ctx.measureText(text);
+    const textWidth = Math.ceil(metrics.width);
+    const textHeight = fontSize;
+    
+    canvas.width = textWidth;
+    canvas.height = textHeight;
+    
+    // 绘制文字
+    ctx.fillStyle = color;
+    ctx.font = `${fontSize}px Arial`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(text, 0, 0);
+    
+    // 读取像素数据
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    
+    // 将文字像素映射到格子中
+    const newMappedData = mappedPixelData.map(row => row.map(cell => ({ ...cell })));
+    
+    // 每个格子对应一个像素（简化处理）
+    const pixelSize = 1; // 每个格子对应1个像素
+    
+    for (let y = 0; y < textHeight; y += pixelSize) {
+      for (let x = 0; x < textWidth; x += pixelSize) {
+        const pixelIndex = (y * textWidth + x) * 4;
+        const alpha = pixels[pixelIndex + 3];
+        
+        // 如果像素不透明
+        if (alpha > 128) {
+          const gridRow = startRow + Math.floor(y / pixelSize);
+          const gridCol = startCol + Math.floor(x / pixelSize);
+          
+          // 检查是否在网格范围内
+          if (gridRow >= 0 && gridRow < M && gridCol >= 0 && gridCol < N) {
+            const colorData = findColorData(color);
+            newMappedData[gridRow][gridCol] = {
+              key: colorData?.key || color.toUpperCase(),
+              color: color,
+              isExternal: false
+            };
+          }
+        }
+      }
+    }
+    
+    setMappedPixelData(newMappedData);
+    recalculateColorCounts(newMappedData);
+    saveToHistory(newMappedData);
+  }, [mappedPixelData, gridDimensions, recalculateColorCounts, saveToHistory]);
+
+  // 切换文字模式
+  const toggleTextMode = useCallback(() => {
+    setIsTextMode(prev => !prev);
+    if (isTextMode) {
+      setTextInput('');
+      setTextPosition(null);
+    }
+  }, [isTextMode]);
 
   // 下载请求处理
   const handleDownloadRequest = (options?: GridDownloadOptions) => {
@@ -2782,7 +2887,56 @@ export default function Workstation() {
                   >
                     水平镜像
                   </button>
+                  <button
+                    onClick={toggleHighlightMode}
+                    disabled={!mappedPixelData}
+                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      isHighlightMode
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    title="点击色块高亮显示该颜色"
+                  >
+                    颜色高亮
+                  </button>
+                  <button
+                    onClick={toggleTextMode}
+                    disabled={!mappedPixelData}
+                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      isTextMode
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    title="在画布上生成文字"
+                  >
+                    文字生成
+                  </button>
                 </div>
+                
+                {/* 文字生成输入框 */}
+                {isTextMode && (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="输入文字..."
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">字体大小:</span>
+                      <input
+                        type="number"
+                        value={textFontSize}
+                        onChange={(e) => setTextFontSize(parseInt(e.target.value) || 12)}
+                        min={8}
+                        max={32}
+                        className="w-16 px-2 py-1 text-xs border border-gray-200 dark:border-gray-500 rounded bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">点击画布放置文字</p>
+                  </div>
+                )}
               </div>
 
               {/* 选区与剪贴板区块 */}
@@ -2939,6 +3093,11 @@ export default function Workstation() {
                           <button
                             key={hexColor}
                             onClick={() => {
+                              // 高亮模式：只执行高亮
+                              if (isHighlightMode) {
+                                handleHighlightColor(hexColor);
+                                return;
+                              }
                               if (colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
                                 handleColorReplace(colorReplaceState.sourceColor, { key: displayKey, color: hexColor });
                               } else {
@@ -2986,6 +3145,11 @@ export default function Workstation() {
                             <button
                               key={key}
                               onClick={() => {
+                                // 高亮模式：只执行高亮
+                                if (isHighlightMode) {
+                                  handleHighlightColor(color);
+                                  return;
+                                }
                                 setSelectedColor({ key: displayKey, color: color, isExternal: false });
                                 setIsEraseMode(false);
                                 setCurrentTool('brush');
