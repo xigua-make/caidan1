@@ -295,14 +295,14 @@ export async function downloadImage({
       // 固定为8列
       const numColumns = 8;
       
-      // 计算色块大小 - 根据可用宽度
-      const swatchSize = Math.floor((preCalcAvailableWidth - (numColumns - 1) * 8) / numColumns);
+      // 计算色块大小 - 为数量文字预留空间
+      const swatchSize = Math.floor((preCalcAvailableWidth - (numColumns - 1) * 35) / numColumns);
       
       // 计算实际需要的行数
       const numRows = Math.ceil(colorKeys.length / numColumns);
       
-      // 计算单行高度 - 色块高度 + 数量文字高度 + 间距
-      const statsRowHeight = swatchSize + 20;
+      // 计算单行高度 - 色块高度 + 少量间距
+      const statsRowHeight = swatchSize + 8;
       
       // 标题和页脚高度
       const titleHeight = 40; // 标题和分隔线的总高度
@@ -657,15 +657,15 @@ export async function downloadImage({
       // 固定为8列
       const renderNumColumns = 8;
       
-      // 计算色块大小 - 根据可用宽度和列数计算
-      const swatchSize = Math.floor((availableStatsWidth - (renderNumColumns - 1) * 8) / renderNumColumns);
-      const swatchGap = 8; // 色块之间的间距
+      // 计算色块大小 - 为数量文字预留空间
+      const swatchSize = Math.floor((availableStatsWidth - (renderNumColumns - 1) * 35) / renderNumColumns);
+      const swatchGap = 35; // 色块之间的间距（包含数量文字的空间）
       
       // 色号字体大小 - 根据色块大小调整
       const colorKeyFontSize = Math.max(8, Math.floor(swatchSize * 0.35));
       
-      // 计算每个项目所占的宽度
-      const itemWidth = swatchSize + swatchGap;
+      // 计算每个项目所占的宽度（色块+数量文字）
+      const itemWidth = swatchGap;
       
       // 绘制统计区域标题
       ctx.fillStyle = '#333333';
@@ -680,8 +680,8 @@ export async function downloadImage({
       ctx.stroke();
       
       const titleHeight = 30; // 标题和分隔线的总高度
-      // 行高 = 色块高度 + 数量文字高度 + 间距
-      const statsRowHeight = swatchSize + 20;
+      // 行高 = 色块高度 + 少量间距
+      const statsRowHeight = swatchSize + 8;
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
@@ -716,13 +716,13 @@ export async function downloadImage({
         ctx.textBaseline = 'middle';
         ctx.fillText(colorKey, itemX + swatchSize / 2, rowY + swatchSize / 2);
         
-        // 绘制数量 - 在色块下方，格式为 x数量
+        // 绘制数量 - 在色块右侧，格式为 x数量
         ctx.fillStyle = '#333333';
         ctx.font = `${Math.max(10, colorKeyFontSize)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
         const countText = `x${cellData.count}`;
-        ctx.fillText(countText, itemX + swatchSize / 2, rowY + swatchSize + 2);
+        ctx.fillText(countText, itemX + swatchSize + 3, rowY + swatchSize / 2);
       });
       
       // 计算实际需要的行数
