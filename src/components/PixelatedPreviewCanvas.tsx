@@ -1318,8 +1318,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     touchMovedRef.current = false;
   };
 
-  // 计算坐标轴尺寸
-  const headerSize = 20; // 坐标轴宽度/高度
+  // 计算坐标轴颜色
   const coordinateBgColor = '#9CA3AF'; // 参考网站使用的颜色
   
   // 画布尺寸已经包含了缩放，直接使用
@@ -1363,13 +1362,16 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         <>
           {/* 左上角尺寸信息 */}
           <div
-            className="absolute rounded-sm flex items-center justify-center text-white text-[8px] font-medium select-none z-0"
+            className="absolute flex items-center justify-center text-white text-[8px] font-medium select-none z-0"
             style={{
               backgroundColor: coordinateBgColor,
-              width: headerSize * scale,
-              height: headerSize * scale,
-              left: offsetX - headerSize * scale,
-              top: offsetY - headerSize * scale,
+              width: cellDisplayWidth,
+              height: cellDisplayHeight,
+              left: offsetX - cellDisplayWidth,
+              top: offsetY - cellDisplayHeight,
+              fontSize: coordinateFontSize,
+              borderRight: '1px solid #6B7280',
+              borderBottom: '1px solid #6B7280',
             }}
           >
             <span style={{ fontSize: Math.max(6, 8 * scale) }}>
@@ -1377,41 +1379,57 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
             </span>
           </div>
           
-          {/* 顶部横向坐标 */}
+          {/* 顶部横向坐标 - 每个数字在独立格子内 */}
           <div
-            className="absolute grid text-white text-center select-none z-0"
+            className="absolute flex select-none z-0"
             style={{
-              gridTemplateColumns: `repeat(${gridDimensions.N}, ${cellDisplayWidth}px)`,
-              backgroundColor: coordinateBgColor,
               width: canvasDisplayWidth,
-              height: headerSize * scale,
+              height: cellDisplayHeight,
               left: offsetX,
-              top: offsetY - headerSize * scale,
+              top: offsetY - cellDisplayHeight,
               fontSize: coordinateFontSize,
             }}
           >
             {colCoordinates.map((num) => (
-              <div key={`col-${num}`} className="flex items-center justify-center">
+              <div
+                key={`col-${num}`}
+                className="flex items-center justify-center text-white"
+                style={{
+                  width: cellDisplayWidth,
+                  height: cellDisplayHeight,
+                  backgroundColor: coordinateBgColor,
+                  borderRight: '1px solid #6B7280',
+                  borderBottom: '1px solid #6B7280',
+                }}
+              >
                 {num}
               </div>
             ))}
           </div>
           
-          {/* 左侧纵向坐标 */}
+          {/* 左侧纵向坐标 - 每个数字在独立格子内 */}
           <div
-            className="absolute grid text-white text-center select-none z-0"
+            className="absolute flex flex-col select-none z-0"
             style={{
-              gridTemplateRows: `repeat(${gridDimensions.M}, ${cellDisplayHeight}px)`,
-              backgroundColor: coordinateBgColor,
-              width: headerSize * scale,
+              width: cellDisplayWidth,
               height: canvasDisplayHeight,
-              left: offsetX - headerSize * scale,
+              left: offsetX - cellDisplayWidth,
               top: offsetY,
               fontSize: coordinateFontSize,
             }}
           >
             {rowCoordinates.map((num) => (
-              <div key={`row-${num}`} className="flex items-center justify-center">
+              <div
+                key={`row-${num}`}
+                className="flex items-center justify-center text-white"
+                style={{
+                  width: cellDisplayWidth,
+                  height: cellDisplayHeight,
+                  backgroundColor: coordinateBgColor,
+                  borderRight: '1px solid #6B7280',
+                  borderBottom: '1px solid #6B7280',
+                }}
+              >
                 {num}
               </div>
             ))}
