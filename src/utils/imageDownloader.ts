@@ -626,8 +626,8 @@ export async function downloadImage({
       // 固定8列
       const renderNumColumns = 8;
       
-      // 使用更大的色块尺寸
-      const swatchSize = Math.floor(availableStatsWidth / renderNumColumns * 0.7);
+      // 使用紧凑的色块尺寸
+      const swatchSize = Math.min(24, Math.floor(availableStatsWidth / renderNumColumns * 0.35));
       
       // 计算每个项目所占的宽度
       const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
@@ -636,11 +636,11 @@ export async function downloadImage({
       const titleHeight = 10; // 减少标题区域高度
       
       // 根据色块大小动态调整行高
-      const statsRowHeight = swatchSize + 8;
+      const statsRowHeight = swatchSize + 6;
       
-      // 设置字体大小
-      const colorKeyFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
-      const countFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
+      // 设置字体大小 - 色号字体
+      const colorKeyFontSize = Math.max(7, Math.floor(swatchSize * 0.45));
+      const countFontSize = Math.max(8, Math.floor(swatchSize * 0.5));
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
@@ -657,13 +657,17 @@ export async function downloadImage({
         const cellData = colorCounts[key];
         const colorKey = getColorKeyByHex(key, selectedColorSystem);
         
-        // 绘制色块（内含色号）
+        // 绘制圆角色块（内含色号）
         const swatchX = itemX;
         ctx.fillStyle = cellData.color;
-        ctx.fillRect(swatchX, rowY - (swatchSize / 2), swatchSize, swatchSize);
+        ctx.beginPath();
+        ctx.roundRect(swatchX, rowY - (swatchSize / 2), swatchSize, swatchSize, 3);
+        ctx.fill();
         
-        // 在色块内绘制色号（白色文字，居中）
-        ctx.fillStyle = '#FFFFFF';
+        // 在色块内绘制色号（根据背景色决定文字颜色）
+        const rgb = hexToRgb(cellData.color);
+        const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+        ctx.fillStyle = isLightColor ? '#000000' : '#FFFFFF';
         ctx.font = `bold ${colorKeyFontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
