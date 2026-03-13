@@ -2449,10 +2449,10 @@ export default function Workstation() {
         </div>
       </header>
 
-      {/* 主内容区域 - 使用fixed定位让画布和工具栏完全分开 */}
-      <div className="fixed top-[56px] left-0 right-0 bottom-0 flex">
-        {/* 左侧画布区域 - 固定不动 */}
-        <main ref={mainRef} className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
+      {/* 主内容区域 - 移动端上下布局，桌面端左右布局 */}
+      <div className="fixed top-[56px] left-0 right-0 bottom-0 flex flex-col md:flex-row">
+        {/* 画布区域 - 移动端上半屏，桌面端左侧 */}
+        <main ref={mainRef} className="h-1/2 md:h-full md:flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
           {!originalImageSrc ? (
             <>
               {/* 桌面端：西瓜Logo预览 */}
@@ -2557,8 +2557,8 @@ export default function Workstation() {
           <canvas ref={originalCanvasRef} className="hidden" />
         </main>
 
-        {/* 右侧功能面板 - 独立滚动 */}
-        <aside className="w-[384px] flex-shrink-0 h-full overflow-hidden bg-white dark:bg-gray-800 border-l border-gray-200/70 dark:border-gray-700/70">
+        {/* 功能面板 - 移动端下半屏，桌面端右侧 */}
+        <aside className="h-1/2 md:h-full md:w-[384px] md:flex-shrink-0 overflow-hidden bg-white dark:bg-gray-800 border-t md:border-t-0 md:border-l border-gray-200/70 dark:border-gray-700/70">
           {workstationMode === 'auto' ? (
             /* 自动优化模式右侧栏 - 独立滚动 */
             <div className="h-full overflow-y-auto p-4 space-y-4">
