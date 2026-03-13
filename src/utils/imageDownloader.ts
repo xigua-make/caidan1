@@ -638,8 +638,10 @@ export async function downloadImage({
       // 行高 - 色块 + 较大间距
       const statsRowHeight = swatchSize + 20;
       
-      // 文字大小 - 占色块的25%
-      const fontSize = Math.max(5, Math.floor(swatchSize * 0.25));
+      // 色号字体大小 - 占色块的35%
+      const colorKeyFontSize = Math.max(6, Math.floor(swatchSize * 0.35));
+      // 数量字体大小 - 比色号稍大
+      const countFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
@@ -677,14 +679,14 @@ export async function downloadImage({
         const rgb = hexToRgb(cellData.color);
         const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
         ctx.fillStyle = isLightColor ? '#000000' : '#FFFFFF';
-        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.font = `bold ${colorKeyFontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
         
-        // 3. 绘制数量 - 紧靠色块右侧，字号与色号一致
+        // 3. 绘制数量 - 紧靠色块右侧
         ctx.fillStyle = '#333333';
-        ctx.font = `${fontSize}px sans-serif`;
+        ctx.font = `${countFontSize}px sans-serif`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const countText = `x${cellData.count}`;
