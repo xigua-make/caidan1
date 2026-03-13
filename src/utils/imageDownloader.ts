@@ -455,9 +455,14 @@ export async function downloadImage({
           const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
           const cellY = titleBarHeight + extraTopMargin;
           
-          // 绘制单元格背景
-          ctx.fillStyle = '#F0F0F0';
+          // 绘制单元格背景（浅蓝色）
+          ctx.fillStyle = '#E3F2FD';
           ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+          
+          // 绘制边框
+          ctx.strokeStyle = '#333333';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
           
           // 绘制数字
           ctx.fillStyle = '#333333';
@@ -473,9 +478,14 @@ export async function downloadImage({
           const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
           const cellY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight;
           
-          // 绘制单元格背景
-          ctx.fillStyle = '#F0F0F0';
+          // 绘制单元格背景（浅蓝色）
+          ctx.fillStyle = '#E3F2FD';
           ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+          
+          // 绘制边框
+          ctx.strokeStyle = '#333333';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
           
           // 绘制数字
           ctx.fillStyle = '#333333';
@@ -491,9 +501,14 @@ export async function downloadImage({
           const cellX = extraLeftMargin;
           const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
           
-          // 绘制单元格背景
-          ctx.fillStyle = '#F0F0F0';
+          // 绘制单元格背景（浅蓝色）
+          ctx.fillStyle = '#E3F2FD';
           ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+          
+          // 绘制边框
+          ctx.strokeStyle = '#333333';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
           
           // 绘制数字
           ctx.fillStyle = '#333333';
@@ -509,9 +524,14 @@ export async function downloadImage({
           const cellX = extraLeftMargin + axisLabelSize + gridWidth;
           const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
           
-          // 绘制单元格背景
-          ctx.fillStyle = '#F0F0F0';
+          // 绘制单元格背景（浅蓝色）
+          ctx.fillStyle = '#E3F2FD';
           ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+          
+          // 绘制边框
+          ctx.strokeStyle = '#333333';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
           
           // 绘制数字
           ctx.fillStyle = '#333333';
