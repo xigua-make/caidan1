@@ -236,18 +236,7 @@ export async function downloadImage({
   // 主要下载处理函数
   const processDownload = () => {
     const { N, M } = gridDimensions; // 此时已确保gridDimensions不为null
-    
-    // 根据画布大小动态计算格子尺寸，确保生成的图片不超过浏览器 canvas 限制
-    // 最大 canvas 尺寸限制为 4096px（Safari 等移动浏览器的安全限制）
-    const maxCanvasDimension = 4096;
-    const baseDownloadCellSize = 30;
-    
-    // 计算合适的格子大小，确保网格部分不超过限制
-    const maxCellSizeByWidth = Math.floor((maxCanvasDimension - 200) / N); // 减去边距和坐标轴
-    const maxCellSizeByHeight = Math.floor((maxCanvasDimension - 300) / M); // 减去标题栏和统计区
-    const downloadCellSize = Math.max(8, Math.min(baseDownloadCellSize, maxCellSizeByWidth, maxCellSizeByHeight));
-    
-    console.log(`Download cell size: ${downloadCellSize} (for ${N}x${M} grid)`);
+    const downloadCellSize = 30;
   
     // 从下载选项中获取设置
     const { showGrid, gridInterval, showCoordinates, gridLineColor, includeStats, showCellNumbers = true } = options;
