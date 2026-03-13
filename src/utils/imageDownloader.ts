@@ -656,12 +656,24 @@ export async function downloadImage({
         const cellData = colorCounts[key];
         const colorKey = getColorKeyByHex(key, selectedColorSystem);
         
-        // 绘制色块（内含色号）
+        // 色块位置
         const swatchX = itemX;
-        ctx.fillStyle = cellData.color;
-        ctx.fillRect(swatchX, rowY - (swatchSize / 2), swatchSize, swatchSize);
+        const swatchY = rowY - (swatchSize / 2);
+        const cornerRadius = Math.max(3, Math.floor(swatchSize * 0.2)); // 大圆角
         
-        // 在色块内绘制色号（根据背景色决定文字颜色）
+        // 1. 先绘制阴影（底部和右侧的柔和投影）
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = cellData.color;
+        ctx.beginPath();
+        ctx.roundRect(swatchX, swatchY, swatchSize, swatchSize, cornerRadius);
+        ctx.fill();
+        ctx.restore();
+        
+        // 2. 在色块内绘制色号（根据背景色决定文字颜色）
         const rgb = hexToRgb(cellData.color);
         const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
         ctx.fillStyle = isLightColor ? '#000000' : '#FFFFFF';
@@ -670,13 +682,13 @@ export async function downloadImage({
         ctx.textBaseline = 'middle';
         ctx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
         
-        // 绘制数量 - 紧靠色块右侧，字号与色号一致
+        // 3. 绘制数量 - 紧靠色块右侧，字号与色号一致
         ctx.fillStyle = '#333333';
         ctx.font = `${fontSize}px sans-serif`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const countText = `x${cellData.count}`;
-        ctx.fillText(countText, swatchX + swatchSize + 1, rowY);
+        ctx.fillText(countText, swatchX + swatchSize + 2, rowY);
       });
       
       // 计算实际需要的行数
