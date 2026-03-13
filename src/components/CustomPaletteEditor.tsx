@@ -3,7 +3,79 @@
 import React, { useState, useEffect } from 'react';
 import { PaletteColor } from '../utils/pixelation';
 import { PaletteSelections } from '../utils/localStorageUtils';
-import { getDisplayColorKey, ColorSystem } from '../utils/colorSystemUtils';
+import { getDisplayColorKey, ColorSystem, getColorKeyByHex } from '../utils/colorSystemUtils';
+import colorSystemMapping from '../app/colorSystemMapping.json';
+
+// MARD色号系统的预设色板配置
+const MARD_PRESET_PALETTES: { name: string; count: number; mardKeys: string[] }[] = [
+  {
+    name: '291色',
+    count: 291,
+    mardKeys: [] // 空数组表示全部颜色
+  },
+  {
+    name: '221色',
+    count: 221,
+    mardKeys: [
+      // A系列 (26色)
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10','A11','A12','A13','A14','A15','A16','A17','A18','A19','A20','A21','A22','A23','A24','A25','A26',
+      // B系列 (32色)
+      'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18','B19','B20','B21','B22','B23','B24','B25','B26','B27','B28','B29','B30','B31','B32',
+      // C系列 (29色)
+      'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10','C11','C12','C13','C14','C15','C16','C17','C18','C19','C20','C21','C22','C23','C24','C25','C26','C27','C28','C29',
+      // D系列 (26色)
+      'D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','D11','D12','D13','D14','D15','D16','D17','D18','D19','D20','D21','D22','D23','D24','D25','D26',
+      // E系列 (26色)
+      'E01','E02','E03','E04','E05','E06','E07','E08','E09','E10','E11','E12','E13','E14','E15','E16','E17','E18','E19','E20','E21','E22','E23','E24','E25','E26',
+      // F系列 (26色)
+      'F01','F02','F03','F04','F05','F06','F07','F08','F09','F10','F11','F12','F13','F14','F15','F16','F17','F18','F19','F20','F21','F22','F23','F24','F25','F26',
+      // G系列 (24色)
+      'G01','G02','G03','G04','G05','G06','G07','G08','G09','G10','G11','G12','G13','G14','G15','G16','G17','G18','G19','G20','G21','G22','G23','G24',
+      // H系列 (26色)
+      'H01','H02','H03','H04','H05','H06','H07','H08','H09','H10','H11','H12','H13','H14','H15','H16','H17','H18','H19','H20','H21','H22','H23','H24','H25','H26',
+      // I系列 (16色)
+      'I01','I02','I03','I04','I05','I06','I07','I08','I09','I10','I11','I12','I13','I14','I15','I16',
+      // J系列 (10色)
+      'J01','J02','J03','J04','J05','J06','J07','J08','J09','J10'
+    ]
+  },
+  {
+    name: '144色',
+    count: 144,
+    mardKeys: [
+      // A系列常用
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10','A11','A12','A13','A14','A15','A16','A17','A18','A19','A20','A21','A22','A23','A24',
+      // B系列常用
+      'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18','B19','B20','B21','B22','B23','B24',
+      // C系列常用
+      'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10','C11','C12','C13','C14','C15','C16','C17','C18','C19','C20','C21','C22','C23','C24',
+      // D系列常用
+      'D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','D11','D12','D13','D14','D15','D16','D17','D18','D19','D20','D21','D22','D23','D24',
+      // E系列常用
+      'E01','E02','E03','E04','E05','E06','E07','E08','E09','E10','E11','E12','E13','E14','E15','E16','E17','E18','E19','E20','E21','E22','E23','E24',
+      // F系列常用
+      'F01','F02','F03','F04','F05','F06','F07','F08','F09','F10','F11','F12','F13','F14','F15','F16','F17','F18','F19','F20','F21','F22','F23','F24'
+    ]
+  },
+  {
+    name: '120色',
+    count: 120,
+    mardKeys: [
+      // A系列精选
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10','A11','A12','A13','A14','A15','A16','A17','A18','A19','A20',
+      // B系列精选
+      'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18','B19','B20',
+      // C系列精选
+      'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10','C11','C12','C13','C14','C15','C16','C17','C18','C19','C20',
+      // D系列精选
+      'D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','D11','D12','D13','D14','D15','D16','D17','D18','D19','D20',
+      // E系列精选
+      'E01','E02','E03','E04','E05','E06','E07','E08','E09','E10','E11','E12','E13','E14','E15','E16','E17','E18','E19','E20',
+      // F系列精选
+      'F01','F02','F03','F04','F05','F06','F07','F08','F09','F10','F11','F12','F13','F14','F15','F16','F17','F18','F19','F20'
+    ]
+  }
+];
 
 // 对颜色进行分组的工具函数，按前缀分组
 function groupColorsByPrefix(colors: PaletteColor[], selectedColorSystem: ColorSystem): Record<string, PaletteColor[]> {
@@ -143,6 +215,30 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
     });
   };
   
+  // 应用MARD预设色板
+  const applyMardPreset = (preset: typeof MARD_PRESET_PALETTES[0]) => {
+    // 先取消所有选择
+    allColors.forEach(color => {
+      onSelectionChange(color.hex.toUpperCase(), false);
+    });
+    
+    if (preset.mardKeys.length === 0) {
+      // 空数组表示选择全部颜色
+      allColors.forEach(color => {
+        onSelectionChange(color.hex.toUpperCase(), true);
+      });
+    } else {
+      // 根据 MARD 色号找到对应的 hex 值并选择
+      const presetKeySet = new Set(preset.mardKeys);
+      allColors.forEach(color => {
+        const mardKey = getColorKeyByHex(color.hex.toUpperCase(), 'MARD');
+        if (presetKeySet.has(mardKey)) {
+          onSelectionChange(color.hex.toUpperCase(), true);
+        }
+      });
+    }
+  };
+  
   return (
     <div className="flex flex-col h-full max-h-[calc(90vh-80px)]">
       {/* 头部 */}
@@ -200,6 +296,24 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
           ))}
         </div>
       </div>
+      
+      {/* MARD预设色板选择 - 只在MARD系统下显示 */}
+      {selectedColorSystem === 'MARD' && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">预设色板</label>
+          <div className="flex flex-wrap gap-2">
+            {MARD_PRESET_PALETTES.map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => applyMardPreset(preset)}
+                className="px-3 py-1.5 text-xs rounded-md transition-colors bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* 说明文本 */}
       <div className="mb-4 text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md border border-blue-100 dark:border-blue-800/30">
