@@ -292,28 +292,20 @@ export async function downloadImage({
       // 统计区域顶部额外间距
       const statsTopMargin = 24; // 与下方渲染时保持一致
       
-      // 根据可用宽度动态计算列数
-      const numColumns = Math.max(1, Math.min(4, Math.floor(preCalcAvailableWidth / 250)));
+      // 固定8列
+      const numColumns = 8;
       
-      // 根据可用宽度动态计算样式参数，使用更积极的线性缩放
-      const baseSwatchSize = 18; // 略微增大基础大小
-      // baseStatsFontSize 和 statsFontSize 在前面已经计算了，这里不需要重复
-      // const baseItemPadding = 10;
-      
-      // 调整缩放公式，使大宽度更明显增大
-      // widthFactor 在前面已经计算了，这里不需要重复
-      const swatchSize = Math.floor(baseSwatchSize + (widthFactor * 20)); // 增大最大增量幅度
-      // statsFontSize 在前面已经计算了，这里不需要重复
-      // const itemPadding = Math.floor(baseItemPadding + (widthFactor * 12)); // 增大最大增量幅度 // 移除未使用的 itemPadding
+      // 使用更大的色块尺寸
+      const swatchSize = Math.floor(preCalcAvailableWidth / numColumns * 0.7);
       
       // 计算实际需要的行数
       const numRows = Math.ceil(colorKeys.length / numColumns);
       
-      // 计算单行高度 - 根据色块大小和内边距动态调整
-      const statsRowHeight = Math.max(swatchSize + 8, 25);
+      // 计算单行高度
+      const statsRowHeight = swatchSize + 8;
       
       // 标题和页脚高度
-      const titleHeight = 40; // 标题和分隔线的总高度
+      const titleHeight = 10; // 简化后的标题区域
       const footerHeight = 40; // 总计部分的高度
       
       // 计算统计区域的总高度 - 需要包含顶部间距
@@ -631,19 +623,11 @@ export async function downloadImage({
       // 计算统计区域的可用宽度
       const availableStatsWidth = downloadWidth - (statsPadding * 2);
       
-      // 根据可用宽度动态计算列数 - 这里使用实际渲染时的宽度
-      const renderNumColumns = Math.max(1, Math.min(4, Math.floor(availableStatsWidth / 250)));
+      // 固定8列
+      const renderNumColumns = 8;
       
-      // 根据可用宽度动态计算样式参数，使用更积极的线性缩放
-      const baseSwatchSize = 18; // 略微增大基础大小
-      // baseStatsFontSize 和 statsFontSize 在前面已经计算了，这里不需要重复
-      // const baseItemPadding = 10;
-      
-      // 调整缩放公式，使大宽度更明显增大
-      // widthFactor 在前面已经计算了，这里不需要重复
-      const swatchSize = Math.floor(baseSwatchSize + (widthFactor * 20)); // 增大最大增量幅度
-      // statsFontSize 在前面已经计算了，这里不需要重复
-      // const itemPadding = Math.floor(baseItemPadding + (widthFactor * 12)); // 增大最大增量幅度 // 移除未使用的 itemPadding
+      // 使用更大的色块尺寸
+      const swatchSize = Math.floor(availableStatsWidth / renderNumColumns * 0.7);
       
       // 计算每个项目所占的宽度
       const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
@@ -652,13 +636,11 @@ export async function downloadImage({
       const titleHeight = 10; // 减少标题区域高度
       
       // 根据色块大小动态调整行高
-      const statsRowHeight = Math.max(swatchSize + 8, 25); // 确保行高足够放下色块和文字
+      const statsRowHeight = swatchSize + 8;
       
-      // 设置表格字体
-      ctx.font = `${statsFontSize}px sans-serif`;
-      
-      // 使用更大的色块尺寸以容纳色号文字
-      const colorKeyFontSize = Math.max(10, Math.floor(swatchSize * 0.5));
+      // 设置字体大小
+      const colorKeyFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
+      const countFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
@@ -687,13 +669,13 @@ export async function downloadImage({
         ctx.textBaseline = 'middle';
         ctx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
         
-        // 绘制数量 - 在单元格右侧，格式为 x数量
+        // 绘制数量 - 紧靠色块右侧，格式为 x数量
         ctx.fillStyle = '#333333';
-        ctx.font = `${statsFontSize}px sans-serif`;
-        ctx.textAlign = 'right';
+        ctx.font = `${countFontSize}px sans-serif`;
+        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const countText = `x${cellData.count}`;
-        ctx.fillText(countText, itemX + itemWidth - 5, rowY);
+        ctx.fillText(countText, swatchX + swatchSize + 2, rowY);
       });
       
       // 计算实际需要的行数
