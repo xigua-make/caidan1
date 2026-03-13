@@ -2461,7 +2461,7 @@ export default function Workstation() {
               </div>
               
               {/* 移动端：两个大按钮 */}
-              <div className="lg:hidden flex-1 flex flex-col items-center justify-center px-4 gap-3 bg-gradient-to-br from-pink-50 via-white to-green-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
+              <div className="lg:hidden h-full flex flex-col items-center justify-center px-4 gap-3 bg-gradient-to-br from-pink-50 via-white to-green-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
                 <button
                   onClick={triggerFileInput}
                   className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"

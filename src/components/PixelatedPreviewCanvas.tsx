@@ -7,6 +7,17 @@ import { getColorKeyByHex, ColorSystem } from '../utils/colorSystemUtils';
 // 工具类型
 type ToolType = 'brush' | 'eraser' | 'picker' | 'fill' | 'line' | 'rectangle' | 'select' | 'move' | 'hand';
 
+// iOS 设备检测
+const isIOS = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
+// iOS canvas 最大尺寸限制（iOS 14+ 约为 4096x4096，但实际受内存限制更小）
+const IOS_MAX_CANVAS_DIMENSION = 3800;
+const IOS_MAX_CANVAS_AREA = 14000000; // 约 14MB 像素
+
 interface PixelatedPreviewCanvasProps {
   mappedPixelData: MappedPixel[][] | null;
   gridDimensions: { N: number; M: number } | null;
@@ -758,8 +769,23 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const canvas = canvasRef.current;
       const baseWidth = gridDimensions.N * baseCellSize;
       const baseHeight = gridDimensions.M * baseCellSize;
-      const newWidth = baseWidth * scale;
-      const newHeight = baseHeight * scale;
+      let newWidth = baseWidth * scale;
+      let newHeight = baseHeight * scale;
+      
+      // iOS 设备限制 canvas 尺寸，避免超过内存限制导致空白
+      if (isIOS()) {
+        const canvasArea = newWidth * newHeight;
+        // 如果超过最大面积，按比例缩小
+        if (canvasArea > IOS_MAX_CANVAS_AREA || newWidth > IOS_MAX_CANVAS_DIMENSION || newHeight > IOS_MAX_CANVAS_DIMENSION) {
+          const scaleDownFactor = Math.min(
+            IOS_MAX_CANVAS_DIMENSION / newWidth,
+            IOS_MAX_CANVAS_DIMENSION / newHeight,
+            Math.sqrt(IOS_MAX_CANVAS_AREA / canvasArea)
+          );
+          newWidth = Math.floor(newWidth * scaleDownFactor);
+          newHeight = Math.floor(newHeight * scaleDownFactor);
+        }
+      }
       
       // 设置主canvas尺寸
       if (canvas.width !== newWidth || canvas.height !== newHeight) {
@@ -1301,7 +1327,18 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       const currentOffsetX = offsetXRef.current;
       const currentOffsetY = offsetYRef.current;
       
-      const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
+      let newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 50);
+      
+      // iOS 设备限制最大缩放比例，避免 canvas 超过尺寸限制
+      if (isIOS() && gridDimensions) {
+        const maxCanvasDimension = IOS_MAX_CANVAS_DIMENSION;
+        const maxScaleByWidth = maxCanvasDimension / (gridDimensions.N * baseCellSize);
+        const maxScaleByHeight = maxCanvasDimension / (gridDimensions.M * baseCellSize);
+        const maxScaleByArea = Math.sqrt(IOS_MAX_CANVAS_AREA / (gridDimensions.N * baseCellSize * gridDimensions.M * baseCellSize));
+        const maxScale = Math.min(maxScaleByWidth, maxScaleByHeight, maxScaleByArea);
+        newScale = Math.min(newScale, maxScale);
+      }
+      
       const newCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
       
       // 计算缩放后的画布尺寸

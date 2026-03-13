@@ -2,6 +2,17 @@ import { GridDownloadOptions } from '../types/downloadTypes';
 import { MappedPixel, PaletteColor } from './pixelation';
 import { getDisplayColorKey, getColorKeyByHex, ColorSystem } from './colorSystemUtils';
 
+// iOS 设备检测
+function isIOS(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// iOS canvas 最大尺寸限制
+const IOS_MAX_CANVAS_DIMENSION = 3800;
+const IOS_MAX_CANVAS_AREA = 14000000;
+
 // 用于获取对比色的工具函数 - 从page.tsx复制
 function getContrastColor(hex: string): string {
   const rgb = hexToRgb(hex);
@@ -236,7 +247,25 @@ export async function downloadImage({
   // 主要下载处理函数
   const processDownload = () => {
     const { N, M } = gridDimensions; // 此时已确保gridDimensions不为null
-    const downloadCellSize = 30;
+    let downloadCellSize = 30;
+  
+    // iOS 设备：如果网格尺寸较大，降低单元格大小以避免 canvas 超过尺寸限制
+    if (isIOS()) {
+      // 计算 iOS 设备下的最大单元格大小
+      const estimatedWidth = N * downloadCellSize + 200; // 预留边距
+      const estimatedHeight = M * downloadCellSize + 400; // 预留标题栏、统计区域等
+      const estimatedArea = estimatedWidth * estimatedHeight;
+      
+      if (estimatedArea > IOS_MAX_CANVAS_AREA || estimatedWidth > IOS_MAX_CANVAS_DIMENSION || estimatedHeight > IOS_MAX_CANVAS_DIMENSION) {
+        // 按比例降低单元格大小
+        const scaleByWidth = (IOS_MAX_CANVAS_DIMENSION - 200) / (N * downloadCellSize);
+        const scaleByHeight = (IOS_MAX_CANVAS_DIMENSION - 400) / (M * downloadCellSize);
+        const scaleByArea = Math.sqrt(IOS_MAX_CANVAS_AREA / (estimatedWidth * estimatedHeight));
+        const scaleFactor = Math.min(scaleByWidth, scaleByHeight, scaleByArea, 1);
+        downloadCellSize = Math.max(10, Math.floor(downloadCellSize * scaleFactor)); // 最小 10px
+        console.log(`iOS 设备：降低单元格大小到 ${downloadCellSize}px 以避免 canvas 超限`);
+      }
+    }
   
     // 从下载选项中获取设置
     const { showGrid, gridInterval, showCoordinates, gridLineColor, includeStats, showCellNumbers = true } = options;
