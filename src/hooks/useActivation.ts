@@ -127,7 +127,7 @@ export function useActivation() {
   }, [verifyWithServer]);
 
   // 激活
-  const activate = useCallback(async (code: string): Promise<{ success: boolean; message: string }> => {
+  const activate = useCallback(async (code: string): Promise<{ success: boolean; message: string; expiresAt?: string | null; durationType?: string }> => {
     if (!state.deviceId) {
       return { success: false, message: '设备ID获取失败' };
     }
@@ -158,7 +158,12 @@ export function useActivation() {
           isExpired: false,
         }));
 
-        return { success: true, message: '激活成功' };
+        return { 
+          success: true, 
+          message: '激活成功',
+          expiresAt: data.expiresAt,
+          durationType: data.durationType,
+        };
       } else {
         return { success: false, message: data.error || '卡密验证失败' };
       }

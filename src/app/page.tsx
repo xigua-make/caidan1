@@ -1858,7 +1858,11 @@ export default function Home() {
           setShowActivationModal(false);
           setExpiredMessage('');
         }}
-        onActivate={activation.activate}
+        onActivate={async (code: string) => {
+          const result = await activation.activate(code);
+          // 如果激活成功，会返回成功信息和到期时间
+          return result;
+        }}
         expiredMessage={expiredMessage}
       />
     )}
