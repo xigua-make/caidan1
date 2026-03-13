@@ -9,10 +9,12 @@ export interface ActivationState {
   expiresAt: string | null;
   durationType: string | null;
   deviceId: string | null;
+  isExpired: boolean;
 }
 
 // 生成设备ID
 function generateDeviceId(): string {
+  if (typeof window === 'undefined') return '';
   const stored = localStorage.getItem(DEVICE_ID_KEY);
   if (stored) return stored;
 
@@ -21,27 +23,36 @@ function generateDeviceId(): string {
   return id;
 }
 
+// 检查是否过期
+function checkIsExpired(expiresAt: string | null): boolean {
+  if (!expiresAt) return false; // 永久不过期
+  return new Date(expiresAt) < new Date();
+}
+
 // 检查本地激活状态
-function checkLocalActivation(): { valid: boolean; expiresAt: string | null } {
+function checkLocalActivation(): { valid: boolean; expiresAt: string | null; isExpired: boolean } {
+  if (typeof window === 'undefined') return { valid: false, expiresAt: null, isExpired: false };
+  
   const stored = localStorage.getItem(ACTIVATION_STORAGE_KEY);
-  if (!stored) return { valid: false, expiresAt: null };
+  if (!stored) return { valid: false, expiresAt: null, isExpired: false };
 
   try {
     const data = JSON.parse(stored);
     // 永久激活
-    if (!data.expiresAt) return { valid: true, expiresAt: null };
+    if (!data.expiresAt) return { valid: true, expiresAt: null, isExpired: false };
     
     // 检查是否过期
     const expiresAt = new Date(data.expiresAt);
-    if (expiresAt > new Date()) {
-      return { valid: true, expiresAt: data.expiresAt };
+    const isExpired = expiresAt < new Date();
+    
+    if (!isExpired) {
+      return { valid: true, expiresAt: data.expiresAt, isExpired: false };
     }
     
-    // 已过期，清除本地存储
-    localStorage.removeItem(ACTIVATION_STORAGE_KEY);
-    return { valid: false, expiresAt: null };
+    // 已过期
+    return { valid: false, expiresAt: data.expiresAt, isExpired: true };
   } catch {
-    return { valid: false, expiresAt: null };
+    return { valid: false, expiresAt: null, isExpired: false };
   }
 }
 
@@ -52,12 +63,13 @@ export function useActivation() {
     expiresAt: null,
     durationType: null,
     deviceId: null,
+    isExpired: false,
   });
 
   // 初始化：检查本地激活状态
   useEffect(() => {
     const deviceId = generateDeviceId();
-    const { valid, expiresAt } = checkLocalActivation();
+    const { valid, expiresAt, isExpired } = checkLocalActivation();
 
     if (valid) {
       setState({
@@ -66,6 +78,17 @@ export function useActivation() {
         expiresAt,
         durationType: null,
         deviceId,
+        isExpired: false,
+      });
+    } else if (isExpired) {
+      // 已过期
+      setState({
+        isActivated: false,
+        isLoading: false,
+        expiresAt,
+        durationType: null,
+        deviceId,
+        isExpired: true,
       });
     } else {
       // 如果本地没有激活信息，尝试从服务器验证
@@ -80,6 +103,8 @@ export function useActivation() {
       const data = await res.json();
 
       if (data.success && data.activated) {
+        const isExpired = checkIsExpired(data.expiresAt);
+        
         // 保存到本地
         localStorage.setItem(ACTIVATION_STORAGE_KEY, JSON.stringify({
           expiresAt: data.expiresAt,
@@ -87,11 +112,12 @@ export function useActivation() {
         }));
 
         setState({
-          isActivated: true,
+          isActivated: !isExpired,
           isLoading: false,
           expiresAt: data.expiresAt,
           durationType: data.durationType,
           deviceId,
+          isExpired,
         });
       } else {
         setState({
@@ -100,6 +126,7 @@ export function useActivation() {
           expiresAt: null,
           durationType: null,
           deviceId,
+          isExpired: false,
         });
       }
     } catch (error) {
@@ -135,11 +162,12 @@ export function useActivation() {
           isActivated: true,
           expiresAt: data.expiresAt,
           durationType: data.durationType,
+          isExpired: false,
         }));
 
         return { success: true, message: '激活成功' };
       } else {
-        return { success: false, message: data.error || '激活失败' };
+        return { success: false, message: data.error || '卡密验证失败' };
       }
     } catch (error) {
       console.error('激活失败:', error);
@@ -153,9 +181,21 @@ export function useActivation() {
     await verifyWithServer(state.deviceId);
   }, [state.deviceId]);
 
+  // 清除激活状态
+  const clearActivation = useCallback(() => {
+    localStorage.removeItem(ACTIVATION_STORAGE_KEY);
+    setState(prev => ({
+      ...prev,
+      isActivated: false,
+      expiresAt: null,
+      isExpired: false,
+    }));
+  }, []);
+
   return {
     ...state,
     activate,
     checkActivation,
+    clearActivation,
   };
 }

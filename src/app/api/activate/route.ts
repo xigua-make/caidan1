@@ -57,15 +57,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 检查使用次数
-    if (activationCode.max_uses > 0 && activationCode.used_count >= activationCode.max_uses) {
-      return NextResponse.json(
-        { success: false, error: '激活码使用次数已达上限' },
-        { status: 403 }
-      );
-    }
-
-    // 检查该设备是否已经激活过
+    // 检查该设备是否已经激活过（同一设备重复激活不算使用次数）
     const { data: existingRecord } = await client
       .from('activation_records')
       .select('*')
@@ -105,7 +97,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 新设备激活
+    // 新设备激活 - 检查使用次数
+    if (activationCode.max_uses > 0 && activationCode.used_count >= activationCode.max_uses) {
+      return NextResponse.json(
+        { success: false, error: '激活码使用次数已达上限' },
+        { status: 403 }
+      );
+    }
+
     // 增加使用次数
     const { error: updateError } = await client
       .from('activation_codes')

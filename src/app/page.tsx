@@ -107,13 +107,36 @@ export default function Home() {
   // 激活验证
   const activation = useActivation();
   const [showActivationModal, setShowActivationModal] = useState(false);
+  const [expiredMessage, setExpiredMessage] = useState('');
   
-  // 检查是否需要显示激活弹窗
-  useEffect(() => {
-    if (ENABLE_ACTIVATION && !activation.isLoading && !activation.isActivated) {
-      setShowActivationModal(true);
+  // 点击开始创作时的处理
+  const handleStartCreate = () => {
+    if (ENABLE_ACTIVATION) {
+      // 检查是否过期
+      if (activation.isExpired) {
+        setExpiredMessage('卡密已过期，请重新激活');
+        setShowActivationModal(true);
+        return;
+      }
+      // 检查激活状态
+      if (!activation.isActivated) {
+        setExpiredMessage('');
+        setShowActivationModal(true);
+        return;
+      }
+      // 已激活但检查过期时间
+      if (activation.expiresAt) {
+        const expiresAt = new Date(activation.expiresAt);
+        if (expiresAt < new Date()) {
+          setExpiredMessage('卡密已过期，请重新激活');
+          setShowActivationModal(true);
+          return;
+        }
+      }
     }
-  }, [activation.isLoading, activation.isActivated]);
+    // 已激活或未启用激活，跳转到工作站
+    window.location.href = '/workstation';
+  };
 
   const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
   const [granularity, setGranularity] = useState<number>(50);
@@ -1817,26 +1840,18 @@ export default function Home() {
     return sortColorsByHue(selectedColors);
   }, [customPaletteSelections, selectedColorSystem]);
 
-  // 如果启用激活验证且正在加载，显示加载中
-  if (ENABLE_ACTIVATION && activation.isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">正在验证激活状态...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
     {/* 激活弹窗 */}
     {ENABLE_ACTIVATION && (
       <ActivationModal
         isOpen={showActivationModal}
-        onClose={() => setShowActivationModal(false)}
+        onClose={() => {
+          setShowActivationModal(false);
+          setExpiredMessage('');
+        }}
         onActivate={activation.activate}
+        expiredMessage={expiredMessage}
       />
     )}
     
@@ -2011,16 +2026,25 @@ export default function Home() {
           </p>
 
           <div className="mt-5 flex items-center justify-center">
-            <a
-              href="/workstation"
+            <button
+              onClick={handleStartCreate}
               className="inline-flex items-center gap-2 rounded-full border border-blue-200 dark:border-blue-700 bg-white/90 dark:bg-gray-800/90 px-6 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>点击开始创作</span>
-            </a>
+            </button>
           </div>
+          
+          {/* 激活状态显示 */}
+          {ENABLE_ACTIVATION && activation.isActivated && (
+            <div className="mt-3 text-center">
+              <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
+                ✓ 已激活 {activation.expiresAt ? `· 到期时间：${new Date(activation.expiresAt).toLocaleString('zh-CN')}` : '· 永久有效'}
+              </span>
+            </div>
+          )}
           
           {/* 首页展示模块 */}
           <LandingShowcase />
