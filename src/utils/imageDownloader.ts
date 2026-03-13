@@ -356,34 +356,35 @@ export async function downloadImage({
     ctx.fillStyle = brandGradient;
     ctx.fillRect(0, 0, brandBlockWidth, titleBarHeight);
     
-    // 3. 绘制现代Logo - 几何图形组合
-    const logoSize = titleBarHeight * 0.4;
+    // 3. 绘制西瓜Logo
+    const logoSize = titleBarHeight * 0.5;
     const logoX = brandBlockWidth / 2;
     const logoY = titleBarHeight / 2;
     
-    // Logo: 拼豆的抽象表示 - 圆角方块阵列
-    ctx.fillStyle = '#FFFFFF';
-    const beadSize = logoSize / 4;
-    const beadSpacing = beadSize * 1.2;
+    // 绘制西瓜外皮（绿色圆形）
+    ctx.fillStyle = '#22C55E'; // 绿色
+    ctx.beginPath();
+    ctx.arc(logoX, logoY, logoSize * 0.45, 0, Math.PI * 2);
+    ctx.fill();
     
-    for (let row = 0; row < 3; row++) {
-      for (let col = 0; col < 3; col++) {
-        const beadX = logoX - logoSize/2 + col * beadSpacing;
-        const beadY = logoY - logoSize/2 + row * beadSpacing;
-        
-        // 绘制圆角方块，模拟拼豆
-        ctx.beginPath();
-        ctx.roundRect(beadX, beadY, beadSize, beadSize, beadSize * 0.2);
-        ctx.fill();
-        
-        // 添加中心小圆点，增加拼豆特征
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.3)';
-        ctx.beginPath();
-        ctx.arc(beadX + beadSize/2, beadY + beadSize/2, beadSize * 0.15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#FFFFFF';
-      }
-    }
+    // 绘制西瓜果肉（红色圆形，稍小）
+    ctx.fillStyle = '#EF4444'; // 红色
+    ctx.beginPath();
+    ctx.arc(logoX, logoY, logoSize * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 绘制西瓜籽（黑色小椭圆）
+    ctx.fillStyle = '#000000';
+    const seedPositions = [
+      { x: logoX - logoSize * 0.15, y: logoY - logoSize * 0.1 },
+      { x: logoX + logoSize * 0.1, y: logoY - logoSize * 0.15 },
+      { x: logoX, y: logoY + logoSize * 0.1 },
+    ];
+    seedPositions.forEach(pos => {
+      ctx.beginPath();
+      ctx.ellipse(pos.x, pos.y, logoSize * 0.05, logoSize * 0.08, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
     
     // 4. 主标题 - 现代字体，清晰层次
     const mainTitleFontSize = Math.max(20, Math.floor(titleFontSize * 0.8));
@@ -398,7 +399,7 @@ export async function downloadImage({
     const titleStartX = brandBlockWidth + titleBarHeight * 0.3;
     const mainTitleY = titleBarHeight * 0.4;
     
-    ctx.fillText('七卡瓦', titleStartX, mainTitleY);
+    ctx.fillText('小瓜', titleStartX, mainTitleY);
     
     // 5. 副标题 - 功能说明
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -621,7 +622,7 @@ export async function downloadImage({
 
     // 副水印：放在网格左上角，简洁版本
     const secondaryWatermarkFontSize = Math.max(10, Math.floor(downloadCellSize * 0.5));
-    const secondaryText = '@七卡瓦';
+    const secondaryText = '@小瓜';
     
     ctx.font = `500 ${secondaryWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
     const secondaryMetrics = ctx.measureText(secondaryText);
@@ -747,7 +748,7 @@ export async function downloadImage({
       
       // 统计区域水印 - 第三重保护，清晰明显
       const statsWatermarkFontSize = Math.max(10, Math.floor(statsFontSize * 0.7));
-      const statsWatermarkText = '图纸来源：小红书@七卡瓦';
+      const statsWatermarkText = '图纸来源：小红书@小瓜';
       
       ctx.font = `500 ${statsWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
       const statsTextMetrics = ctx.measureText(statsWatermarkText);
