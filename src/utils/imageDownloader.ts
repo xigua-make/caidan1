@@ -620,37 +620,6 @@ export async function downloadImage({
       M * downloadCellSize
     );
 
-    // 副水印：放在网格左上角，简洁版本
-    const secondaryWatermarkFontSize = Math.max(10, Math.floor(downloadCellSize * 0.5));
-    const secondaryText = '@小瓜';
-    
-    ctx.font = `500 ${secondaryWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
-    const secondaryMetrics = ctx.measureText(secondaryText);
-    const secondaryWidth = secondaryMetrics.width;
-    const secondaryHeight = secondaryWatermarkFontSize;
-    
-    const secondaryWatermarkX = extraLeftMargin + axisLabelSize + 15;
-    const secondaryWatermarkY = titleBarHeight + extraTopMargin + axisLabelSize + secondaryHeight + 15;
-    
-    // 副水印背景
-    const secondaryBgPadding = 4;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.beginPath();
-    ctx.roundRect(
-      secondaryWatermarkX - secondaryBgPadding,
-      secondaryWatermarkY - secondaryHeight - secondaryBgPadding,
-      secondaryWidth + secondaryBgPadding * 2,
-      secondaryHeight + secondaryBgPadding * 2,
-      3
-    );
-    ctx.fill();
-    
-    // 副水印文字
-    ctx.fillStyle = '#6B7280'; // 中等灰色，存在但不突兀
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(secondaryText, secondaryWatermarkX, secondaryWatermarkY);
-
     // 绘制统计信息
     if (includeStats && colorCounts) {
       const colorKeys = Object.keys(colorCounts).sort(sortColorKeys);
@@ -679,24 +648,17 @@ export async function downloadImage({
       // 计算每个项目所占的宽度
       const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
       
-      // 绘制统计区域标题
-      ctx.fillStyle = '#333333';
-      ctx.font = `bold ${Math.max(16, statsFontSize)}px sans-serif`;
-      ctx.textAlign = 'left';
+      // 不再绘制标题和分隔线，保持简洁
+      const titleHeight = 10; // 减少标题区域高度
       
-      // 绘制分隔线
-      ctx.strokeStyle = '#DDDDDD';
-      ctx.beginPath();
-      ctx.moveTo(statsPadding, statsY + 20);
-      ctx.lineTo(downloadWidth - statsPadding, statsY + 20);
-      ctx.stroke();
-      
-      const titleHeight = 30; // 标题和分隔线的总高度
       // 根据色块大小动态调整行高
       const statsRowHeight = Math.max(swatchSize + 8, 25); // 确保行高足够放下色块和文字
       
       // 设置表格字体
       ctx.font = `${statsFontSize}px sans-serif`;
+      
+      // 使用更大的色块尺寸以容纳色号文字
+      const colorKeyFontSize = Math.max(10, Math.floor(swatchSize * 0.5));
       
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
@@ -711,25 +673,27 @@ export async function downloadImage({
         const rowY = statsY + titleHeight + (rowIndex * statsRowHeight) + (swatchSize / 2);
         
         const cellData = colorCounts[key];
-        
-        // 绘制色号（在左边）
-        ctx.fillStyle = '#333333';
-        ctx.textAlign = 'left';
         const colorKey = getColorKeyByHex(key, selectedColorSystem);
-        ctx.fillText(colorKey, itemX, rowY);
         
-        // 绘制色块（在色号右边）
-        const swatchX = itemX + ctx.measureText(colorKey).width + 5;
+        // 绘制色块（内含色号）
+        const swatchX = itemX;
         ctx.fillStyle = cellData.color;
-        ctx.strokeStyle = '#CCCCCC';
         ctx.fillRect(swatchX, rowY - (swatchSize / 2), swatchSize, swatchSize);
-        ctx.strokeRect(swatchX + 0.5, rowY - (swatchSize / 2) + 0.5, swatchSize - 1, swatchSize - 1);
         
-        // 绘制数量 - 格式为 x数量（如 x194）
+        // 在色块内绘制色号（白色文字，居中）
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold ${colorKeyFontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
+        
+        // 绘制数量 - 在单元格右侧，格式为 x数量
         ctx.fillStyle = '#333333';
-        ctx.textAlign = 'left';
+        ctx.font = `${statsFontSize}px sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
         const countText = `x${cellData.count}`;
-        ctx.fillText(countText, swatchX + swatchSize + 5, rowY);
+        ctx.fillText(countText, itemX + itemWidth - 5, rowY);
       });
       
       // 计算实际需要的行数
