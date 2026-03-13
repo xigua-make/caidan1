@@ -1360,23 +1360,19 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
       {/* 坐标轴层 - 在所有画布下面 */}
       {showCoordinates && gridDimensions && (
         <>
-          {/* 左上角尺寸信息 */}
+          {/* 左上角空格子 */}
           <div
-            className="absolute flex items-center justify-center text-white text-[8px] font-medium select-none z-0"
+            className="absolute flex items-center justify-center select-none z-0"
             style={{
               backgroundColor: coordinateBgColor,
               width: cellDisplayWidth,
               height: cellDisplayHeight,
               left: offsetX - cellDisplayWidth,
               top: offsetY - cellDisplayHeight,
-              fontSize: coordinateFontSize,
               borderRight: '1px solid #6B7280',
               borderBottom: '1px solid #6B7280',
             }}
           >
-            <span style={{ fontSize: Math.max(6, 8 * scale) }}>
-              {gridDimensions.N}×{gridDimensions.M}
-            </span>
           </div>
           
           {/* 顶部横向坐标 - 每个数字在独立格子内 */}

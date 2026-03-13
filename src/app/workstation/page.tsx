@@ -2742,36 +2742,6 @@ export default function Workstation() {
                   />
                 </div>
                 
-                {/* 显示色号开关 */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">显示色号</span>
-                  <button
-                    onClick={() => setShowColorLabels(!showColorLabels)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                      showColorLabels
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
-                    }`}
-                  >
-                    {showColorLabels ? '开启' : '关闭'}
-                  </button>
-                </div>
-                
-                {/* 显示坐标开关 */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">显示坐标</span>
-                  <button
-                    onClick={() => setShowCoordinates(!showCoordinates)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                      showCoordinates
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
-                    }`}
-                  >
-                    {showCoordinates ? '开启' : '关闭'}
-                  </button>
-                </div>
-                
                 {/* 形状与镜像工具 */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -2783,6 +2753,26 @@ export default function Workstation() {
                     }`}
                   >
                     矩形实心
+                  </button>
+                  <button
+                    onClick={() => setShowColorLabels(!showColorLabels)}
+                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      showColorLabels
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    }`}
+                  >
+                    显示色号
+                  </button>
+                  <button
+                    onClick={() => setShowCoordinates(!showCoordinates)}
+                    className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      showCoordinates
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-500'
+                    }`}
+                  >
+                    显示坐标
                   </button>
                   <button
                     onClick={flipHorizontal}
