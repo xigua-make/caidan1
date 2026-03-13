@@ -96,6 +96,7 @@ import { TRANSPARENT_KEY, transparentColorData } from '../utils/pixelEditingUtil
 // 1. 导入新的 DonationModal 组件
 import DonationModal from '../components/DonationModal';
 import FocusModePreDownloadModal from '../components/FocusModePreDownloadModal';
+import LandingShowcase from '../components/LandingShowcase';
 
 export default function Home() {
   const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
@@ -1983,6 +1984,9 @@ export default function Home() {
               <span>点击开始创作</span>
             </a>
           </div>
+          
+          {/* 首页展示模块 */}
+          <LandingShowcase />
         </div>
       </header>
 
