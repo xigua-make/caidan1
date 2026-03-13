@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'customPerlerPaletteSelections';
+const PRESET_NAME_KEY = 'selectedPresetName';
 
 export interface PaletteSelections {
   [hexValue: string]: boolean;
@@ -29,6 +30,33 @@ export function loadPaletteSelections(): PaletteSelections | null {
     localStorage.removeItem(STORAGE_KEY); // 清除无效数据
   }
   return null;
+}
+
+/**
+ * 保存选中的预设名称到localStorage
+ */
+export function saveSelectedPresetName(presetName: string | null): void {
+  try {
+    if (presetName) {
+      localStorage.setItem(PRESET_NAME_KEY, presetName);
+    } else {
+      localStorage.removeItem(PRESET_NAME_KEY);
+    }
+  } catch (error) {
+    console.error("无法保存预设名称到本地存储:", error);
+  }
+}
+
+/**
+ * 从localStorage加载选中的预设名称
+ */
+export function loadSelectedPresetName(): string | null {
+  try {
+    return localStorage.getItem(PRESET_NAME_KEY);
+  } catch (error) {
+    console.error("无法从本地存储加载预设名称:", error);
+    return null;
+  }
 }
 
 /**

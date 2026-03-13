@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PaletteColor } from '../utils/pixelation';
-import { PaletteSelections } from '../utils/localStorageUtils';
+import { PaletteSelections, saveSelectedPresetName, loadSelectedPresetName } from '../utils/localStorageUtils';
 import { getDisplayColorKey, ColorSystem, getColorKeyByHex } from '../utils/colorSystemUtils';
 import colorSystemMapping from '../app/colorSystemMapping.json';
 
@@ -171,7 +171,10 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCount, setSelectedCount] = useState(0);
-  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
+  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(() => {
+    // 从 localStorage 读取保存的预设名称
+    return loadSelectedPresetName();
+  });
   
   // 计算已选择的颜色数量
   useEffect(() => {
@@ -203,6 +206,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   // 切换所有颜色的选择状态
   const toggleAllColors = (selected: boolean) => {
     setSelectedPresetName(null); // 手动修改时清除预设选中状态
+    saveSelectedPresetName(null);
     allColors.forEach(color => {
       onSelectionChange(color.hex.toUpperCase(), selected);
     });
@@ -211,6 +215,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   // 切换一个组内所有颜色的选择状态
   const toggleGroupColors = (prefix: string, selected: boolean) => {
     setSelectedPresetName(null); // 手动修改时清除预设选中状态
+    saveSelectedPresetName(null);
     colorGroups[prefix].forEach(color => {
       onSelectionChange(color.hex.toUpperCase(), selected);
     });
@@ -218,8 +223,9 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   
   // 应用MARD预设色板
   const applyMardPreset = (preset: typeof MARD_PRESET_PALETTES[0]) => {
-    // 设置选中的预设名称
+    // 设置选中的预设名称并保存到 localStorage
     setSelectedPresetName(preset.name);
+    saveSelectedPresetName(preset.name);
     
     // 先取消所有选择
     allColors.forEach(color => {
@@ -291,6 +297,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
               onClick={() => {
                 onColorSystemChange(system);
                 setSelectedPresetName(null); // 切换色号系统时清除预设选中状态
+                saveSelectedPresetName(null);
               }}
               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
                 selectedColorSystem === system
@@ -433,6 +440,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
                       checked={!!currentSelections[color.hex.toUpperCase()]}
                       onChange={(e) => {
                         setSelectedPresetName(null); // 手动修改时清除预设选中状态
+                        saveSelectedPresetName(null);
                         onSelectionChange(color.hex.toUpperCase(), e.target.checked);
                       }}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
