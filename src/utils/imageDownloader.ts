@@ -743,7 +743,7 @@ export async function downloadImage({
       
       // 统计区域水印 - 第三重保护，清晰明显
       const statsWatermarkFontSize = Math.max(10, Math.floor(statsFontSize * 0.7));
-      const statsWatermarkText = '图纸来源：小红书@小瓜';
+      const statsWatermarkText = '小瓜拼豆生成器';
       
       ctx.font = `500 ${statsWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
       const statsTextMetrics = ctx.measureText(statsWatermarkText);
