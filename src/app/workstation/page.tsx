@@ -3184,7 +3184,7 @@ export default function Workstation() {
                           <button
                             key={hexColor}
                             onClick={() => {
-                              // 高亮模式：只执行高亮
+                              // 画笔颜色选择：只选择颜色，不触发高亮
                               if (isHighlightMode) {
                                 handleHighlightColor(hexColor);
                                 return;
@@ -3192,11 +3192,11 @@ export default function Workstation() {
                               if (colorReplaceState.step === 'select-target' && colorReplaceState.sourceColor) {
                                 handleColorReplace(colorReplaceState.sourceColor, { key: displayKey, color: hexColor });
                               } else {
+                                // 仅选择画笔颜色，不触发高亮
                                 setSelectedColor({ key: displayKey, color: hexColor, isExternal: false });
                                 setIsEraseMode(false);
                                 setCurrentTool('brush');
                                 setIsManualColoringMode(true);
-                                handleHighlightColor(hexColor);
                               }
                             }}
                             className={`relative w-full aspect-square rounded-lg border-2 transition-all hover:scale-105 flex items-center justify-center ${
@@ -3237,15 +3237,16 @@ export default function Workstation() {
                               key={key}
                               onClick={() => {
                                 // 高亮模式：只执行高亮
+                                // 图片颜色选择：只选择颜色，不触发高亮
                                 if (isHighlightMode) {
                                   handleHighlightColor(color);
                                   return;
                                 }
+                                // 仅选择画笔颜色，不触发高亮
                                 setSelectedColor({ key: displayKey, color: color, isExternal: false });
                                 setIsEraseMode(false);
                                 setCurrentTool('brush');
                                 setIsManualColoringMode(true);
-                                handleHighlightColor(color);
                               }}
                               className={`relative w-full aspect-square rounded-lg border-2 transition-all hover:scale-105 flex items-center justify-center ${
                                 isSelected && currentTool !== 'eraser'
