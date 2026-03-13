@@ -20,6 +20,8 @@ function formatExpiresAt(expiresAt: string | null, durationType: string): string
   const diffMs = date.getTime() - now.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
   
   // 显示具体日期
   const dateStr = date.toLocaleString('zh-CN', {
@@ -28,10 +30,16 @@ function formatExpiresAt(expiresAt: string | null, durationType: string): string
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: durationType === '30s' ? '2-digit' : undefined,
   });
   
   if (durationType === 'permanent') {
     return '永久有效';
+  }
+  
+  // 30秒测试码显示秒数
+  if (durationType === '30s') {
+    return `${dateStr}（剩余 ${diffSeconds}秒）`;
   }
   
   return `${dateStr}（剩余 ${diffDays}天${diffHours > 0 ? diffHours + '小时' : ''}）`;
@@ -40,6 +48,8 @@ function formatExpiresAt(expiresAt: string | null, durationType: string): string
 // 获取有效期类型标签
 function getDurationLabel(durationType: string): string {
   switch (durationType) {
+    case '30s':
+      return '30秒(测试)';
     case '1d':
       return '1天';
     case '7d':

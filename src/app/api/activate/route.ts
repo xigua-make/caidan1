@@ -67,7 +67,10 @@ export async function POST(request: NextRequest) {
 
     // 计算过期时间
     let recordExpiresAt: string | null = null;
-    if (activationCode.duration_type === '1d') {
+    if (activationCode.duration_type === '30s') {
+      // 测试码：30秒
+      recordExpiresAt = new Date(Date.now() + 30 * 1000).toISOString();
+    } else if (activationCode.duration_type === '1d') {
       recordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     } else if (activationCode.duration_type === '7d') {
       recordExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();

@@ -30,6 +30,7 @@ interface ToastMessage {
 }
 
 const DURATION_OPTIONS = [
+  { value: '30s', label: '30秒(测试)', color: 'type-test' },
   { value: '1d', label: '1天', color: 'type-day1' },
   { value: '7d', label: '7天', color: 'type-day7' },
   { value: 'permanent', label: '永久', color: 'type-permanent' },
@@ -570,6 +571,7 @@ export default function AdminPage() {
                     className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                   >
                     <option value="all">全部类型</option>
+                    <option value="30s">30秒(测试)</option>
                     <option value="1d">1天</option>
                     <option value="7d">7天</option>
                     <option value="permanent">永久</option>
@@ -943,6 +945,10 @@ export default function AdminPage() {
         .type-permanent {
           background: #D1FAE5;
           color: #065F46;
+        }
+        .type-test {
+          background: #FEE2E2;
+          color: #991B1B;
         }
         @keyframes slide-in {
           from {

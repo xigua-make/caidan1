@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     const { durationType, maxUses, count = 1 } = body;
 
     // 验证参数
-    if (!['1d', '7d', 'permanent'].includes(durationType)) {
+    if (!['30s', '1d', '7d', 'permanent'].includes(durationType)) {
       return NextResponse.json(
         { success: false, error: '有效期类型错误' },
         { status: 400 }
