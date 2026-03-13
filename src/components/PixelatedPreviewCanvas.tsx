@@ -696,6 +696,12 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   // 离屏canvas缓存 - 用于高性能缩放
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastPixelDataRef = useRef<MappedPixel[][] | null>(null);
+  
+  // 绘制过程中的实时预览缓存
+  const drawingOverlayRef = useRef<HTMLCanvasElement | null>(null);
+  const pendingPixelsRef = useRef<Map<string, { color: string | null; row: number; col: number }>>(new Map());
+  const lastFlushTimeRef = useRef<number>(0);
+  const flushRafRef = useRef<number | null>(null);
 
   // 获取网格坐标
   const getGridPosition = useCallback((clientX: number, clientY: number): { row: number; col: number } | null => {
@@ -775,12 +781,34 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
           isHighlighting
         );
         lastPixelDataRef.current = mappedPixelData;
+        // 清空待绘制像素缓存
+        pendingPixelsRef.current.clear();
       }
       
       // 从离屏canvas放大绘制到主canvas（高性能）
       ctx.imageSmoothingEnabled = false; // 禁用平滑，保持像素清晰
       ctx.clearRect(0, 0, newWidth, newHeight);
       ctx.drawImage(offscreenCanvasRef.current, 0, 0, baseWidth, baseHeight, 0, 0, newWidth, newHeight);
+      
+      // 绘制待处理的像素覆盖层（绘制过程中的实时预览）
+      if (pendingPixelsRef.current.size > 0 && isLocalDrawing) {
+        const cellWidth = newWidth / gridDimensions.N;
+        const cellHeight = newHeight / gridDimensions.M;
+        const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+        const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6';
+        
+        pendingPixelsRef.current.forEach((pixel, key) => {
+          const x = pixel.col * cellWidth;
+          const y = pixel.row * cellHeight;
+          if (pixel.color) {
+            ctx.fillStyle = pixel.color;
+          } else {
+            // 橡皮擦：绘制背景色
+            ctx.fillStyle = externalBackgroundColor;
+          }
+          ctx.fillRect(x, y, cellWidth, cellHeight);
+        });
+      }
       
       // 在主canvas上绘制网格线和色号（根据scale调整）
       drawPixelatedCanvas(
@@ -797,7 +825,7 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         true // 跳过像素绘制，只绘制网格线和色号
       );
     }
-  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize]);
+  }, [mappedPixelData, gridDimensions, canvasRef, darkModeState, highlightColorKey, isHighlighting, showColorLabels, selectedColorSystem, showGridLines, gridLineInterval, gridLineColor, scale, baseCellSize, isLocalDrawing]);
 
   // Initialize preview canvas size when scale changes
   useEffect(() => {
@@ -955,6 +983,54 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // --- Mouse event handlers ---
   
+  // 实时绘制覆盖层的函数（不触发状态更新）
+  const drawPixelOverlay = useCallback((row: number, col: number, color: string | null, brushSize: number) => {
+    if (!gridDimensions || !canvasRef.current) return;
+    
+    const halfSize = Math.floor(brushSize / 2);
+    
+    // 更新待绘制像素缓存
+    for (let dy = -halfSize; dy <= halfSize; dy++) {
+      for (let dx = -halfSize; dx <= halfSize; dx++) {
+        const newRow = row + dy;
+        const newCol = col + dx;
+        
+        if (newRow >= 0 && newRow < gridDimensions.M && newCol >= 0 && newCol < gridDimensions.N) {
+          const key = `${newRow},${newCol}`;
+          pendingPixelsRef.current.set(key, { color, row: newRow, col: newCol });
+        }
+      }
+    }
+    
+    // 直接在 canvas 上绘制预览（不触发 React 状态更新）
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const cellWidth = canvas.width / gridDimensions.N;
+    const cellHeight = canvas.height / gridDimensions.M;
+    const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+    const externalBackgroundColor = isDarkMode ? '#374151' : '#F3F4F6';
+    
+    for (let dy = -halfSize; dy <= halfSize; dy++) {
+      for (let dx = -halfSize; dx <= halfSize; dx++) {
+        const newRow = row + dy;
+        const newCol = col + dx;
+        
+        if (newRow >= 0 && newRow < gridDimensions.M && newCol >= 0 && newCol < gridDimensions.N) {
+          const x = newCol * cellWidth;
+          const y = newRow * cellHeight;
+          if (color) {
+            ctx.fillStyle = color;
+          } else {
+            ctx.fillStyle = externalBackgroundColor;
+          }
+          ctx.fillRect(x, y, cellWidth, cellHeight);
+        }
+      }
+    }
+  }, [gridDimensions, canvasRef]);
+  
   const handleMouseMove = (event: MouseEvent<HTMLCanvasElement>) => {
     if (isDragging && dragStartRef.current) {
       const dx = event.clientX - dragStartRef.current.x;
@@ -967,6 +1043,12 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     } else if (isManualColoringMode && isLocalDrawing) {
       const pos = getGridPosition(event.clientX, event.clientY);
       if (pos && onDrawMove) {
+        // 实时绘制预览（不触发状态更新）
+        if (currentTool === 'brush' || currentTool === 'eraser') {
+          const color = currentTool === 'brush' ? (selectedColor || null) : null;
+          drawPixelOverlay(pos.row, pos.col, color, brushSize);
+        }
+        // 仍然调用父组件的回调，但状态更新会被节流
         onDrawMove(pos.col, pos.row);
       }
     } else {
@@ -979,6 +1061,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     dragStartRef.current = null;
     if (isLocalDrawing) {
       setIsLocalDrawing(false);
+      // 清空待绘制像素缓存
+      pendingPixelsRef.current.clear();
       if (onDrawEnd && previewEndPos) {
         onDrawEnd(previewEndPos.col, previewEndPos.row);
       }
@@ -1014,6 +1098,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     }
     if (isLocalDrawing) {
       setIsLocalDrawing(false);
+      // 清空待绘制像素缓存
+      pendingPixelsRef.current.clear();
       const pos = getGridPosition(event.clientX, event.clientY);
       if (pos && onDrawEnd) {
         onDrawEnd(pos.col, pos.row);
@@ -1136,6 +1222,11 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
         const pos = getGridPosition(touch.clientX, touch.clientY);
         if (pos) {
           lastTouchGridPosRef.current = pos;
+          // 实时绘制预览（不触发状态更新）
+          if (currentTool === 'brush' || currentTool === 'eraser') {
+            const color = currentTool === 'brush' ? (selectedColor || null) : null;
+            drawPixelOverlay(pos.row, pos.col, color, brushSize);
+          }
           if (onDrawMove) {
             onDrawMove(pos.col, pos.row);
           }
@@ -1205,6 +1296,8 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     // 结束触摸绘制 - 使用保存的最后触摸位置
     if (isLocalDrawing) {
       setIsLocalDrawing(false);
+      // 清空待绘制像素缓存
+      pendingPixelsRef.current.clear();
       if (onDrawEnd && lastTouchGridPosRef.current) {
         onDrawEnd(lastTouchGridPosRef.current.col, lastTouchGridPosRef.current.row);
       }

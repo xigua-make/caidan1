@@ -240,7 +240,7 @@ export default function Workstation() {
   const [isEraseMode, setIsEraseMode] = useState<boolean>(false);
   
   // 手动编辑工具状态
-  const [currentTool, setCurrentTool] = useState<ToolType>('brush');
+  const [currentTool, setCurrentTool] = useState<ToolType>('hand');
   
   // 笔刷大小
   const [brushSize, setBrushSize] = useState<number>(1);
@@ -301,7 +301,7 @@ export default function Workstation() {
     step: 'select-source' | 'select-target';
     sourceColor?: { key: string; color: string };
   }>({
-    isActive: true,
+    isActive: false,
     step: 'select-source'
   });
   
