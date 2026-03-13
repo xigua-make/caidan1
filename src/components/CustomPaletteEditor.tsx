@@ -171,6 +171,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCount, setSelectedCount] = useState(0);
+  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
   
   // 计算已选择的颜色数量
   useEffect(() => {
@@ -201,6 +202,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   
   // 切换所有颜色的选择状态
   const toggleAllColors = (selected: boolean) => {
+    setSelectedPresetName(null); // 手动修改时清除预设选中状态
     allColors.forEach(color => {
       onSelectionChange(color.hex.toUpperCase(), selected);
     });
@@ -208,6 +210,7 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   
   // 切换一个组内所有颜色的选择状态
   const toggleGroupColors = (prefix: string, selected: boolean) => {
+    setSelectedPresetName(null); // 手动修改时清除预设选中状态
     colorGroups[prefix].forEach(color => {
       onSelectionChange(color.hex.toUpperCase(), selected);
     });
@@ -215,6 +218,9 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   
   // 应用MARD预设色板
   const applyMardPreset = (preset: typeof MARD_PRESET_PALETTES[0]) => {
+    // 设置选中的预设名称
+    setSelectedPresetName(preset.name);
+    
     // 先取消所有选择
     allColors.forEach(color => {
       onSelectionChange(color.hex.toUpperCase(), false);
@@ -282,7 +288,10 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
           {(['MARD', 'COCO', '漫漫', '盼盼', '咪小窝'] as ColorSystem[]).map((system) => (
             <button
               key={system}
-              onClick={() => onColorSystemChange(system)}
+              onClick={() => {
+                onColorSystemChange(system);
+                setSelectedPresetName(null); // 切换色号系统时清除预设选中状态
+              }}
               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
                 selectedColorSystem === system
                   ? 'bg-blue-500 text-white'
@@ -304,7 +313,11 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
               <button
                 key={preset.name}
                 onClick={() => applyMardPreset(preset)}
-                className="px-3 py-1.5 text-xs rounded-md transition-colors bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                  selectedPresetName === preset.name
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
               >
                 {preset.name}
               </button>
@@ -418,7 +431,10 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
                     <input
                       type="checkbox"
                       checked={!!currentSelections[color.hex.toUpperCase()]}
-                      onChange={(e) => onSelectionChange(color.hex.toUpperCase(), e.target.checked)}
+                      onChange={(e) => {
+                        setSelectedPresetName(null); // 手动修改时清除预设选中状态
+                        onSelectionChange(color.hex.toUpperCase(), e.target.checked);
+                      }}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
                     />
                     <div
