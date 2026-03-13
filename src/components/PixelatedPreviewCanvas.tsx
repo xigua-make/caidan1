@@ -111,9 +111,12 @@ const drawPixelColors = (
     });
   });
 
-  // 高亮处理 - 只用遮罩层，所有颜色效果一致
+  // 高亮处理 - 遮罩层 + 黄色边框
   if (isHighlighting && highlightColorKey) {
     const normalizedHighlightKey = highlightColorKey.toUpperCase();
+    
+    // 收集高亮格子的位置
+    const highlightedCells: Array<{ x: number; y: number; w: number; h: number }> = [];
     
     for (let j = 0; j < M; j++) {
       for (let i = 0; i < N; i++) {
@@ -125,10 +128,30 @@ const drawPixelColors = (
         const shouldDim = cellData.isExternal || cellColor !== normalizedHighlightKey;
         
         if (shouldDim) {
+          // 非高亮区域添加遮罩
           ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
           ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth, cellHeight);
+        } else {
+          // 记录高亮格子位置
+          highlightedCells.push({
+            x: i * cellWidth,
+            y: j * cellHeight,
+            w: cellWidth,
+            h: cellHeight
+          });
         }
       }
+    }
+    
+    // 为高亮格子绘制黄色边框
+    if (highlightedCells.length > 0) {
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      highlightedCells.forEach(({ x, y, w, h }) => {
+        ctx.rect(x, y, w, h);
+      });
+      ctx.stroke();
     }
   }
 };
@@ -204,9 +227,12 @@ const drawPixelatedCanvas = (
       });
     });
 
-    // 高亮处理 - 只用遮罩层，所有颜色效果一致
+    // 高亮处理 - 遮罩层 + 黄色边框
     if (isHighlighting && highlightColorKey) {
       const normalizedHighlightKey = highlightColorKey.toUpperCase();
+      
+      // 收集高亮格子的位置
+      const highlightedCells: Array<{ x: number; y: number; w: number; h: number }> = [];
       
       for (let j = 0; j < M; j++) {
         for (let i = 0; i < N; i++) {
@@ -221,10 +247,30 @@ const drawPixelatedCanvas = (
           const shouldDim = cellData.isExternal || cellColor !== normalizedHighlightKey;
           
           if (shouldDim) {
+            // 非高亮区域添加遮罩
             pixelatedCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             pixelatedCtx.fillRect(drawX, drawY, cellWidthOutput, cellHeightOutput);
+          } else {
+            // 记录高亮格子位置
+            highlightedCells.push({
+              x: drawX,
+              y: drawY,
+              w: cellWidthOutput,
+              h: cellHeightOutput
+            });
           }
         }
+      }
+      
+      // 为高亮格子绘制黄色边框
+      if (highlightedCells.length > 0) {
+        pixelatedCtx.strokeStyle = '#FFD700';
+        pixelatedCtx.lineWidth = 2;
+        pixelatedCtx.beginPath();
+        highlightedCells.forEach(({ x, y, w, h }) => {
+          pixelatedCtx.rect(x, y, w, h);
+        });
+        pixelatedCtx.stroke();
       }
     }
   }
