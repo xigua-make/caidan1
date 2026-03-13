@@ -2,6 +2,18 @@
 
 import React, { useState, useRef, ChangeEvent, DragEvent, useEffect, useMemo, useCallback } from 'react';
 
+// 添加自定义动画样式
+const floatAnimation = `
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+  }
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+`;
+
 // 导入像素化工具和类型
 import {
   PixelationMode,
@@ -2341,7 +2353,9 @@ export default function Workstation() {
   }, [colorCounts]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden" style={{ touchAction: 'pan-y' }}>
+    <>
+      <style>{floatAnimation}</style>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden" style={{ touchAction: 'pan-y' }}>
       {/* 顶部导航栏 - 固定显示，不随页面滚动隐藏 */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200/70 dark:border-gray-700/70 shadow-sm">
         {/* 桌面端布局 */}
@@ -2500,14 +2514,29 @@ export default function Workstation() {
                 <WatermelonPreview />
               </div>
               
-              {/* 移动端：两个大按钮 */}
-              <div className="lg:hidden h-full flex flex-col items-center justify-center px-4 gap-3 bg-gradient-to-br from-pink-50 via-white to-green-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
+              {/* 移动端：品牌欢迎界面 + 两个大按钮 */}
+              <div className="lg:hidden h-full flex flex-col items-center justify-center px-4 gap-4 bg-gradient-to-br from-pink-50 via-white to-green-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800">
+                {/* 品牌 Logo 和名称 */}
+                <div className="flex flex-col items-center mb-2">
+                  <div className="relative mb-3 animate-float">
+                    <img 
+                      src="/logo.png" 
+                      alt="小瓜拼豆" 
+                      className="w-20 h-20 object-contain drop-shadow-xl"
+                    />
+                  </div>
+                  <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+                    小瓜
+                  </h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">拼豆底稿生成器</p>
+                </div>
+                
                 <button
                   onClick={triggerFileInput}
-                  className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
+                  className="w-full max-w-sm p-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
                 >
-                  <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">上传图片开始生成</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">支持 JPG / PNG，点击或拖拽到画布</p>
+                  <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-1">上传图片开始生成</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">支持 JPG / PNG</p>
                 </button>
                 
                 <button
@@ -2516,7 +2545,7 @@ export default function Workstation() {
                     setBlankCanvasHeightInput('100');
                     setIsBlankCanvasModalOpen(true);
                   }}
-                  className="w-full max-w-sm p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
+                  className="w-full max-w-sm p-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 text-center hover:shadow-md transition-shadow"
                 >
                   <p className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-2">手动空白画板编辑</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">创建空白画布，使用画笔自由设计</p>
@@ -3555,5 +3584,6 @@ export default function Workstation() {
         </div>
       )}
     </div>
+    </>
   );
 }
