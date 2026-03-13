@@ -309,6 +309,7 @@ export default function Workstation() {
   // 高亮颜色状态
   const [highlightColorKey, setHighlightColorKey] = useState<string | null>(null);
   const [isHighlightMode, setIsHighlightMode] = useState<boolean>(false); // 持续高亮模式
+  const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 高亮自动消失定时器
   
   // 文字生成状态
   const [isTextMode, setIsTextMode] = useState<boolean>(false);
@@ -1749,16 +1750,38 @@ export default function Workstation() {
 
   // 高亮颜色
   const handleHighlightColor = useCallback((colorHex: string) => {
+    // 清除之前的定时器
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
+    }
+    
     // 在拖拽模式下点击格子：切换高亮颜色（点击相同颜色取消高亮）
-    setHighlightColorKey(prev => prev === colorHex ? null : colorHex);
+    setHighlightColorKey(prev => {
+      if (prev === colorHex) {
+        return null; // 点击相同颜色取消高亮
+      }
+      
+      // 设置新的高亮颜色，并在3秒后自动消失
+      highlightTimeoutRef.current = setTimeout(() => {
+        setHighlightColorKey(null);
+        highlightTimeoutRef.current = null;
+      }, 3000);
+      
+      return colorHex;
+    });
   }, []);
 
   // 切换高亮模式
   const toggleHighlightMode = useCallback(() => {
     setIsHighlightMode(prev => {
       if (prev) {
-        // 关闭高亮模式时，清除高亮
+        // 关闭高亮模式时，清除高亮和定时器
         setHighlightColorKey(null);
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current);
+          highlightTimeoutRef.current = null;
+        }
       }
       return !prev;
     });

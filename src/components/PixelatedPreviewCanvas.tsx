@@ -1392,10 +1392,23 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
     touchDistanceRef.current = null;
     touchCenterRef.current = null;
     
-    // 如果是点击（没有移动），触发点击交互
-    if (isManualColoringMode && !touchMovedRef.current && touchStartPosRef.current) {
-      const { x, y, pageX, pageY } = touchStartPosRef.current;
-      onInteraction(x, y, pageX, pageY, true);
+    // 如果是点击（没有移动）
+    if (!touchMovedRef.current && touchStartPosRef.current) {
+      if (isManualColoringMode) {
+        // 手动编辑模式：触发交互
+        const { x, y, pageX, pageY } = touchStartPosRef.current;
+        onInteraction(x, y, pageX, pageY, true);
+      } else if (!isTextMode && onColorClick) {
+        // 非手动编辑模式且非文字模式：触发高亮颜色
+        const { x, y } = touchStartPosRef.current;
+        const pos = getGridPosition(x, y);
+        if (pos && mappedPixelData && gridDimensions) {
+          const cellData = mappedPixelData[pos.row]?.[pos.col];
+          if (cellData && !cellData.isExternal && cellData.color) {
+            onColorClick(cellData.color);
+          }
+        }
+      }
     }
 
     touchStartPosRef.current = null;
