@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: '激活成功',
+        codeId: activationCode.id,
         expiresAt: recordExpiresAt,
         durationType: activationCode.duration_type,
       });
@@ -105,31 +106,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 增加使用次数
-    const { error: updateError } = await client
-      .from('activation_codes')
-      .update({ used_count: activationCode.used_count + 1 })
-      .eq('id', activationCode.id);
+    // 并行执行：增加使用次数 + 创建激活记录
+    const [updateResult, insertResult] = await Promise.all([
+      client
+        .from('activation_codes')
+        .update({ used_count: activationCode.used_count + 1 })
+        .eq('id', activationCode.id),
+      client
+        .from('activation_records')
+        .insert({
+          code_id: activationCode.id,
+          device_id: deviceId,
+          expires_at: recordExpiresAt,
+        })
+    ]);
 
-    if (updateError) {
-      console.error('更新使用次数失败:', updateError);
+    if (updateResult.error) {
+      console.error('更新使用次数失败:', updateResult.error);
       return NextResponse.json(
         { success: false, error: '激活失败，请稍后重试' },
         { status: 500 }
       );
     }
 
-    // 创建激活记录
-    const { error: insertError } = await client
-      .from('activation_records')
-      .insert({
-        code_id: activationCode.id,
-        device_id: deviceId,
-        expires_at: recordExpiresAt,
-      });
-
-    if (insertError) {
-      console.error('创建激活记录失败:', insertError);
+    if (insertResult.error) {
+      console.error('创建激活记录失败:', insertResult.error);
       return NextResponse.json(
         { success: false, error: '激活失败，请稍后重试' },
         { status: 500 }
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: '激活成功',
+      codeId: activationCode.id,
       expiresAt: recordExpiresAt,
       durationType: activationCode.duration_type,
     });
@@ -192,19 +194,32 @@ export async function GET(request: NextRequest) {
 
     // 获取关联的激活码信息
     const codeIds = [...new Set(records.map((r: { code_id: number }) => r.code_id))];
-    const { data: codes } = await client
+    const { data: codes, error: codesError } = await client
       .from('activation_codes')
-      .select('*')
+      .select('id, is_active, duration_type')
       .in('id', codeIds);
 
-    const codeMap = new Map<number, { id: number; is_active: boolean; duration_type: string }>((codes || []).map((c) => [c.id, c]));
+    if (codesError) {
+      console.error('查询激活码失败:', codesError);
+      return NextResponse.json(
+        { success: false, error: '查询失败' },
+        { status: 500 }
+      );
+    }
+
+    const codeMap = new Map<number, { is_active: boolean; duration_type: string }>(
+      (codes || []).map((c: { id: number; is_active: boolean; duration_type: string }) => [c.id, c])
+    );
 
     // 检查是否有有效的激活记录
     const now = new Date();
-    const validRecord = records.find((record: { expires_at: string | null; code_id: number }) => {
+    const validRecord = records.find((record: { 
+      expires_at: string | null; 
+      code_id: number;
+    }) => {
       const code = codeMap.get(record.code_id);
       // 如果关联的激活码被禁用，则无效
-      if (code && !code.is_active) {
+      if (!code || !code.is_active) {
         return false;
       }
       // 如果有过期时间且已过期，则无效
@@ -216,18 +231,21 @@ export async function GET(request: NextRequest) {
 
     if (validRecord) {
       const code = codeMap.get(validRecord.code_id);
-      return NextResponse.json({
-        success: true,
-        activated: true,
-        expiresAt: validRecord.expires_at,
-        durationType: code?.duration_type,
-      });
+      if (code) {
+        return NextResponse.json({
+          success: true,
+          activated: true,
+          codeId: validRecord.code_id,
+          expiresAt: validRecord.expires_at,
+          durationType: code.duration_type,
+        });
+      }
     }
 
     return NextResponse.json({
       success: true,
       activated: false,
-      message: '激活已过期',
+      message: '激活已过期或已被禁用',
     });
 
   } catch (error) {

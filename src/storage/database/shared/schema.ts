@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, timestamp, boolean, index } from "drizzle-orm/pg-core"
+import { pgTable, serial, varchar, integer, timestamp, boolean, index, text } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const healthCheck = pgTable("health_check", {
@@ -25,6 +25,8 @@ export const activationCodes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
     // 过期时间（null表示永久）
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: 'string' }),
+    // 批次ID
+    batchId: integer("batch_id"),
   },
   (table) => [
     index("activation_codes_code_idx").on(table.code),
@@ -49,5 +51,26 @@ export const activationRecords = pgTable(
   (table) => [
     index("activation_records_code_id_idx").on(table.codeId),
     index("activation_records_device_id_idx").on(table.deviceId),
+  ]
+);
+
+// 激活码生成批次表
+export const codeBatches = pgTable(
+  "code_batches",
+  {
+    id: serial().notNull(),
+    // 有效期类型
+    durationType: varchar("duration_type", { length: 20 }).notNull(),
+    // 最大使用次数
+    maxUses: integer("max_uses").default(1).notNull(),
+    // 生成的激活码数量
+    count: integer("count").notNull(),
+    // 生成的激活码列表（JSON数组）
+    codes: text("codes").notNull(),
+    // 创建时间
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("code_batches_created_at_idx").on(table.createdAt),
   ]
 );

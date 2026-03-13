@@ -108,30 +108,38 @@ export default function Home() {
   const activation = useActivation();
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [expiredMessage, setExpiredMessage] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   
   // 点击开始创作时的处理
-  const handleStartCreate = () => {
+  const handleStartCreate = async () => {
     if (ENABLE_ACTIVATION) {
-      // 检查是否过期
-      if (activation.isExpired) {
-        setExpiredMessage('卡密已过期，请重新激活');
-        setShowActivationModal(true);
-        return;
-      }
-      // 检查激活状态
-      if (!activation.isActivated) {
-        setExpiredMessage('');
-        setShowActivationModal(true);
-        return;
-      }
-      // 已激活但检查过期时间
-      if (activation.expiresAt) {
-        const expiresAt = new Date(activation.expiresAt);
-        if (expiresAt < new Date()) {
+      setIsVerifying(true);
+      try {
+        // 强制从服务器验证激活状态（检查是否被禁用）
+        const isValid = await activation.checkActivation();
+        
+        if (!isValid) {
+          setExpiredMessage('激活码已被禁用或已过期，请重新激活');
+          setShowActivationModal(true);
+          return;
+        }
+        
+        // 检查是否过期
+        if (activation.isExpired) {
           setExpiredMessage('卡密已过期，请重新激活');
           setShowActivationModal(true);
           return;
         }
+      } catch (error) {
+        console.error('验证失败:', error);
+        // 网络错误时，检查本地状态
+        if (!activation.isActivated || activation.isExpired) {
+          setExpiredMessage(activation.isExpired ? '卡密已过期，请重新激活' : '');
+          setShowActivationModal(true);
+          return;
+        }
+      } finally {
+        setIsVerifying(false);
       }
     }
     // 已激活或未启用激活，跳转到工作站
@@ -2033,7 +2041,7 @@ export default function Home() {
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>点击开始创作</span>
+              <span>{isVerifying ? '验证中...' : '点击开始创作'}</span>
             </button>
           </div>
           

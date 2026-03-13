@@ -23,6 +23,63 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get('action');
+    
+    // 获取生成记录
+    if (action === 'batches') {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('code_batches')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('查询批次记录失败:', error);
+        return NextResponse.json(
+          { success: false, error: '查询失败' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: data || [],
+      });
+    }
+
+    // 获取单个批次的激活码（用于导出）
+    if (action === 'batch_codes') {
+      const batchId = searchParams.get('batchId');
+      if (!batchId) {
+        return NextResponse.json(
+          { success: false, error: '缺少批次ID' },
+          { status: 400 }
+        );
+      }
+
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('code_batches')
+        .select('codes')
+        .eq('id', parseInt(batchId))
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json(
+          { success: false, error: '批次不存在' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: data.codes,
+      });
+    }
+
+    // 获取激活码列表（默认）
     const client = getSupabaseClient();
 
     const { data, error } = await client
@@ -129,10 +186,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 批量插入
+    // 创建批次记录
+    const { data: batchData, error: batchError } = await client
+      .from('code_batches')
+      .insert({
+        duration_type: durationType,
+        max_uses: maxUses,
+        count: codes.length,
+        codes: JSON.stringify(codes),
+      })
+      .select('id')
+      .single();
+
+    const batchId = batchData?.id || null;
+
+    // 批量插入激活码（带批次ID）
+    const codesWithBatch = codesToInsert.map(c => ({ ...c, batch_id: batchId }));
     const { error: insertError } = await client
       .from('activation_codes')
-      .insert(codesToInsert);
+      .insert(codesWithBatch);
 
     if (insertError) {
       console.error('插入激活码失败:', insertError);
@@ -146,6 +218,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `成功生成 ${codes.length} 个激活码`,
       data: codes,
+      batchId,
     });
 
   } catch (error) {
@@ -157,7 +230,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 禁用/启用/编辑激活码
+// 编辑激活码（更新maxUses和isActive）
 export async function PATCH(request: NextRequest) {
   if (!verifyAdmin(request)) {
     return NextResponse.json(
@@ -184,7 +257,7 @@ export async function PATCH(request: NextRequest) {
     if (typeof isActive === 'boolean') {
       updateData.is_active = isActive;
     }
-    if (typeof maxUses === 'number') {
+    if (typeof maxUses === 'number' && maxUses >= -1) {
       updateData.max_uses = maxUses;
     }
 
@@ -201,7 +274,7 @@ export async function PATCH(request: NextRequest) {
       .eq('id', id);
 
     if (error) {
-      console.error('更新激活码状态失败:', error);
+      console.error('更新激活码失败:', error);
       return NextResponse.json(
         { success: false, error: '更新失败' },
         { status: 500 }
@@ -214,7 +287,7 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('更新激活码状态错误:', error);
+    console.error('更新激活码错误:', error);
     return NextResponse.json(
       { success: false, error: '服务器错误' },
       { status: 500 }
