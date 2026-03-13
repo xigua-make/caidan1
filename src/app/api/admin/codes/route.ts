@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // 管理员密码（生产环境应使用环境变量）
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'xiaogua2024';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'liujin8848328';
 
 // 验证管理员权限
 function verifyAdmin(request: NextRequest): boolean {
