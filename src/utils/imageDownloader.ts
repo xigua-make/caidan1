@@ -445,94 +445,81 @@ export async function downloadImage({
     
     // 如果需要，先绘制坐标轴和网格背景
     if (showCoordinates) {
-      // 绘制坐标轴背景
-      ctx.fillStyle = '#F5F5F5'; // 浅灰色背景
-      // 横轴背景 (顶部)
-      ctx.fillRect(extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin, gridWidth, axisLabelSize);
-      // 横轴背景 (底部)
-      ctx.fillRect(extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin + axisLabelSize + gridHeight, gridWidth, axisLabelSize);
-      // 纵轴背景 (左侧)
-      ctx.fillRect(extraLeftMargin, titleBarHeight + extraTopMargin + axisLabelSize, axisLabelSize, gridHeight);
-      // 纵轴背景 (右侧)
-      ctx.fillRect(extraLeftMargin + axisLabelSize + gridWidth, titleBarHeight + extraTopMargin + axisLabelSize, axisLabelSize, gridHeight);
-      
-      // 绘制坐标轴数字
-      ctx.fillStyle = '#333333'; // 坐标数字颜色
       // 使用固定的字体大小，不进行缩放
-      const axisFontSize = 14;
-      ctx.font = `${axisFontSize}px sans-serif`;
+      const axisFontSize = Math.max(10, Math.floor(downloadCellSize * 0.5));
+      ctx.font = `bold ${axisFontSize}px sans-serif`;
 
-      // X轴（顶部）数字
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // X轴（顶部）数字 - 每个数字在独立的格子内
       for (let i = 0; i < N; i++) {
-        if ((i + 1) % gridInterval === 0 || i === 0 || i === N - 1) { // 在间隔处、起始处和结束处标注
-          // 将数字放在轴线之上，考虑额外边距
-          const numX = extraLeftMargin + axisLabelSize + (i * downloadCellSize) + (downloadCellSize / 2);
-          const numY = titleBarHeight + extraTopMargin + (axisLabelSize / 2);
-          ctx.fillText((i + 1).toString(), numX, numY);
+        if ((i + 1) % gridInterval === 0 || i === 0 || i === N - 1) {
+          const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
+          const cellY = titleBarHeight + extraTopMargin;
+          
+          // 绘制单元格背景
+          ctx.fillStyle = '#F0F0F0';
+          ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+          
+          // 绘制数字
+          ctx.fillStyle = '#333333';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
         }
       }
       
-      // X轴（底部）数字
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // X轴（底部）数字 - 每个数字在独立的格子内
       for (let i = 0; i < N; i++) {
-        if ((i + 1) % gridInterval === 0 || i === 0 || i === N - 1) { // 在间隔处、起始处和结束处标注
-          // 将数字放在底部轴线上
-          const numX = extraLeftMargin + axisLabelSize + (i * downloadCellSize) + (downloadCellSize / 2);
-          const numY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight + (axisLabelSize / 2);
-          ctx.fillText((i + 1).toString(), numX, numY);
+        if ((i + 1) % gridInterval === 0 || i === 0 || i === N - 1) {
+          const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
+          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight;
+          
+          // 绘制单元格背景
+          ctx.fillStyle = '#F0F0F0';
+          ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+          
+          // 绘制数字
+          ctx.fillStyle = '#333333';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
         }
       }
       
-      // Y轴（左侧）数字
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // Y轴（左侧）数字 - 每个数字在独立的格子内
       for (let j = 0; j < M; j++) {
-        if ((j + 1) % gridInterval === 0 || j === 0 || j === M - 1) { // 在间隔处、起始处和结束处标注
-          // 将数字放在轴线之左
-          const numX = extraLeftMargin + (axisLabelSize / 2);
-          const numY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize) + (downloadCellSize / 2);
-          ctx.fillText((j + 1).toString(), numX, numY);
+        if ((j + 1) % gridInterval === 0 || j === 0 || j === M - 1) {
+          const cellX = extraLeftMargin;
+          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
+          
+          // 绘制单元格背景
+          ctx.fillStyle = '#F0F0F0';
+          ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+          
+          // 绘制数字
+          ctx.fillStyle = '#333333';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
         }
       }
       
-      // Y轴（右侧）数字
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // Y轴（右侧）数字 - 每个数字在独立的格子内
       for (let j = 0; j < M; j++) {
-        if ((j + 1) % gridInterval === 0 || j === 0 || j === M - 1) { // 在间隔处、起始处和结束处标注
-          // 将数字放在右侧轴线上
-          const numX = extraLeftMargin + axisLabelSize + gridWidth + (axisLabelSize / 2);
-          const numY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize) + (downloadCellSize / 2);
-          ctx.fillText((j + 1).toString(), numX, numY);
+        if ((j + 1) % gridInterval === 0 || j === 0 || j === M - 1) {
+          const cellX = extraLeftMargin + axisLabelSize + gridWidth;
+          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
+          
+          // 绘制单元格背景
+          ctx.fillStyle = '#F0F0F0';
+          ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+          
+          // 绘制数字
+          ctx.fillStyle = '#333333';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
         }
       }
-      
-      // 绘制坐标轴边框
-      ctx.strokeStyle = '#AAAAAA';
-      ctx.lineWidth = 1;
-      // 顶部横轴底边
-      ctx.beginPath();
-      ctx.moveTo(extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin + axisLabelSize);
-      ctx.lineTo(extraLeftMargin + axisLabelSize + gridWidth, titleBarHeight + extraTopMargin + axisLabelSize);
-      ctx.stroke();
-      // 底部横轴顶边
-      ctx.beginPath();
-      ctx.moveTo(extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin + axisLabelSize + gridHeight);
-      ctx.lineTo(extraLeftMargin + axisLabelSize + gridWidth, titleBarHeight + extraTopMargin + axisLabelSize + gridHeight);
-      ctx.stroke();
-      // 左侧纵轴右边
-      ctx.beginPath();
-      ctx.moveTo(extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin + axisLabelSize);
-      ctx.lineTo(extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin + axisLabelSize + gridHeight);
-      ctx.stroke();
-      // 右侧纵轴左边
-      ctx.beginPath();
-      ctx.moveTo(extraLeftMargin + axisLabelSize + gridWidth, titleBarHeight + extraTopMargin + axisLabelSize);
-      ctx.lineTo(extraLeftMargin + axisLabelSize + gridWidth, titleBarHeight + extraTopMargin + axisLabelSize + gridHeight);
-      ctx.stroke();
     }
     
     // 恢复默认文本对齐和基线，为后续绘制做准备
