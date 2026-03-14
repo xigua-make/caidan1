@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React from 'react';
 
-// 视频配置 - 将视频文件放到 public 目录下，然后修改这里的路径
-const VIDEO_CONFIG = {
-  // 视频路径
-  src: '/demo-video.mp4',
-  // 封面图路径（视频未播放时显示）
+// B站视频配置
+const BILIBILI_CONFIG = {
+  // B站视频 BV号（从视频链接中提取）
+  bvid: 'BV1EdwxzZEza',
+  // 封面图路径（加载前显示）
   poster: '/demo-pixelated.png',
-  // 视频时长显示
-  duration: '1:18',
-  // 是否启用视频功能（设为 true 后会显示真实视频播放器）
-  enabled: false,
+  // 是否启用视频功能
+  enabled: true,
 };
 
 /**
@@ -19,23 +17,6 @@ const VIDEO_CONFIG = {
  * 包含：效果展示、视频预览、功能卡片
  */
 export default function LandingShowcase() {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const handlePlayClick = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const handleVideoEnd = () => {
-    setIsPlaying(false);
-  };
 
   return (
     <div className="w-full space-y-6 sm:space-y-8 mt-8 sm:mt-12">
@@ -97,54 +78,21 @@ export default function LandingShowcase() {
           <div className="relative w-full max-w-2xl mx-auto">
             {/* 视频播放器 */}
             <div className="relative bg-gray-900 rounded-xl overflow-hidden aspect-video">
-              {VIDEO_CONFIG.enabled ? (
-                /* 真实视频播放器 */
-                <>
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    poster={VIDEO_CONFIG.poster}
-                    onEnded={handleVideoEnd}
-                    onPause={() => setIsPlaying(false)}
-                    onPlay={() => setIsPlaying(true)}
-                    playsInline
-                    controls={isPlaying}
-                  >
-                    <source src={VIDEO_CONFIG.src} type="video/mp4" />
-                    您的浏览器不支持视频播放
-                  </video>
-                  
-                  {/* 自定义播放按钮（未播放时显示） */}
-                  {!isPlaying && (
-                    <>
-                      <div className="absolute inset-0 bg-black/30" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <button 
-                          onClick={handlePlayClick}
-                          className="w-16 h-16 sm:w-20 sm:h-20 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-xl transition-transform hover:scale-105"
-                        >
-                          <svg className="w-8 h-8 sm:w-10 sm:h-10 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* 视频时长 */}
-                  {!isPlaying && (
-                    <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                      {VIDEO_CONFIG.duration}
-                    </div>
-                  )}
-                </>
+              {BILIBILI_CONFIG.enabled ? (
+                /* B站视频嵌入 */
+                <iframe
+                  src={`//player.bilibili.com/player.html?bvid=${BILIBILI_CONFIG.bvid}&page=1&high_quality=1&danmaku=0`}
+                  className="w-full h-full"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
               ) : (
                 /* 模拟播放器（无视频时显示） */
                 <>
                   {/* 视频封面/占位图 */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <img 
-                      src={VIDEO_CONFIG.poster} 
+                      src={BILIBILI_CONFIG.poster} 
                       alt="视频预览" 
                       className="w-full h-full object-cover opacity-60"
                     />
@@ -157,11 +105,6 @@ export default function LandingShowcase() {
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </button>
-                  </div>
-                  
-                  {/* 视频时长 */}
-                  <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    {VIDEO_CONFIG.duration}
                   </div>
                 </>
               )}
