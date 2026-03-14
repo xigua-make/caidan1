@@ -4,16 +4,8 @@ import React, { useState, useRef } from 'react';
 
 // 视频配置 - 将视频文件放到 public 目录下，然后修改这里的路径
 const VIDEO_CONFIG = {
-  // 手机端视频
-  mobile: {
-    src: '/demo-video-mobile.mp4',
-    label: '手机',
-  },
-  // 电脑端视频
-  desktop: {
-    src: '/demo-video-desktop.mp4',
-    label: '电脑',
-  },
+  // 视频路径
+  src: '/demo-video.mp4',
   // 封面图路径（视频未播放时显示）
   poster: '/demo-pixelated.png',
   // 视频时长显示
@@ -22,15 +14,12 @@ const VIDEO_CONFIG = {
   enabled: false,
 };
 
-type VideoType = 'mobile' | 'desktop';
-
 /**
  * 首页展示模块
  * 包含：效果展示、视频预览、功能卡片
  */
 export default function LandingShowcase() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeVideo, setActiveVideo] = useState<VideoType>('mobile');
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handlePlayClick = () => {
@@ -47,13 +36,6 @@ export default function LandingShowcase() {
   const handleVideoEnd = () => {
     setIsPlaying(false);
   };
-
-  const handleVideoTypeChange = (type: VideoType) => {
-    setActiveVideo(type);
-    setIsPlaying(false);
-  };
-
-  const currentVideoSrc = VIDEO_CONFIG[activeVideo].src;
 
   return (
     <div className="w-full space-y-6 sm:space-y-8 mt-8 sm:mt-12">
@@ -119,7 +101,6 @@ export default function LandingShowcase() {
                 /* 真实视频播放器 */
                 <>
                   <video
-                    key={activeVideo}
                     ref={videoRef}
                     className="w-full h-full object-cover"
                     poster={VIDEO_CONFIG.poster}
@@ -129,7 +110,7 @@ export default function LandingShowcase() {
                     playsInline
                     controls={isPlaying}
                   >
-                    <source src={currentVideoSrc} type="video/mp4" />
+                    <source src={VIDEO_CONFIG.src} type="video/mp4" />
                     您的浏览器不支持视频播放
                   </video>
                   
@@ -154,32 +135,6 @@ export default function LandingShowcase() {
                   {!isPlaying && (
                     <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
                       {VIDEO_CONFIG.duration}
-                    </div>
-                  )}
-                  
-                  {/* 多端适配标签 */}
-                  {!isPlaying && (
-                    <div className="absolute bottom-3 left-3 flex gap-2">
-                      <button 
-                        onClick={() => handleVideoTypeChange('mobile')}
-                        className={`text-xs px-2 py-1 rounded transition-colors ${
-                          activeVideo === 'mobile' 
-                            ? 'text-white bg-blue-500' 
-                            : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
-                        }`}
-                      >
-                        手机
-                      </button>
-                      <button 
-                        onClick={() => handleVideoTypeChange('desktop')}
-                        className={`text-xs px-2 py-1 rounded transition-colors ${
-                          activeVideo === 'desktop' 
-                            ? 'text-white bg-blue-500' 
-                            : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
-                        }`}
-                      >
-                        电脑
-                      </button>
                     </div>
                   )}
                 </>
@@ -207,30 +162,6 @@ export default function LandingShowcase() {
                   {/* 视频时长 */}
                   <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
                     {VIDEO_CONFIG.duration}
-                  </div>
-                  
-                  {/* 多端适配标签 */}
-                  <div className="absolute bottom-3 left-3 flex gap-2">
-                    <button 
-                      onClick={() => handleVideoTypeChange('mobile')}
-                      className={`text-xs px-2 py-1 rounded transition-colors ${
-                        activeVideo === 'mobile' 
-                          ? 'text-white bg-blue-500' 
-                          : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
-                      }`}
-                    >
-                      手机
-                    </button>
-                    <button 
-                      onClick={() => handleVideoTypeChange('desktop')}
-                      className={`text-xs px-2 py-1 rounded transition-colors ${
-                        activeVideo === 'desktop' 
-                          ? 'text-white bg-blue-500' 
-                          : 'text-gray-300 bg-gray-800/70 hover:bg-gray-700'
-                      }`}
-                    >
-                      电脑
-                    </button>
                   </div>
                 </>
               )}
