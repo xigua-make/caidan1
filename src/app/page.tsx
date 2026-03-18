@@ -1060,30 +1060,16 @@ export default function Home() {
 
     // --- Download function (ensure filename includes palette) ---
     const handleDownloadRequest = (options?: GridDownloadOptions) => {
-        console.log("===== handleDownloadRequest 被调用 =====");
-        console.log("options:", options);
-        console.log("mappedPixelData:", mappedPixelData ? `存在, 长度: ${mappedPixelData.length}` : "不存在");
-        console.log("gridDimensions:", gridDimensions);
-        console.log("colorCounts:", colorCounts ? `存在, 键数: ${Object.keys(colorCounts).length}` : "不存在");
-        console.log("activeBeadPalette:", activeBeadPalette ? `存在, 长度: ${activeBeadPalette.length}` : "不存在");
-        console.log("selectedColorSystem:", selectedColorSystem);
-        
-        try {
-          // 调用移动到utils/imageDownloader.ts中的downloadImage函数
-          downloadImage({
-            mappedPixelData,
-            gridDimensions,
-            colorCounts,
-            totalBeadCount,
-            options: options || downloadOptions,
-            activeBeadPalette,
-            selectedColorSystem
-          });
-          console.log("downloadImage 调用完成");
-        } catch (error) {
-          console.error("downloadImage 调用出错:", error);
-          alert("下载出错: " + (error instanceof Error ? error.message : String(error)));
-        }
+        // 调用移动到utils/imageDownloader.ts中的downloadImage函数
+        downloadImage({
+          mappedPixelData,
+          gridDimensions,
+          colorCounts,
+          totalBeadCount,
+          options: options || downloadOptions,
+          activeBeadPalette,
+          selectedColorSystem
+        });
     };
 
     // --- Handler to toggle color exclusion ---
