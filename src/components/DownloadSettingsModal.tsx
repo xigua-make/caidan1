@@ -42,11 +42,18 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
   
   // 保存选项并立即使用新设置下载
   const handleSave = () => {
+    console.log("===== DownloadSettingsModal handleSave 被调用 =====");
+    console.log("tempOptions:", tempOptions);
+    
     // 更新父组件中的设置状态（虽然下载时不依赖这个更新）
     onOptionsChange(tempOptions);
     
+    console.log("准备调用 onDownload...");
+    
     // 直接使用当前临时设置下载，不依赖状态更新
     onDownload(tempOptions); 
+    
+    console.log("onDownload 调用完成");
     
     onClose();
   };

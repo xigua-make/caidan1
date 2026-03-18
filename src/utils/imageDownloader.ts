@@ -229,6 +229,12 @@ export async function downloadImage({
   activeBeadPalette: PaletteColor[];
   selectedColorSystem: ColorSystem;
 }): Promise<void> {
+  console.log("===== downloadImage 函数开始执行 =====");
+  console.log("mappedPixelData:", mappedPixelData ? `存在, 长度: ${mappedPixelData.length}` : "不存在");
+  console.log("gridDimensions:", gridDimensions);
+  console.log("colorCounts:", colorCounts ? `存在, 键数: ${Object.keys(colorCounts).length}` : "不存在");
+  console.log("activeBeadPalette:", activeBeadPalette ? `存在, 长度: ${activeBeadPalette.length}` : "不存在");
+  
   if (!mappedPixelData || !gridDimensions || gridDimensions.N === 0 || gridDimensions.M === 0 || activeBeadPalette.length === 0) {
     console.error("下载失败: 映射数据或尺寸无效。");
     alert("无法下载图纸，数据未生成或无效。");
@@ -239,6 +245,8 @@ export async function downloadImage({
     alert("无法下载图纸，色号统计数据未生成或无效。");
     return;
   }
+  
+  console.log("数据验证通过，继续下载流程...");
   
   // 加载二维码图片
   const qrCodeImage = new Image();
@@ -746,7 +754,12 @@ export async function downloadImage({
   // 图片加载后处理，或在加载失败时使用占位符
   console.log("downloadImage 函数被调用，准备加载二维码图片...");
   console.log("qrCodeImage.complete:", qrCodeImage.complete);
+  console.log("立即调用 processDownload...");
   
+  // 立即执行下载，不等待二维码图片加载
+  processDownload();
+  
+  /* 暂时注释掉二维码图片加载逻辑，直接下载
   // 设置超时机制，确保即使图片加载失败也能继续下载
   const timeoutId = setTimeout(() => {
     console.warn("二维码图片加载超时，使用占位符继续下载");
@@ -769,4 +782,5 @@ export async function downloadImage({
       processDownload();
     };
   }
+  */
 } 
