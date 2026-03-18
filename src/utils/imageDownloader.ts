@@ -833,12 +833,11 @@ export async function downloadImage({
     }
 
     try {
-      // iOS 设备：优先使用 Web Share API 分享图片（可保存到相册）
+      // iOS 设备：使用 Blob 方式下载（百度浏览器等第三方浏览器可直接保存到相册）
       if (isIOS()) {
-        downloadCanvas.toBlob(async (blob) => {
+        downloadCanvas.toBlob((blob) => {
           if (!blob) {
             console.error("下载图纸失败: 无法生成图片 Blob");
-            alert("无法生成图纸下载链接，请尝试降低图纸尺寸。");
             return;
           }
           
@@ -846,28 +845,7 @@ export async function downloadImage({
             ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
             : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
           
-          // 尝试使用 Web Share API（可直接保存到相册）
-          if (navigator.share && navigator.canShare) {
-            try {
-              const file = new File([blob], filename, { type: 'image/png' });
-              const shareData = { files: [file] };
-              
-              if (navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-                console.log("iOS 设备：已通过分享菜单导出图片");
-                return;
-              }
-            } catch (shareError: unknown) {
-              // 用户取消分享不报错
-              if (shareError instanceof Error && shareError.name === 'AbortError') {
-                console.log("用户取消了分享");
-                return;
-              }
-              console.warn("Web Share API 失败，回退到下载方式:", shareError);
-            }
-          }
-          
-          // 回退方案：直接下载（保存到文件 App）
+          // 直接下载，不弹窗不提示
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.download = filename;
@@ -876,7 +854,7 @@ export async function downloadImage({
           link.click();
           document.body.removeChild(link);
           setTimeout(() => URL.revokeObjectURL(url), 1000);
-          console.log("Grid image download initiated (Blob mode).");
+          console.log("iOS 图片下载已触发");
         }, 'image/png');
       } else {
         // 非 iOS 设备使用 dataURL 方式
