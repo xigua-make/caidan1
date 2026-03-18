@@ -327,338 +327,477 @@ export async function downloadImage({
     }
   
     // 调整画布大小，包含标题栏、坐标轴、统计区域和小红书标识区域（四边都有坐标）
-    const downloadWidth = gridWidth + (axisLabelSize * 2) + extraLeftMargin + extraRightMargin;
+    let downloadWidth = gridWidth + (axisLabelSize * 2) + extraLeftMargin + extraRightMargin;
+    let downloadHeight = titleBarHeight + gridHeight + (axisLabelSize * 2) + statsHeight + extraTopMargin + extraBottomMargin + xiaohongshuAreaHeight;
+  
+    let downloadCanvas = document.createElement('canvas');
+    downloadCanvas.width = downloadWidth;
+    downloadCanvas.height = downloadHeight;
+    const context = downloadCanvas.getContext('2d');
+    if (!context) {
+      console.error("下载失败: 无法创建临时 Canvas Context。");
+      alert("无法下载图纸。");
+      return;
+    }
     
-    // 定义绘制所需的变量
+    // 使用非空的context变量
+    let ctx = context;
+    ctx.imageSmoothingEnabled = false;
+  
+    // 设置背景色
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, downloadWidth, downloadHeight);
+  
+    // 重新设计的现代简洁标题栏
+    // 1. 主背景 - 纯净的深色，专业感
+    ctx.fillStyle = '#1F2937'; // 深灰色，既有专业感又不抢夺主要内容
+    ctx.fillRect(0, 0, downloadWidth, titleBarHeight);
+    
+    // 2. 左侧品牌色块 - 作为Logo载体
     const brandBlockWidth = titleBarHeight * 0.8;
+    const brandGradient = ctx.createLinearGradient(0, 0, brandBlockWidth, titleBarHeight);
+    brandGradient.addColorStop(0, '#6366F1'); // 现代蓝色
+    brandGradient.addColorStop(1, '#8B5CF6'); // 现代紫色
+    
+    ctx.fillStyle = brandGradient;
+    ctx.fillRect(0, 0, brandBlockWidth, titleBarHeight);
+    
+    // 3. 绘制西瓜Logo
+    const logoSize = titleBarHeight * 0.5;
+    const logoX = brandBlockWidth / 2;
+    const logoY = titleBarHeight / 2;
+    
+    // 绘制西瓜外皮（绿色圆形）
+    ctx.fillStyle = '#22C55E'; // 绿色
+    ctx.beginPath();
+    ctx.arc(logoX, logoY, logoSize * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 绘制西瓜果肉（红色圆形，稍小）
+    ctx.fillStyle = '#EF4444'; // 红色
+    ctx.beginPath();
+    ctx.arc(logoX, logoY, logoSize * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 绘制西瓜籽（黑色小椭圆）
+    ctx.fillStyle = '#000000';
+    const seedPositions = [
+      { x: logoX - logoSize * 0.15, y: logoY - logoSize * 0.1 },
+      { x: logoX + logoSize * 0.1, y: logoY - logoSize * 0.15 },
+      { x: logoX, y: logoY + logoSize * 0.1 },
+    ];
+    seedPositions.forEach(pos => {
+      ctx.beginPath();
+      ctx.ellipse(pos.x, pos.y, logoSize * 0.05, logoSize * 0.08, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    // 4. 主标题 - 现代字体，清晰层次
     const mainTitleFontSize = Math.max(20, Math.floor(titleFontSize * 0.8));
     const subTitleFontSize = Math.max(12, Math.floor(titleFontSize * 0.45));
-    const titleStartX = brandBlockWidth + titleBarHeight * 0.3;
-    const fontSize = Math.max(8, Math.floor(downloadCellSize * 0.4));
-  
-    // iOS 设备分块下载逻辑
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const shouldChunkDownload = isIOSDevice && M > 100;
-    const maxRowsPerBlock = 100;
-    const maxBlocks = 3;
-
-    // 绘制并下载单个分块的函数
-    const drawAndDownloadBlock = (
-      blockStartRow: number, 
-      blockEndRow: number, 
-      blockIndex: number, 
-      totalBlocks: number
-    ) => {
-      const blockM = blockEndRow - blockStartRow;
-      const blockGridHeight = blockM * downloadCellSize;
-      const blockDownloadHeight = titleBarHeight + extraTopMargin + blockGridHeight + (axisLabelSize * 2) + statsHeight + extraBottomMargin + xiaohongshuAreaHeight;
-      
-      // 创建新的 canvas
-      const blockCanvas = document.createElement('canvas');
-      blockCanvas.width = downloadWidth;
-      blockCanvas.height = blockDownloadHeight;
-      const blockCtx = blockCanvas.getContext('2d');
-      if (!blockCtx) return;
-      blockCtx.imageSmoothingEnabled = false;
-      
-      // 设置背景色
-      blockCtx.fillStyle = '#FFFFFF';
-      blockCtx.fillRect(0, 0, downloadWidth, blockDownloadHeight);
     
-      // 绘制标题栏
-      blockCtx.fillStyle = '#1F2937';
-      blockCtx.fillRect(0, 0, downloadWidth, titleBarHeight);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `600 ${mainTitleFontSize}px system-ui, -apple-system, sans-serif`; // 现代字体栈
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    
+    // 主标题位置
+    const titleStartX = brandBlockWidth + titleBarHeight * 0.3;
+    const mainTitleY = titleBarHeight * 0.4;
+    
+    ctx.fillText('小瓜拼豆生成器', titleStartX, mainTitleY);
+    
+    // 5. 副标题 - 功能说明
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.font = `400 ${subTitleFontSize}px system-ui, -apple-system, sans-serif`;
+    const subTitleY = titleBarHeight * 0.65;
+    
+    ctx.fillText('拼豆图纸生成工具', titleStartX, subTitleY);
+    
+    
+    
+    // 7. 优雅的分割线
+    const separatorY = titleBarHeight - 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, separatorY);
+    ctx.lineTo(downloadWidth, separatorY);
+    ctx.stroke();
+    
+    // 8. 二维码区域 - 重新设计
+    const qrX = downloadWidth - qrSize - titleBarHeight * 0.15;
+    const qrY = (titleBarHeight - qrSize) / 2;
+    
+    // 二维码背景 - 圆角，更现代
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.roundRect(qrX, qrY, qrSize, qrSize, qrSize * 0.08);
+    ctx.fill();
+    
+    // 绘制二维码图片或占位符
+    if (qrCodeImage.complete && qrCodeImage.naturalWidth !== 0) {
+      // 使用裁剪区域绘制圆角二维码
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(qrX, qrY, qrSize, qrSize, qrSize * 0.08);
+      ctx.clip();
+      ctx.drawImage(qrCodeImage, qrX, qrY, qrSize, qrSize);
+      ctx.restore();
+    } else {
+      // 占位符设计
+      ctx.fillStyle = '#6366F1';
+      const qrPlaceholderFontSize = Math.max(10, Math.floor(14 * titleBarScale));
+      ctx.font = `500 ${qrPlaceholderFontSize}px system-ui, -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('扫码访问', qrX + qrSize / 2, qrY + qrSize / 2);
+    }
+  
+    console.log(`Generating download grid image: ${downloadWidth}x${downloadHeight}`);
+    const fontSize = Math.max(8, Math.floor(downloadCellSize * 0.4));
+    
+    // 如果需要，先绘制坐标轴和网格背景
+    if (showCoordinates) {
+      // 使用固定的字体大小，不进行缩放
+      const axisFontSize = Math.max(10, Math.floor(downloadCellSize * 0.5));
+      ctx.font = `bold ${axisFontSize}px sans-serif`;
+
+      // X轴（顶部）数字 - 每个数字在独立的格子内
+      for (let i = 0; i < N; i++) {
+        const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
+        const cellY = titleBarHeight + extraTopMargin;
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
+      }
       
-      const blockBrandGradient = blockCtx.createLinearGradient(0, 0, brandBlockWidth, titleBarHeight);
-      blockBrandGradient.addColorStop(0, '#6366F1');
-      blockBrandGradient.addColorStop(1, '#8B5CF6');
-      blockCtx.fillStyle = blockBrandGradient;
-      blockCtx.fillRect(0, 0, brandBlockWidth, titleBarHeight);
+      // X轴（底部）数字 - 每个数字在独立的格子内
+      for (let i = 0; i < N; i++) {
+        const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
+        const cellY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight;
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
+      }
       
-      // 绘制西瓜Logo
-      const blockLogoSize = titleBarHeight * 0.5;
-      const blockLogoX = brandBlockWidth / 2;
-      const blockLogoY = titleBarHeight / 2;
-      blockCtx.fillStyle = '#22C55E';
-      blockCtx.beginPath();
-      blockCtx.arc(blockLogoX, blockLogoY, blockLogoSize * 0.45, 0, Math.PI * 2);
-      blockCtx.fill();
-      blockCtx.fillStyle = '#EF4444';
-      blockCtx.beginPath();
-      blockCtx.arc(blockLogoX, blockLogoY, blockLogoSize * 0.35, 0, Math.PI * 2);
-      blockCtx.fill();
-      blockCtx.fillStyle = '#000000';
-      const blockSeedPositions = [
-        { x: blockLogoX - blockLogoSize * 0.15, y: blockLogoY - blockLogoSize * 0.1 },
-        { x: blockLogoX + blockLogoSize * 0.1, y: blockLogoY - blockLogoSize * 0.15 },
-        { x: blockLogoX, y: blockLogoY + blockLogoSize * 0.1 },
-      ];
-      blockSeedPositions.forEach(pos => {
-        blockCtx.beginPath();
-        blockCtx.ellipse(pos.x, pos.y, blockLogoSize * 0.05, blockLogoSize * 0.08, Math.PI / 4, 0, Math.PI * 2);
-        blockCtx.fill();
+      // Y轴（左侧）数字 - 每个数字在独立的格子内
+      for (let j = 0; j < M; j++) {
+        const cellX = extraLeftMargin;
+        const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
+      }
+      
+      // Y轴（右侧）数字 - 每个数字在独立的格子内
+      for (let j = 0; j < M; j++) {
+        const cellX = extraLeftMargin + axisLabelSize + gridWidth;
+        const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
+        
+        // 绘制单元格背景（浅蓝色）
+        ctx.fillStyle = '#E3F2FD';
+        ctx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
+        
+        // 绘制数字
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((j + 1).toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
+      }
+    }
+    
+    // 恢复默认文本对齐和基线，为后续绘制做准备
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 设置用于绘制单元格内容的字体
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 绘制所有单元格
+    for (let j = 0; j < M; j++) {
+      for (let i = 0; i < N; i++) {
+        const cellData = mappedPixelData[j][i];
+        // 计算绘制位置，考虑额外边距和标题栏高度
+        const drawX = extraLeftMargin + i * downloadCellSize + axisLabelSize;
+        const drawY = titleBarHeight + extraTopMargin + j * downloadCellSize + axisLabelSize;
+
+        // 根据是否是外部背景确定填充颜色
+        if (cellData && !cellData.isExternal) {
+          // 内部单元格：使用珠子颜色填充并绘制文本
+          const cellColor = cellData.color || '#FFFFFF';
+
+          ctx.fillStyle = cellColor;
+          ctx.fillRect(drawX, drawY, downloadCellSize, downloadCellSize);
+
+          if (showCellNumbers) {
+            const cellKey = getDisplayColorKey(cellData.color || '#FFFFFF', selectedColorSystem);
+            ctx.fillStyle = getContrastColor(cellColor);
+            ctx.fillText(cellKey, drawX + downloadCellSize / 2, drawY + downloadCellSize / 2);
+          }
+        } else {
+          // 外部背景：填充白色
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(drawX, drawY, downloadCellSize, downloadCellSize);
+        }
+
+        // 绘制所有单元格的边框
+        ctx.strokeStyle = '#DDDDDD'; // 浅色线条作为基础网格
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(drawX + 0.5, drawY + 0.5, downloadCellSize, downloadCellSize);
+      }
+    }
+
+    // 如果需要，绘制分隔网格线
+    if (showGrid) {
+      ctx.strokeStyle = gridLineColor; // 使用用户选择的颜色
+      ctx.lineWidth = 1.5;
+      
+      // 绘制垂直分隔线 - 在单元格之间而不是边框上
+      for (let i = gridInterval; i < N; i += gridInterval) {
+        const lineX = extraLeftMargin + i * downloadCellSize + axisLabelSize;
+        ctx.beginPath();
+        ctx.moveTo(lineX, titleBarHeight + extraTopMargin + axisLabelSize);
+        ctx.lineTo(lineX, titleBarHeight + extraTopMargin + axisLabelSize + M * downloadCellSize);
+        ctx.stroke();
+      }
+      
+      // 绘制水平分隔线 - 在单元格之间而不是边框上
+      for (let j = gridInterval; j < M; j += gridInterval) {
+        const lineY = titleBarHeight + extraTopMargin + j * downloadCellSize + axisLabelSize;
+        ctx.beginPath();
+        ctx.moveTo(extraLeftMargin + axisLabelSize, lineY);
+        ctx.lineTo(extraLeftMargin + axisLabelSize + N * downloadCellSize, lineY);
+        ctx.stroke();
+      }
+    }
+
+    // 绘制整个网格区域的主边框
+    ctx.strokeStyle = '#000000'; // 黑色边框
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(
+      extraLeftMargin + axisLabelSize + 0.5, 
+      titleBarHeight + extraTopMargin + axisLabelSize + 0.5, 
+      N * downloadCellSize, 
+      M * downloadCellSize
+    );
+
+    // 绘制统计信息
+    if (includeStats && colorCounts) {
+      const colorKeys = Object.keys(colorCounts).sort(sortColorKeys);
+      
+      // 增加额外的间距，防止标题文字侵入画布
+      const statsTopMargin = 24; // 增加间距，防止文字侵入画布
+      const statsY = titleBarHeight + extraTopMargin + M * downloadCellSize + (axisLabelSize * 2) + statsPadding + statsTopMargin;
+      
+      // 计算统计区域的可用宽度
+      const availableStatsWidth = downloadWidth - (statsPadding * 2);
+      
+      // 固定8列
+      const renderNumColumns = 8;
+      
+      // 计算每个项目所占的宽度
+      const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
+      
+      // 色块大小 - 占项目宽度的40%，确保紧凑
+      const swatchSize = Math.floor(itemWidth * 0.3);
+      
+      // 标题区域高度
+      const titleHeight = 8;
+      
+      // 行高 - 色块 + 较大间距
+      const statsRowHeight = swatchSize + 20;
+      
+      // 色号字体大小 - 占色块的35%
+      const colorKeyFontSize = Math.max(6, Math.floor(swatchSize * 0.35));
+      // 数量字体大小 - 比色号稍大
+      const countFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
+      
+      // 绘制每行统计信息
+      colorKeys.forEach((key, index) => {
+        // 计算当前项目应该在哪一行和哪一列
+        const rowIndex = Math.floor(index / renderNumColumns);
+        const colIndex = index % renderNumColumns;
+        
+        // 计算当前项目的X起始位置
+        const itemX = statsPadding + (colIndex * itemWidth);
+        
+        // 计算当前行的Y位置
+        const rowY = statsY + titleHeight + (rowIndex * statsRowHeight) + (swatchSize / 2);
+        
+        const cellData = colorCounts[key];
+        const colorKey = getColorKeyByHex(key, selectedColorSystem);
+        
+        // 色块位置
+        const swatchX = itemX;
+        const swatchY = rowY - (swatchSize / 2);
+        const cornerRadius = Math.max(3, Math.floor(swatchSize * 0.2)); // 大圆角
+        
+        // 1. 先绘制阴影（底部和右侧的柔和投影）
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = cellData.color;
+        ctx.beginPath();
+        ctx.roundRect(swatchX, swatchY, swatchSize, swatchSize, cornerRadius);
+        ctx.fill();
+        ctx.restore();
+        
+        // 2. 在色块内绘制色号（根据背景色决定文字颜色）
+        const rgb = hexToRgb(cellData.color);
+        const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
+        ctx.fillStyle = isLightColor ? '#000000' : '#FFFFFF';
+        ctx.font = `bold ${colorKeyFontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
+        
+        // 3. 绘制数量 - 紧靠色块右侧
+        ctx.fillStyle = '#333333';
+        ctx.font = `${countFontSize}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const countText = `x${cellData.count}`;
+        ctx.fillText(countText, swatchX + swatchSize + 2, rowY);
       });
       
-      // 绘制标题
-      blockCtx.fillStyle = '#FFFFFF';
-      blockCtx.font = `600 ${mainTitleFontSize}px system-ui, -apple-system, sans-serif`;
-      blockCtx.textAlign = 'left';
-      blockCtx.textBaseline = 'middle';
-      blockCtx.fillText('小瓜拼豆生成器', titleStartX, titleBarHeight * 0.4);
-      blockCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      blockCtx.font = `400 ${subTitleFontSize}px system-ui, -apple-system, sans-serif`;
+      // 计算实际需要的行数
+      const numRows = Math.ceil(colorKeys.length / renderNumColumns);
       
-      // 分块标识
-      if (totalBlocks > 1) {
-        blockCtx.fillText(`拼豆图纸生成工具 (第${blockIndex + 1}/${totalBlocks}部分)`, titleStartX, titleBarHeight * 0.65);
-      } else {
-        blockCtx.fillText('拼豆图纸生成工具', titleStartX, titleBarHeight * 0.65);
-      }
+      // 绘制总量
+      const totalY = statsY + titleHeight + (numRows * statsRowHeight) + 10;
+      ctx.font = `bold ${statsFontSize}px sans-serif`;
+      ctx.textAlign = 'right';
+      ctx.fillText(`总计: ${totalBeadCount} 颗`, downloadWidth - statsPadding, totalY);
       
-      // 绘制二维码
-      const blockQrX = downloadWidth - qrSize - titleBarHeight * 0.15;
-      const blockQrY = (titleBarHeight - qrSize) / 2;
-      blockCtx.fillStyle = '#FFFFFF';
-      blockCtx.beginPath();
-      blockCtx.roundRect(blockQrX, blockQrY, qrSize, qrSize, qrSize * 0.08);
-      blockCtx.fill();
-      if (qrCodeImage.complete && qrCodeImage.naturalWidth !== 0) {
-        blockCtx.save();
-        blockCtx.beginPath();
-        blockCtx.roundRect(blockQrX, blockQrY, qrSize, qrSize, qrSize * 0.08);
-        blockCtx.clip();
-        blockCtx.drawImage(qrCodeImage, blockQrX, blockQrY, qrSize, qrSize);
-        blockCtx.restore();
-      }
+      // 统计区域水印 - 第三重保护，清晰明显
+      const statsWatermarkFontSize = Math.max(10, Math.floor(statsFontSize * 0.7));
+      const statsWatermarkText = '图纸来源：@小瓜拼豆生成器';
       
-      // 绘制坐标轴
-      if (showCoordinates) {
-        const axisFontSize = Math.max(10, Math.floor(downloadCellSize * 0.5));
-        blockCtx.font = `bold ${axisFontSize}px sans-serif`;
-        
-        // X轴顶部
-        for (let i = 0; i < N; i++) {
-          const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
-          const cellY = titleBarHeight + extraTopMargin;
-          blockCtx.fillStyle = '#E3F2FD';
-          blockCtx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          blockCtx.strokeStyle = '#333333';
-          blockCtx.lineWidth = 1;
-          blockCtx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          blockCtx.fillStyle = '#333333';
-          blockCtx.textAlign = 'center';
-          blockCtx.textBaseline = 'middle';
-          blockCtx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
-        }
-        
-        // X轴底部
-        for (let i = 0; i < N; i++) {
-          const cellX = extraLeftMargin + axisLabelSize + (i * downloadCellSize);
-          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + blockGridHeight;
-          blockCtx.fillStyle = '#E3F2FD';
-          blockCtx.fillRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          blockCtx.strokeStyle = '#333333';
-          blockCtx.lineWidth = 1;
-          blockCtx.strokeRect(cellX, cellY, downloadCellSize, axisLabelSize);
-          blockCtx.fillStyle = '#333333';
-          blockCtx.fillText((i + 1).toString(), cellX + downloadCellSize / 2, cellY + axisLabelSize / 2);
-        }
-        
-        // Y轴左侧（显示实际行号）
-        for (let j = 0; j < blockM; j++) {
-          const actualRow = blockStartRow + j + 1;
-          const cellX = extraLeftMargin;
-          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
-          blockCtx.fillStyle = '#E3F2FD';
-          blockCtx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          blockCtx.strokeStyle = '#333333';
-          blockCtx.lineWidth = 1;
-          blockCtx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          blockCtx.fillStyle = '#333333';
-          blockCtx.fillText(actualRow.toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
-        }
-        
-        // Y轴右侧
-        for (let j = 0; j < blockM; j++) {
-          const actualRow = blockStartRow + j + 1;
-          const cellX = extraLeftMargin + axisLabelSize + gridWidth;
-          const cellY = titleBarHeight + extraTopMargin + axisLabelSize + (j * downloadCellSize);
-          blockCtx.fillStyle = '#E3F2FD';
-          blockCtx.fillRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          blockCtx.strokeStyle = '#333333';
-          blockCtx.lineWidth = 1;
-          blockCtx.strokeRect(cellX, cellY, axisLabelSize, downloadCellSize);
-          blockCtx.fillStyle = '#333333';
-          blockCtx.fillText(actualRow.toString(), cellX + axisLabelSize / 2, cellY + downloadCellSize / 2);
-        }
-      }
+      ctx.font = `500 ${statsWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
+      const statsTextMetrics = ctx.measureText(statsWatermarkText);
+      const statsTextWidth = statsTextMetrics.width;
+      const statsTextHeight = statsWatermarkFontSize;
       
-      // 绘制单元格
-      blockCtx.font = `bold ${fontSize}px sans-serif`;
-      blockCtx.textAlign = 'center';
-      blockCtx.textBaseline = 'middle';
+      const statsWatermarkX = statsPadding;
+      const statsWatermarkY = totalY + 20;
       
-      for (let j = 0; j < blockM; j++) {
-        for (let i = 0; i < N; i++) {
-          const actualRow = blockStartRow + j;
-          const cellData = mappedPixelData[actualRow][i];
-          const drawX = extraLeftMargin + i * downloadCellSize + axisLabelSize;
-          const drawY = titleBarHeight + extraTopMargin + j * downloadCellSize + axisLabelSize;
-          
-          if (cellData && !cellData.isExternal) {
-            const cellColor = cellData.color || '#FFFFFF';
-            blockCtx.fillStyle = cellColor;
-            blockCtx.fillRect(drawX, drawY, downloadCellSize, downloadCellSize);
-            if (showCellNumbers) {
-              const cellKey = getDisplayColorKey(cellData.color || '#FFFFFF', selectedColorSystem);
-              blockCtx.fillStyle = getContrastColor(cellColor);
-              blockCtx.fillText(cellKey, drawX + downloadCellSize / 2, drawY + downloadCellSize / 2);
-            }
-          } else {
-            blockCtx.fillStyle = '#FFFFFF';
-            blockCtx.fillRect(drawX, drawY, downloadCellSize, downloadCellSize);
-          }
-          blockCtx.strokeStyle = '#DDDDDD';
-          blockCtx.lineWidth = 0.5;
-          blockCtx.strokeRect(drawX + 0.5, drawY + 0.5, downloadCellSize, downloadCellSize);
-        }
-      }
-      
-      // 绘制分隔网格线
-      if (showGrid) {
-        blockCtx.strokeStyle = gridLineColor;
-        blockCtx.lineWidth = 1.5;
-        for (let i = gridInterval; i < N; i += gridInterval) {
-          const lineX = extraLeftMargin + i * downloadCellSize + axisLabelSize;
-          blockCtx.beginPath();
-          blockCtx.moveTo(lineX, titleBarHeight + extraTopMargin + axisLabelSize);
-          blockCtx.lineTo(lineX, titleBarHeight + extraTopMargin + axisLabelSize + blockGridHeight);
-          blockCtx.stroke();
-        }
-        for (let j = gridInterval; j < blockM; j += gridInterval) {
-          const lineY = titleBarHeight + extraTopMargin + j * downloadCellSize + axisLabelSize;
-          blockCtx.beginPath();
-          blockCtx.moveTo(extraLeftMargin + axisLabelSize, lineY);
-          blockCtx.lineTo(extraLeftMargin + axisLabelSize + N * downloadCellSize, lineY);
-          blockCtx.stroke();
-        }
-      }
-      
-      // 绘制主边框
-      blockCtx.strokeStyle = '#000000';
-      blockCtx.lineWidth = 1.5;
-      blockCtx.strokeRect(
-        extraLeftMargin + axisLabelSize + 0.5,
-        titleBarHeight + extraTopMargin + axisLabelSize + 0.5,
-        N * downloadCellSize,
-        blockGridHeight
+      // 统计区域水印背景
+      const statsBgPadding = 5;
+      ctx.fillStyle = 'rgba(248, 250, 252, 0.9)'; // 浅灰背景，更柔和
+      ctx.beginPath();
+      ctx.roundRect(
+        statsWatermarkX - statsBgPadding,
+        statsWatermarkY - statsTextHeight - statsBgPadding,
+        statsTextWidth + statsBgPadding * 2,
+        statsTextHeight + statsBgPadding * 2,
+        3
       );
+      ctx.fill();
       
-      // 绘制统计信息
-      if (includeStats && colorCounts) {
-        const colorKeys = Object.keys(colorCounts).sort(sortColorKeys);
-        const statsTopMargin = 24;
-        const statsY = titleBarHeight + extraTopMargin + blockGridHeight + (axisLabelSize * 2) + statsPadding + statsTopMargin;
-        const availableStatsWidth = downloadWidth - (statsPadding * 2);
-        const renderNumColumns = 8;
-        const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
-        const swatchSize = Math.floor(itemWidth * 0.3);
-        const titleHeight = 8;
-        const statsRowHeight = swatchSize + 20;
-        const colorKeyFontSize = Math.max(6, Math.floor(swatchSize * 0.35));
-        const countFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
+      // 统计区域水印边框
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // 统计区域水印文字
+      ctx.fillStyle = '#64748B'; // 清晰的深灰色
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(statsWatermarkText, statsWatermarkX, statsWatermarkY);
+      
+      // 更新统计区域高度的计算 - 需要包含新增的顶部间距
+      const footerHeight = 30; // 总计部分高度
+      statsHeight = titleHeight + (numRows * statsRowHeight) + footerHeight + (statsPadding * 2) + statsTopMargin;
+    }
+
+    // 重新计算画布高度并调整
+    if (includeStats && colorCounts) {
+      // 调整画布大小，包含计算后的统计区域和小红书标识区域
+      const newDownloadHeight = titleBarHeight + extraTopMargin + M * downloadCellSize + (axisLabelSize * 2) + statsHeight + extraBottomMargin + xiaohongshuAreaHeight;
+      
+      if (downloadHeight !== newDownloadHeight) {
+        // 如果高度变化了，需要创建新的画布并复制当前内容
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = downloadWidth;
+        newCanvas.height = newDownloadHeight;
+        const newContext = newCanvas.getContext('2d');
         
-        colorKeys.forEach((key, index) => {
-          const rowIndex = Math.floor(index / renderNumColumns);
-          const colIndex = index % renderNumColumns;
-          const itemX = statsPadding + (colIndex * itemWidth);
-          const rowY = statsY + titleHeight + (rowIndex * statsRowHeight) + (swatchSize / 2);
-          const cellData = colorCounts[key];
-          const colorKey = getColorKeyByHex(key, selectedColorSystem);
-          const swatchX = itemX;
-          const swatchY = rowY - (swatchSize / 2);
-          const cornerRadius = Math.max(3, Math.floor(swatchSize * 0.2));
+        if (newContext) {
+          // 复制原画布内容
+          newContext.drawImage(downloadCanvas, 0, 0);
           
-          blockCtx.save();
-          blockCtx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-          blockCtx.shadowBlur = 3;
-          blockCtx.shadowOffsetX = 1;
-          blockCtx.shadowOffsetY = 1;
-          blockCtx.fillStyle = cellData.color;
-          blockCtx.beginPath();
-          blockCtx.roundRect(swatchX, swatchY, swatchSize, swatchSize, cornerRadius);
-          blockCtx.fill();
-          blockCtx.restore();
+          // 更新画布和上下文引用
+          downloadCanvas = newCanvas;
+          ctx = newContext;
+          ctx.imageSmoothingEnabled = false;
           
-          const rgb = hexToRgb(cellData.color);
-          const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
-          blockCtx.fillStyle = isLightColor ? '#000000' : '#FFFFFF';
-          blockCtx.font = `bold ${colorKeyFontSize}px sans-serif`;
-          blockCtx.textAlign = 'center';
-          blockCtx.textBaseline = 'middle';
-          blockCtx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
-          blockCtx.fillStyle = '#333333';
-          blockCtx.font = `${countFontSize}px sans-serif`;
-          blockCtx.textAlign = 'left';
-          blockCtx.fillText(`x${cellData.count}`, swatchX + swatchSize + 2, rowY);
-        });
-        
-        const numRows = Math.ceil(colorKeys.length / renderNumColumns);
-        const totalY = statsY + titleHeight + (numRows * statsRowHeight) + 10;
-        blockCtx.font = `bold ${statsFontSize}px sans-serif`;
-        blockCtx.textAlign = 'right';
-        blockCtx.fillText(`总计: ${totalBeadCount} 颗`, downloadWidth - statsPadding, totalY);
-        
-        const statsWatermarkFontSize = Math.max(10, Math.floor(statsFontSize * 0.7));
-        blockCtx.font = `500 ${statsWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
-        blockCtx.fillStyle = '#64748B';
-        blockCtx.textAlign = 'left';
-        blockCtx.textBaseline = 'bottom';
-        blockCtx.fillText('图纸来源：@小瓜拼豆生成器', statsPadding, totalY + 20);
+          // 更新高度
+          downloadHeight = newDownloadHeight;
+        }
       }
-      
-      // 底部水印
-      blockCtx.font = `500 12px system-ui, -apple-system, sans-serif`;
-      blockCtx.fillStyle = '#999999';
-      blockCtx.textAlign = 'center';
-      blockCtx.textBaseline = 'bottom';
-      blockCtx.fillText('@小瓜拼豆生成器', downloadWidth / 2, blockDownloadHeight - 10);
-      
-      // 下载
-      const dataURL = blockCanvas.toDataURL('image/png');
+    }
+
+    // iOS 和安卓统一使用相同的清晰度，不再对 iOS canvas 进行缩放
+    // 移除了 iOS 设备 canvas 缩放的限制逻辑
+
+    try {
+      // 统一使用 dataURL 方式下载（iOS和安卓一致，百度浏览器可直接保存到相册）
+      const dataURL = downloadCanvas.toDataURL('image/png');
       const link = document.createElement('a');
-      if (totalBlocks > 1) {
-        link.download = showCellNumbers
-          ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}_part${blockIndex + 1}.png`
-          : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}_part${blockIndex + 1}.png`;
-      } else {
-        link.download = showCellNumbers
-          ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
-          : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
-      }
+      link.download = showCellNumbers
+        ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
+        : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
       link.href = dataURL;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      console.log(`第 ${blockIndex + 1}/${totalBlocks} 部分图纸下载已触发`);
-    };
-
-    try {
-      if (shouldChunkDownload) {
-        // iOS 设备且尺寸超过100：分块下载
-        const totalBlocks = Math.min(Math.ceil(M / maxRowsPerBlock), maxBlocks);
-        console.log(`检测到 iOS 设备，尺寸 ${M}x${N}，将分 ${totalBlocks} 块下载`);
-        
-        for (let i = 0; i < totalBlocks; i++) {
-          const startRow = i * maxRowsPerBlock;
-          const endRow = Math.min((i + 1) * maxRowsPerBlock, M);
-          drawAndDownloadBlock(startRow, endRow, i, totalBlocks);
-        }
-      } else {
-        // 正常下载完整图纸
-        drawAndDownloadBlock(0, M, 0, 1);
-      }
+      console.log("图纸下载已触发");
       
       // 如果启用了CSV导出，同时导出CSV文件
       if (options.exportCsv) {
