@@ -249,23 +249,8 @@ export async function downloadImage({
     const { N, M } = gridDimensions; // 此时已确保gridDimensions不为null
     let downloadCellSize = 30;
   
-    // iOS 设备：如果网格尺寸较大，降低单元格大小以避免 canvas 超过尺寸限制
-    if (isIOS()) {
-      // 计算 iOS 设备下的最大单元格大小
-      const estimatedWidth = N * downloadCellSize + 200; // 预留边距
-      const estimatedHeight = M * downloadCellSize + 400; // 预留标题栏、统计区域等
-      const estimatedArea = estimatedWidth * estimatedHeight;
-      
-      if (estimatedArea > IOS_MAX_CANVAS_AREA || estimatedWidth > IOS_MAX_CANVAS_DIMENSION || estimatedHeight > IOS_MAX_CANVAS_DIMENSION) {
-        // 按比例降低单元格大小
-        const scaleByWidth = (IOS_MAX_CANVAS_DIMENSION - 200) / (N * downloadCellSize);
-        const scaleByHeight = (IOS_MAX_CANVAS_DIMENSION - 400) / (M * downloadCellSize);
-        const scaleByArea = Math.sqrt(IOS_MAX_CANVAS_AREA / (estimatedWidth * estimatedHeight));
-        const scaleFactor = Math.min(scaleByWidth, scaleByHeight, scaleByArea, 1);
-        downloadCellSize = Math.max(10, Math.floor(downloadCellSize * scaleFactor)); // 最小 10px
-        console.log(`iOS 设备：降低单元格大小到 ${downloadCellSize}px 以避免 canvas 超限`);
-      }
-    }
+    // iOS 和安卓统一使用相同的单元格大小，不再降低清晰度
+    // 移除了 iOS 设备降低单元格大小的限制逻辑
   
     // 从下载选项中获取设置
     const { showGrid, gridInterval, showCoordinates, gridLineColor, includeStats, showCellNumbers = true } = options;
@@ -798,39 +783,8 @@ export async function downloadImage({
       }
     }
 
-    // iOS 设备：如果 canvas 尺寸仍然超过限制，创建缩放版本
-    // 注意：iOS 在绘制前已经调整了 downloadCellSize，这里只是额外的安全检查
-    if (isIOS() && downloadCanvas.width > 0 && downloadCanvas.height > 0) {
-      const canvasArea = downloadCanvas.width * downloadCanvas.height;
-      if (canvasArea > IOS_MAX_CANVAS_AREA || downloadCanvas.width > IOS_MAX_CANVAS_DIMENSION || downloadCanvas.height > IOS_MAX_CANVAS_DIMENSION) {
-        // 计算缩放因子
-        const scaleByWidth = (IOS_MAX_CANVAS_DIMENSION - 50) / downloadCanvas.width;
-        const scaleByHeight = (IOS_MAX_CANVAS_DIMENSION - 50) / downloadCanvas.height;
-        const scaleByArea = Math.sqrt(IOS_MAX_CANVAS_AREA / canvasArea);
-        const finalScale = Math.min(scaleByWidth, scaleByHeight, scaleByArea, 0.9);
-        
-        const scaledWidth = Math.floor(downloadCanvas.width * finalScale);
-        const scaledHeight = Math.floor(downloadCanvas.height * finalScale);
-        
-        console.log(`iOS 设备：canvas 尺寸 ${downloadCanvas.width}x${downloadCanvas.height} 超限，缩放为 ${scaledWidth}x${scaledHeight}`);
-        
-        // 创建缩放后的 canvas
-        const scaledCanvas = document.createElement('canvas');
-        scaledCanvas.width = scaledWidth;
-        scaledCanvas.height = scaledHeight;
-        const scaledCtx = scaledCanvas.getContext('2d');
-        
-        if (scaledCtx) {
-          // 先填充白色背景
-          scaledCtx.fillStyle = '#FFFFFF';
-          scaledCtx.fillRect(0, 0, scaledWidth, scaledHeight);
-          // 再绘制缩放后的内容
-          scaledCtx.imageSmoothingEnabled = true;
-          scaledCtx.drawImage(downloadCanvas, 0, 0, scaledWidth, scaledHeight);
-          downloadCanvas = scaledCanvas;
-        }
-      }
-    }
+    // iOS 和安卓统一使用相同的清晰度，不再对 iOS canvas 进行缩放
+    // 移除了 iOS 设备 canvas 缩放的限制逻辑
 
     try {
       // 统一使用 dataURL 方式下载（iOS和安卓一致，百度浏览器可直接保存到相册）
