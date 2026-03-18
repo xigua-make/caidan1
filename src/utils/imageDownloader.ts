@@ -833,29 +833,48 @@ export async function downloadImage({
     }
 
     try {
-      // iOS 设备使用 Blob 方式下载，更可靠
-      const useBlob = isIOS();
-      
-      if (useBlob) {
-        // 使用 toBlob 方式（iOS 更兼容）
-        downloadCanvas.toBlob((blob) => {
+      // iOS 设备：优先使用 Web Share API 分享图片（可保存到相册）
+      if (isIOS()) {
+        downloadCanvas.toBlob(async (blob) => {
           if (!blob) {
             console.error("下载图纸失败: 无法生成图片 Blob");
             alert("无法生成图纸下载链接，请尝试降低图纸尺寸。");
             return;
           }
           
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.download = showCellNumbers
+          const filename = showCellNumbers
             ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
             : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
+          
+          // 尝试使用 Web Share API（可直接保存到相册）
+          if (navigator.share && navigator.canShare) {
+            try {
+              const file = new File([blob], filename, { type: 'image/png' });
+              const shareData = { files: [file] };
+              
+              if (navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+                console.log("iOS 设备：已通过分享菜单导出图片");
+                return;
+              }
+            } catch (shareError: unknown) {
+              // 用户取消分享不报错
+              if (shareError instanceof Error && shareError.name === 'AbortError') {
+                console.log("用户取消了分享");
+                return;
+              }
+              console.warn("Web Share API 失败，回退到下载方式:", shareError);
+            }
+          }
+          
+          // 回退方案：直接下载（保存到文件 App）
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = filename;
           link.href = url;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          
-          // 延迟释放URL
           setTimeout(() => URL.revokeObjectURL(url), 1000);
           console.log("Grid image download initiated (Blob mode).");
         }, 'image/png');
