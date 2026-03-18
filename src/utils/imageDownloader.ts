@@ -833,42 +833,17 @@ export async function downloadImage({
     }
 
     try {
-      // iOS 设备：使用 Blob 方式下载（百度浏览器等第三方浏览器可直接保存到相册）
-      if (isIOS()) {
-        downloadCanvas.toBlob((blob) => {
-          if (!blob) {
-            console.error("下载图纸失败: 无法生成图片 Blob");
-            return;
-          }
-          
-          const filename = showCellNumbers
-            ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
-            : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
-          
-          // 直接下载，不弹窗不提示
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.download = filename;
-          link.href = url;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          console.log("iOS 图片下载已触发");
-        }, 'image/png');
-      } else {
-        // 非 iOS 设备使用 dataURL 方式
-        const dataURL = downloadCanvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = showCellNumbers
-          ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
-          : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        console.log("Grid image download initiated.");
-      }
+      // 统一使用 dataURL 方式下载（iOS和安卓一致，百度浏览器可直接保存到相册）
+      const dataURL = downloadCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = showCellNumbers
+        ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
+        : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
+      link.href = dataURL;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      console.log("图纸下载已触发");
       
       // 如果启用了CSV导出，同时导出CSV文件
       if (options.exportCsv) {
@@ -880,7 +855,6 @@ export async function downloadImage({
       }
     } catch (e) {
       console.error("下载图纸失败:", e);
-      alert("无法生成图纸下载链接。");
     }
   };
   
