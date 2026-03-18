@@ -242,6 +242,7 @@ export async function downloadImage({
   
   // 加载二维码图片
   const qrCodeImage = new Image();
+  qrCodeImage.crossOrigin = 'anonymous'; // 添加跨域支持
   qrCodeImage.src = '/website_qrcode.png'; // 使用public目录中的图片
   
   // 绘制单个分块的函数
@@ -548,7 +549,9 @@ export async function downloadImage({
   
   // 主要下载处理函数
   const processDownload = () => {
+    console.log("processDownload 开始执行...");
     const { N, M } = gridDimensions; // 此时已确保gridDimensions不为null
+    console.log(`网格尺寸: ${N}x${M}`);
     let downloadCellSize = 30;
   
     // 从下载选项中获取设置
@@ -637,13 +640,16 @@ export async function downloadImage({
     const maxBlocks = 3;
     
     const downloadSingleBlock = (blockIndex: number, totalBlocks: number) => {
+      console.log(`downloadSingleBlock 被调用: blockIndex=${blockIndex}, totalBlocks=${totalBlocks}`);
       const blockStartRow = blockIndex * maxRowsPerBlock;
       const blockEndRow = Math.min((blockIndex + 1) * maxRowsPerBlock, M);
       const blockM = blockEndRow - blockStartRow;
       const blockGridHeight = blockM * downloadCellSize;
+      console.log(`块范围: ${blockStartRow}-${blockEndRow}, 行数: ${blockM}`);
       
       // 计算当前块的画布高度
       const blockDownloadHeight = titleBarHeight + extraTopMargin + blockGridHeight + (axisLabelSize * 2) + statsHeight + extraBottomMargin + xiaohongshuAreaHeight;
+      console.log(`画布尺寸: ${downloadWidth}x${blockDownloadHeight}`);
       
       const blockCanvas = document.createElement('canvas');
       blockCanvas.width = downloadWidth;
@@ -685,8 +691,11 @@ export async function downloadImage({
         xiaohongshuAreaHeight
       );
       
+      console.log(`drawBlock 调用完成，准备生成 dataURL`);
+      
       // 下载当前块
       const dataURL = blockCanvas.toDataURL('image/png');
+      console.log(`dataURL 生成完成，长度: ${dataURL.length}`);
       const link = document.createElement('a');
       
       if (totalBlocks > 1) {
@@ -735,11 +744,27 @@ export async function downloadImage({
   };
   
   // 图片加载后处理，或在加载失败时使用占位符
+  console.log("downloadImage 函数被调用，准备加载二维码图片...");
+  console.log("qrCodeImage.complete:", qrCodeImage.complete);
+  
+  // 设置超时机制，确保即使图片加载失败也能继续下载
+  const timeoutId = setTimeout(() => {
+    console.warn("二维码图片加载超时，使用占位符继续下载");
+    processDownload();
+  }, 2000);
+  
   if (qrCodeImage.complete) {
+    clearTimeout(timeoutId);
+    console.log("二维码图片已加载完成，直接处理下载");
     processDownload();
   } else {
-    qrCodeImage.onload = processDownload;
+    qrCodeImage.onload = () => {
+      clearTimeout(timeoutId);
+      console.log("二维码图片加载完成，处理下载");
+      processDownload();
+    };
     qrCodeImage.onerror = () => {
+      clearTimeout(timeoutId);
       console.warn("二维码图片加载失败，将使用占位符");
       processDownload();
     };
