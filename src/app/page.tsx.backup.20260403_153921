@@ -1942,31 +1942,93 @@ export default function Home() {
           {/* Integrated super fancy logo and title container */}
           <div className="relative flex flex-col items-center">
             {/* Watermelon Logo - 像素风格 */}
-            <div className="relative mb-6">
-              <img
-                src="/logo.png"
-                alt="小瓜拼豆"
+            <div className="relative mb-6 animate-float">
+              <img 
+                src="/logo.png" 
+                alt="小瓜拼豆" 
                 className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-xl"
               />
+              
+              {/* Cute decorations around the logo */}
+              <div className="absolute -top-2 -right-3 w-3 h-3 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-ping"></div>
+              <div className="absolute -bottom-2 -left-3 w-2.5 h-2.5 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full animate-bounce"></div>
+              <div className="absolute top-0 -left-2 w-1.5 h-1.5 bg-gradient-to-br from-green-400 to-teal-500 rotate-45 animate-pulse"></div>
             </div>
 
             {/* Ultra fancy brand name and tool name with hyper cute decorations */}
             <div className="relative flex flex-col items-center space-y-3">
-              {/* Brand name - 小瓜 */}
+              {/* Brand name - 小瓜 with ultra fancy effects */}
               <div className="relative">
-                <h1 className="relative text-4xl sm:text-6xl font-black text-blue-600 tracking-wider drop-shadow-2xl">
+                <h1 className="relative text-4xl sm:text-6xl font-black bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 to-cyan-400 bg-clip-text text-transparent tracking-wider drop-shadow-2xl transform hover:scale-105 transition-transform duration-300 animate-bounce" style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   小瓜
                 </h1>
+                
+                {/* Super fancy geometric decorations */}
+                <div className="absolute -top-4 -right-5 w-4 h-4 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-spin transform rotate-12"></div>
+                <div className="absolute -top-2 -right-2 w-2.5 h-2.5 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full animate-ping"></div>
+                <div className="absolute -top-1 -right-0.5 w-1.5 h-1.5 bg-gradient-to-br from-purple-400 to-blue-500 rotate-45 animate-pulse delay-100"></div>
+                <div className="absolute -bottom-3 -left-5 w-4 h-4 bg-gradient-to-br from-blue-400 to-purple-500 rotate-45 animate-bounce delay-200"></div>
+                <div className="absolute -bottom-1 -left-2 w-2 h-2 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full animate-spin delay-300"></div>
+                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full animate-pulse delay-400"></div>
+                <div className="absolute -bottom-4 -right-3 w-3 h-3 bg-gradient-to-br from-cyan-400 to-teal-500 rounded-full animate-bounce delay-500"></div>
+                <div className="absolute top-1 -left-4 w-2 h-2 bg-gradient-to-br from-pink-400 to-red-500 rotate-45 animate-ping delay-600"></div>
+                
+                {/* Extra tiny sparkles around brand name */}
+                <div className="absolute -top-3 left-0 w-1 h-1 bg-yellow-300 rounded-full animate-pulse delay-700"></div>
+                <div className="absolute -top-2 right-3 w-0.5 h-0.5 bg-pink-300 rounded-full animate-bounce delay-800"></div>
+                <div className="absolute bottom-0 -left-1 w-0.5 h-0.5 bg-blue-300 rounded-full animate-ping delay-900"></div>
+                <div className="absolute bottom-1 right-0 w-1 h-1 bg-purple-300 rounded-full animate-pulse delay-1000"></div>
               </div>
-
-              {/* Tool name - 拼豆底稿生成器 */}
+              
+              {/* Tool name - 拼豆底稿生成器 with hyper cute style */}
               <div className="relative">
-                <h2 className="relative text-xl sm:text-3xl font-bold text-gray-700 tracking-widest">
+                <h2 className="relative text-xl sm:text-3xl font-bold bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 to-emerald-400 bg-clip-text text-transparent tracking-widest transform hover:scale-102 transition-all duration-300" style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   拼豆底稿生成器
                 </h2>
+                
+                {/* Super cute geometric shapes */}
+                <div className="absolute -top-3 -left-6 w-3.5 h-3.5 bg-gradient-to-br from-blue-400 to-teal-500 rounded-full animate-bounce delay-75"></div>
+                <div className="absolute -top-1 -left-3 w-2 h-2 bg-gradient-to-br from-teal-400 to-green-500 rounded-full animate-ping delay-150"></div>
+                <div className="absolute -top-0.5 -left-1 w-1 h-1 bg-gradient-to-br from-green-400 to-emerald-500 rotate-45 animate-pulse delay-225"></div>
+                <div className="absolute -top-3 -right-6 w-3 h-3 bg-gradient-to-br from-green-400 to-emerald-500 rotate-45 animate-spin delay-300"></div>
+                <div className="absolute -top-1 -right-3 w-1.5 h-1.5 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-full animate-bounce delay-375"></div>
+                <div className="absolute -bottom-2 -right-3 w-2.5 h-2.5 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full animate-pulse delay-450"></div>
+                <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-gradient-to-br from-teal-400 to-blue-500 rotate-45 animate-spin delay-525"></div>
+                
+                {/* Mini sparkles around tool name */}
+                <div className="absolute -top-2 left-2 w-0.5 h-0.5 bg-blue-300 rounded-full animate-ping delay-600"></div>
+                <div className="absolute -top-1 right-2 w-1 h-1 bg-teal-300 rounded-full animate-pulse delay-675"></div>
+                <div className="absolute bottom-0 left-4 w-0.5 h-0.5 bg-green-300 rounded-full animate-bounce delay-750"></div>
+                <div className="absolute bottom-1 right-4 w-0.5 h-0.5 bg-emerald-300 rounded-full animate-pulse delay-825"></div>
+                <div className="absolute top-2 -left-2 w-0.5 h-0.5 bg-cyan-300 rounded-full animate-ping delay-900"></div>
+                <div className="absolute top-2 -right-2 w-1 h-1 bg-teal-300 rounded-full animate-bounce delay-975"></div>
               </div>
             </div>
             
+            {/* Ultra cute floating elements constellation around the entire group */}
+            <div className="absolute -top-10 -left-10 w-3 h-3 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full animate-float"></div>
+            <div className="absolute -top-8 -left-6 w-1.5 h-1.5 bg-gradient-to-br from-purple-400 to-pink-500 rotate-45 animate-spin delay-100"></div>
+            <div className="absolute -top-6 -left-12 w-2 h-2 bg-gradient-to-br from-pink-400 to-red-500 rounded-full animate-bounce delay-200"></div>
+            
+            <div className="absolute -top-10 -right-10 w-2.5 h-2.5 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full animate-ping delay-300"></div>
+            <div className="absolute -top-6 -right-14 w-1 h-1 bg-gradient-to-br from-cyan-400 to-blue-500 rotate-45 animate-pulse delay-400"></div>
+            <div className="absolute -top-4 -right-8 w-3 h-3 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full animate-bounce delay-500"></div>
+            
+            <div className="absolute -bottom-10 -left-10 w-2 h-2 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse delay-600"></div>
+            <div className="absolute -bottom-8 -left-14 w-1.5 h-1.5 bg-gradient-to-br from-orange-400 to-red-500 rotate-45 animate-spin delay-700"></div>
+            <div className="absolute -bottom-6 -left-6 w-2.5 h-2.5 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full animate-float delay-800"></div>
+            
+            <div className="absolute -bottom-10 -right-10 w-3 h-3 bg-gradient-to-br from-green-400 to-teal-500 rotate-45 animate-bounce delay-900"></div>
+            <div className="absolute -bottom-8 -right-6 w-1 h-1 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full animate-ping delay-1000"></div>
+            <div className="absolute -bottom-6 -right-14 w-2 h-2 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full animate-pulse delay-1100"></div>
+            
+            {/* Extra tiny magical sparkles */}
+            <div className="absolute -top-12 left-0 w-0.5 h-0.5 bg-yellow-300 rounded-full animate-ping delay-1200"></div>
+            <div className="absolute -top-2 -left-16 w-1 h-1 bg-pink-300 rounded-full animate-bounce delay-1300"></div>
+            <div className="absolute top-2 -right-18 w-0.5 h-0.5 bg-blue-300 rounded-full animate-pulse delay-1400"></div>
+            <div className="absolute -bottom-12 right-0 w-1 h-1 bg-purple-300 rounded-full animate-float delay-1500"></div>
+            <div className="absolute -bottom-2 -right-16 w-0.5 h-0.5 bg-green-300 rounded-full animate-ping delay-1600"></div>
+            <div className="absolute bottom-2 -left-18 w-1 h-1 bg-teal-300 rounded-full animate-bounce delay-1700"></div>
           </div>
           {/* Separator gradient remains the same */}
           <div className="h-1 w-24 mx-auto my-3 bg-gradient-to-r from-blue-500 to-pink-500 rounded-full"></div>
@@ -2129,7 +2191,7 @@ export default function Home() {
             {/* 自定义色板编辑器弹窗 - 这是新增的部分 */}
             {isCustomPaletteEditorOpen && (
               <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col" style={{ height: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                    {/* 添加隐藏的文件输入框 */}
                    <input
                     type="file"
@@ -2138,17 +2200,19 @@ export default function Home() {
                     onChange={handleImportPaletteFile}
                     className="hidden"
                   />
-                  <CustomPaletteEditor
-                    allColors={fullBeadPalette}
-                    currentSelections={customPaletteSelections}
-                    onSelectionChange={handleSelectionChange}
-                    onSaveCustomPalette={handleSaveCustomPalette}
-                    onClose={() => setIsCustomPaletteEditorOpen(false)}
-                    onExportCustomPalette={handleExportCustomPalette}
-                    onImportCustomPalette={triggerImportPalette}
-                    selectedColorSystem={selectedColorSystem}
-                    onColorSystemChange={setSelectedColorSystem}
-                  />
+                  <div className="p-4 sm:p-6 flex-1 overflow-y-auto"> {/* 让内容区域可滚动 */}
+                    <CustomPaletteEditor
+                      allColors={fullBeadPalette}
+                      currentSelections={customPaletteSelections}
+                      onSelectionChange={handleSelectionChange}
+                      onSaveCustomPalette={handleSaveCustomPalette}
+                      onClose={() => setIsCustomPaletteEditorOpen(false)}
+                      onExportCustomPalette={handleExportCustomPalette}
+                      onImportCustomPalette={triggerImportPalette}
+                      selectedColorSystem={selectedColorSystem}
+                      onColorSystemChange={setSelectedColorSystem}
+                    />
+                  </div>
                 </div>
               </div>
             )}
