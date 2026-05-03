@@ -1,6 +1,4 @@
 // 下载网格的选项类型定义
-export type StatsBlockSize = 'large' | 'small';
-
 export type GridDownloadOptions = {
   showGrid: boolean;
   gridInterval: number;
@@ -17,5 +15,4 @@ export type GridDownloadOptions = {
     reprint: boolean; // 禁止转载
     modify: boolean; // 禁止二改
   };
-  statsBlockSize: StatsBlockSize; // 色块大小：大色块或小色块
 };

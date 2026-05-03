@@ -1,0 +1,379 @@
+'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { CheckCircle2, Import, Play, ArrowLeftRight } from 'lucide-react';
+import Script from 'next/script';
+import InstallPWA from '../components/InstallPWA';
+import ActivationModal from '../components/ActivationModal';
+import { useActivation } from '../hooks/useActivation';
+
+// 是否启用激活验证
+const ENABLE_ACTIVATION = true;
+
+// Glass 组件
+function Glass({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={
+        "rounded-[32px] border border-white/70 bg-white/75 backdrop-blur-2xl " +
+        "shadow-[0_20px_60px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] " +
+        className
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
+// Tag 组件
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-full border border-white/70 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-600 shadow-[0_8px_18px rgba(15,23,42,0.05)]">
+      {children}
+    </div>
+  );
+}
+
+// Hero 区块
+function Hero({ handleStartCreate, isActivated, isVerifying, expiresAt }: { handleStartCreate: () => void; isActivated: boolean; isVerifying: boolean; expiresAt: string | null }) {
+  return (
+    <Glass className="relative overflow-hidden px-5 py-6 text-center sm:px-8 sm:py-10 md:px-12 md:py-12 lg:px-16 lg:py-16">
+      <div className="absolute left-[-60px] top-[-40px] h-40 w-40 sm:left-[-80px] sm:top-[-60px] sm:h-56 sm:w-56 rounded-full bg-sky-200/40 blur-3xl" />
+      <div className="absolute right-[-30px] top-8 h-32 w-32 sm:right-[-40px] sm:top-10 sm:h-48 sm:w-48 rounded-full bg-fuchsia-200/35 blur-3xl" />
+      <div className="absolute bottom-[-60px] left-1/2 h-40 w-40 -translate-x-1/2 sm:bottom-[-80px] sm:h-56 sm:w-56 rounded-full bg-cyan-200/30 blur-3xl" />
+
+      <div className="relative mx-auto max-w-4xl md:max-w-5xl">
+        <h1 className="text-[28px] font-black leading-[1.1] tracking-[-0.04em] text-slate-950 sm:text-[40px] md:text-[52px] lg:text-[64px] xl:text-[72px] 2xl:text-[82px]">
+          小瓜拼豆
+          <br />
+          <span className="inline-block bg-[linear-gradient(90deg,#111827,#2563eb,#8b5cf6)] bg-clip-text text-[20px] leading-[1.15] text-transparent sm:text-[28px] md:text-[36px] lg:text-[44px] xl:text-[52px] 2xl:text-[58px]">
+            让图片一键变成拼豆图纸
+          </span>
+        </h1>
+
+        <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500 sm:mt-5 sm:text-base sm:leading-7 md:mt-6 md:text-lg md:leading-8 lg:text-xl lg:leading-9">
+          上传原图，自动生成拼豆图纸，再进入工作台继续精修和导出。
+        </p>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-2 sm:mt-7 sm:gap-3">
+          <Tag>上传原图</Tag>
+          <Tag>自动生成图纸</Tag>
+          <Tag>进入工作台继续处理</Tag>
+        </div>
+
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 px-2 sm:mt-8 sm:flex-row sm:items-center sm:px-0">
+          <button
+            onClick={handleStartCreate}
+            className="inline-flex h-12 sm:h-13 md:h-14 items-center justify-center gap-3 rounded-full bg-[linear-gradient(180deg,#3b82f6,#2563eb)] px-5 sm:px-6 md:px-8 text-sm sm:text-base md:text-lg font-bold text-white shadow-[0_18px_34px rgba(59,130,246,0.26)]"
+          >
+            <Import className="h-4 w-4 sm:h-5 sm:w-5" /> {isVerifying ? '验证中...' : '点击开始创作'}
+          </button>
+        </div>
+
+        {isActivated && (
+          <div className="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-4 py-1.5 text-xs font-semibold text-emerald-600 shadow-[0_10px_24px rgba(16,185,129,0.1)] sm:mt-4 sm:px-5 sm:py-2 sm:text-sm">
+            <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" /> 已激活 {expiresAt ? `· 到期：${new Date(expiresAt).toLocaleDateString('zh-CN')}` : '· 永久有效'}
+          </div>
+        )}
+      </div>
+    </Glass>
+  );
+}
+
+// 对比区块
+function CompareBlock() {
+  const [slider, setSlider] = useState(50);  // 默认滑块在中间，左右各显示一半
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [fitSize, setFitSize] = useState({ width: 0, height: 0, offsetX: 0, offsetY: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = '/demo-original.png';
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current || !imageSize.width) return;
+
+    const updateFitSize = () => {
+      if (!containerRef.current) return;
+      const container = containerRef.current;
+      const imgRatio = imageSize.width / imageSize.height;
+      const containerRatio = container.offsetWidth / container.offsetHeight;
+      let fitWidth, fitHeight, offsetX, offsetY;
+
+      if (imgRatio > containerRatio) {
+        fitWidth = container.offsetWidth;
+        fitHeight = container.offsetWidth / imgRatio;
+        offsetX = 0;
+        offsetY = (container.offsetHeight - fitHeight) / 2;
+      } else {
+        fitHeight = container.offsetHeight;
+        fitWidth = container.offsetHeight * imgRatio;
+        offsetX = (container.offsetWidth - fitWidth) / 2;
+        offsetY = 0;
+      }
+
+      setFitSize({ width: fitWidth, height: fitHeight, offsetX, offsetY });
+    };
+
+    updateFitSize();
+    window.addEventListener('resize', updateFitSize);
+    return () => window.removeEventListener('resize', updateFitSize);
+  }, [imageSize]);
+
+  const handleCompareClick = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    setSlider(percentage);
+  };
+
+  return (
+    <Glass className="overflow-hidden px-5 py-6 sm:px-6 sm:py-7 md:px-8 md:py-8 lg:px-10 lg:py-10">
+      <div className="mb-6 text-center sm:mb-7">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-600 sm:mb-4 sm:px-4 sm:py-2 sm:text-sm">
+          <ArrowLeftRight className="h-3 w-3 sm:h-4 sm:w-4" /> 转换效果
+        </div>
+        <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl md:text-3xl lg:text-4xl xl:text-[44px]">
+          拖动滑块，实时对比原图和图纸效果
+        </h2>
+        <p className="mx-auto mt-2 max-w-3xl text-xs leading-5 text-slate-500 sm:mt-3 sm:text-sm sm:leading-6 md:text-base md:leading-7 lg:text-lg">
+          页面会自动生成左右分屏的对比视图。中间的滑块可以直接拖动，实时切换原图和增强效果，所有调整都会即时同步到预览窗口里。
+        </p>
+      </div>
+
+      <div className="mx-auto max-w-4xl md:max-w-5xl">
+        <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-full bg-[linear-gradient(180deg,#3b82f6,#2563eb)] px-3 py-1.5 text-xs font-semibold text-white sm:px-4 sm:py-2 sm:text-sm">
+              原图 vs 拼豆图纸
+            </div>
+            <div className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-500 shadow-[0_6px_14px rgba(31,41,55,0.05)] sm:px-3 sm:py-1.5 sm:text-xs">
+              实时对比预览
+            </div>
+          </div>
+          <div className="rounded-full border border-slate-200 bg-white/80 px-2 py-1 text-[10px] font-semibold text-slate-500 sm:px-3 sm:py-1.5 sm:text-xs">
+            当前分割：{Math.round(slider)}%
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(135deg,#f6f9ff,#fbfdff)] shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] sm:rounded-[24px] md:rounded-[28px]">
+          <div ref={containerRef} className="relative h-[220px] sm:h-[280px] md:h-[350px] lg:h-[450px] xl:h-[520px]">
+            {imageSize.width > 0 && (
+              <>
+                {/* 底层：原图（清晰图）- 完整显示 */}
+                <img
+                  src="/demo-original.png"
+                  alt="原图"
+                  className="absolute top-0 left-0 w-full h-full object-contain"
+                />
+
+                {/* 上层：拼豆图纸（模糊图）- 使用 clip-path 裁剪 */}
+                <img
+                  src="/demo-pixelated.png"
+                  alt="拼豆图纸"
+                  className="absolute top-0 left-0 w-full h-full object-contain"
+                  style={{
+                    clipPath: `inset(0 0 0 ${slider}%)`,
+                  }}
+                />
+
+                {/* 分割线 */}
+                <div
+                  className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/95 shadow-[0_0_0_1px_rgba(59,130,246,0.12)]"
+                  style={{ left: `calc(${slider}% - 0.5px)` }}
+                >
+                  <div className="absolute left-1/2 top-1/2 flex h-9 w-9 sm:h-11 sm:w-11 md:h-12 md:w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/92 text-slate-700 shadow-[0_14px_32px rgba(31,41,55,0.16)] backdrop-blur-xl">
+                    <ArrowLeftRight className="h-4 w-4 sm:h-5 sm:w-5 opacity-70" />
+                  </div>
+                </div>
+
+                {/* 滑块输入 */}
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={slider}
+                  onChange={(e) => setSlider(Number(e.target.value))}
+                  className="absolute inset-0 z-30 h-full w-full cursor-ew-resize opacity-0"
+                  aria-label="拖动滑块对比原图和拼豆图纸"
+                />
+
+                {/* 标签 */}
+                <div className="pointer-events-none absolute left-2 top-2 sm:left-3 sm:top-3 rounded-full bg-white/92 px-2 py-1 sm:px-2.5 sm:py-1.5 text-[9px] sm:text-[10px] font-semibold text-slate-600 shadow-[0_8px_18px rgba(31,41,55,0.08)] backdrop-blur-xl">
+                  拼豆图纸
+                </div>
+                <div className="pointer-events-none absolute right-2 top-2 sm:right-3 sm:top-3 rounded-full bg-white/92 px-2 py-1 sm:px-3 sm:py-1.5 text-[9px] sm:text-xs font-semibold text-slate-600 shadow-[0_8px_18px rgba(31,41,55,0.08)] backdrop-blur-xl">
+                  原图
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </Glass>
+  );
+}
+
+// 视频展示区块
+function VideoShowcase() {
+  const [videoVersion, setVideoVersion] = useState<'desktop' | 'mobile'>('desktop');
+  
+  const desktopVideo = 'BV1BCDsBoE7U';
+  const mobileVideo = 'BV1BkDsBtEWP';
+  
+  return (
+    <Glass className="overflow-hidden px-5 py-6 sm:px-6 sm:py-7 md:px-8 md:py-8 lg:px-10 lg:py-10">
+      <div className="mb-5 text-center sm:mb-6">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-600 sm:mb-4 sm:px-4 sm:py-2 sm:text-sm">
+          <Play className="h-3 w-3 sm:h-4 sm:w-4 fill-current" /> 功能演示
+        </div>
+        <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl md:text-3xl lg:text-4xl xl:text-[44px]">
+          看看实际效果
+        </h2>
+      </div>
+
+      <div className="rounded-[24px] border border-white/80 bg-[linear-gradient(135deg,rgba(242,247,255,0.95),rgba(251,246,255,0.92),rgba(255,248,244,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] sm:rounded-[28px] sm:p-5 md:p-6 lg:p-7">
+        <div className="mx-auto max-w-4xl md:max-w-5xl">
+          {/* 切换按钮 */}
+          <div className="mb-4 flex justify-center gap-2">
+            <button
+              onClick={() => setVideoVersion('desktop')}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                videoVersion === 'desktop'
+                  ? 'bg-[linear-gradient(180deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_20px_rgba(59,130,246,0.2)]'
+                  : 'bg-white/80 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)] hover:bg-white'
+              }`}
+            >
+              电脑版教程
+            </button>
+            <button
+              onClick={() => setVideoVersion('mobile')}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                videoVersion === 'mobile'
+                  ? 'bg-[linear-gradient(180deg,#3b82f6,#2563eb)] text-white shadow-[0_10px_20px_rgba(59,130,246,0.2)]'
+                  : 'bg-white/80 text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.04)] hover:bg-white'
+              }`}
+            >
+              手机版教程
+            </button>
+          </div>
+
+          <div className="rounded-[18px] sm:rounded-[22px] md:rounded-[26px] border border-white/85 bg-white/74 shadow-[0_16px_38px rgba(31,41,55,0.08)] backdrop-blur-2xl overflow-hidden">
+            <div className="relative w-full pt-[110%] sm:pt-[90%] md:pt-[75%] lg:pt-[56.25%]">
+              <iframe
+                src={`//player.bilibili.com/player.html?bvid=${videoVersion === 'desktop' ? desktopVideo : mobileVideo}&page=1`}
+                scrolling="no"
+                border="0"
+                frameBorder="no"
+                framespacing="0"
+                allowFullScreen={true}
+                className="absolute top-0 left-0 w-full h-full"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Glass>
+  );
+}
+
+// 首页组件
+export default function Home() {
+  // 激活验证
+  const activation = useActivation();
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [expiredMessage, setExpiredMessage] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // 点击开始创作时的处理
+  const handleStartCreate = async () => {
+    if (ENABLE_ACTIVATION) {
+      setIsVerifying(true);
+      try {
+        // 强制从服务器验证激活状态（检查是否被禁用）
+        const isValid = await activation.checkActivation();
+
+        if (!isValid) {
+          setExpiredMessage('激活码已被禁用或已过期，请重新激活');
+          setShowActivationModal(true);
+          return;
+        }
+
+        // 检查是否过期
+        if (activation.isExpired) {
+          setExpiredMessage('卡密已过期，请重新激活');
+          setShowActivationModal(true);
+          return;
+        }
+
+        // 已激活，跳转到工作台
+        window.location.href = '/workstation';
+      } catch (error) {
+        console.error('验证失败:', error);
+        // 网络错误时，检查本地状态
+        if (!activation.isActivated || activation.isExpired) {
+          setExpiredMessage(activation.isExpired ? '卡密已过期，请重新激活' : '');
+          setShowActivationModal(true);
+          return;
+        }
+      } finally {
+        setIsVerifying(false);
+      }
+    }
+    // 已激活或未启用激活，跳转到工作站
+    window.location.href = '/workstation';
+  };
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,1),rgba(243,247,252,0.98),rgba(238,243,248,0.98))] px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-12 lg:py-10 xl:px-16 xl:py-12 text-slate-800">
+      <div className="mx-auto max-w-[768px] md:max-w-[1024px] lg:max-w-[1200px] xl:max-w-[1300px] space-y-4 sm:space-y-5 md:space-y-6 lg:space-y-7">
+        <Hero handleStartCreate={handleStartCreate} isActivated={activation.isActivated} isVerifying={isVerifying} expiresAt={activation.expiresAt} />
+        <CompareBlock />
+        <VideoShowcase />
+      </div>
+
+      {/* 激活模态框 */}
+      {showActivationModal && (
+        <ActivationModal
+          isOpen={showActivationModal}
+          onClose={() => {
+            setShowActivationModal(false);
+            setExpiredMessage('');
+          }}
+          onActivate={async (code: string) => {
+            const result = await activation.activate(code);
+            return result;
+          }}
+          expiredMessage={expiredMessage}
+        />
+      )}
+
+      {/* PWA 安装提示 */}
+      <InstallPWA />
+
+      {/* AdSense 广告 */}
+      <Script
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7207313144293144"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
+      <ins
+        className="adsbygoogle block"
+        style={{ display: 'block', textAlign: 'center' }}
+        data-ad-client="ca-pub-7207313144293144"
+        data-ad-slot="1234567890"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+      <Script id="ads-init" strategy="afterInteractive">
+        {`(adsbygoogle = window.adsbygoogle || []).push({});`}
+      </Script>
+    </div>
+  );
+}

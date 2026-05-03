@@ -59,19 +59,7 @@ function Hero({ handleStartCreate, isActivated, isVerifying, expiresAt, duration
 
   // 实时更新剩余时间
   useEffect(() => {
-    if (!isActivated) {
-      setRemainingTimeText('');
-      return;
-    }
-
-    // 永久类型直接显示
-    if (durationType === 'permanent') {
-      setRemainingTimeText('永久有效');
-      return;
-    }
-
-    // 限时类型需要 expiresAt
-    if (expiresAt === null) {
+    if (!isActivated || expiresAt === null) {
       setRemainingTimeText('');
       return;
     }

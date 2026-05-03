@@ -17,8 +17,6 @@ interface DownloadSettingsModalProps {
   options: GridDownloadOptions;
   onOptionsChange: (options: GridDownloadOptions) => void;
   onDownload: (opts?: GridDownloadOptions) => void;
-  onSaveToHistory?: (name: string) => void;
-  canSaveToHistory?: boolean;
 }
 
 const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
@@ -26,16 +24,15 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
   onClose,
   options,
   onOptionsChange,
-  onDownload,
-  onSaveToHistory,
-  canSaveToHistory = true
+  onDownload
 }) => {
+  // 将useState移到顶层，不管isOpen是什么值
   const [tempOptions, setTempOptions] = useState<GridDownloadOptions>({...options});
-  const [showNameModal, setShowNameModal] = useState(false);
-  const [customName, setCustomName] = useState('图纸');
 
+  // 如果不是打开状态，仍然可以返回null
   if (!isOpen) return null;
 
+  // 处理选项变更 - 使用更具体的类型而不是any
   const handleOptionChange = (key: keyof GridDownloadOptions, value: string | number | boolean) => {
     setTempOptions((prev: GridDownloadOptions) => ({
       ...prev,
@@ -43,22 +40,14 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
     }));
   };
 
+  // 保存选项并立即使用新设置下载
   const handleSave = () => {
+    // 更新父组件中的设置状态（虽然下载时不依赖这个更新）
     onOptionsChange(tempOptions);
+
+    // 直接使用当前临时设置下载，不依赖状态更新
     onDownload(tempOptions);
-    onClose();
-  };
 
-  const handleSaveClick = () => {
-    setCustomName('图纸');
-    setShowNameModal(true);
-  };
-
-  const handleConfirmSave = () => {
-    if (onSaveToHistory) {
-      onSaveToHistory(customName.trim() || '图纸');
-    }
-    setShowNameModal(false);
     onClose();
   };
 
@@ -95,9 +84,10 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
               </label>
             </div>
 
-            {/* 网格线设置 */}
+            {/* 网格线设置 (仅当显示网格线时) */}
             {tempOptions.showGrid && (
               <div className="space-y-3 sm:space-y-4 pl-3 sm:pl-4 border-l-2 border-blue-200 dark:border-blue-800 ml-2 pt-3 pb-2 bg-gradient-to-r from-blue-50/50 to-transparent dark:from-blue-900/10 -mx-2 px-3 sm:px-4 rounded-r-lg">
+                {/* 网格线间隔选项 */}
                 <div className="flex flex-col space-y-2">
                   <label className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     网格线间隔 (每 N 格画一条线)
@@ -118,6 +108,7 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
                   </div>
                 </div>
 
+                {/* 网格线颜色选择 */}
                 <div className="flex flex-col space-y-2">
                   <label className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     网格线颜色
@@ -177,7 +168,7 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
               </label>
             </div>
 
-            {/* 显示色号统计 */}
+            {/* 添加: 包含色号统计选项 */}
             <div className="flex items-center justify-between">
               <label className="flex items-center text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                 显示色号统计
@@ -273,7 +264,7 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
               </label>
             </div>
 
-            {/* 水印选项 */}
+            {/* 水印选项 (仅当启用水印时) */}
             {tempOptions.enableWatermark && (
               <div className="space-y-2.5 sm:space-y-3 pl-3 sm:pl-4 border-l-2 border-red-200 dark:border-red-800 ml-2 pt-3 pb-2 bg-gradient-to-r from-red-50/50 to-transparent dark:from-red-900/10 -mx-2 px-3 sm:px-4 rounded-r-lg">
                 {[
@@ -307,19 +298,12 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
             )}
           </div>
 
-          <div className="flex justify-end items-center mt-5 sm:mt-7 pt-4 sm:pt-5 border-t border-gray-100 dark:border-gray-700 space-x-2 sm:space-x-3">
+          <div className="flex justify-end mt-5 sm:mt-7 pt-4 sm:pt-5 border-t border-gray-100 dark:border-gray-700 space-x-2 sm:space-x-3">
             <button
               onClick={onClose}
               className="px-4 py-2 sm:px-5 sm:py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-medium transition-all duration-200 hover:shadow-sm text-xs sm:text-sm"
             >
               取消
-            </button>
-            <button
-              onClick={handleSaveClick}
-              disabled={!canSaveToHistory}
-              className="px-3 py-2 sm:px-4 sm:py-2.5 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white rounded-xl font-medium transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            >
-              保存图纸
             </button>
             <button
               onClick={handleSave}
@@ -330,45 +314,6 @@ const DownloadSettingsModal: React.FC<DownloadSettingsModalProps> = ({
           </div>
         </div>
       </div>
-
-      {/* 自定义名称输入弹窗 */}
-      {showNameModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="p-5">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">保存图纸</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">请输入图纸名称：</p>
-              <input
-                type="text"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                placeholder="图纸名称"
-                className="w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent dark:bg-gray-700 dark:text-gray-100 transition-all"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleConfirmSave();
-                  }
-                }}
-              />
-              <div className="flex gap-3 mt-5">
-                <button
-                  onClick={() => setShowNameModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-medium transition-all text-sm"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmSave}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white rounded-xl font-medium transition-all text-sm"
-                >
-                  保存
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

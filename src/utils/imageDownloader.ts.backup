@@ -239,11 +239,7 @@ export async function downloadImage({
     alert("无法下载图纸，色号统计数据未生成或无效。");
     return;
   }
-  
-  // 加载二维码图片
-  const qrCodeImage = new Image();
-  qrCodeImage.src = '/website_qrcode.png'; // 使用public目录中的图片
-  
+
   // 主要下载处理函数
   const processDownload = () => {
     const { N, M } = gridDimensions; // 此时已确保gridDimensions不为null
@@ -283,21 +279,12 @@ export async function downloadImage({
     
     // 计算小红书标识区域的高度
     const xiaohongshuAreaHeight = 35; // 为小红书名字预留的底部空间
-  
-    // 计算标题栏高度（根据图片大小自动调整）
-    const baseTitleBarHeight = 80; // 增大基础高度
-    
-    // 先计算一个初始下载宽度来确定缩放比例
-    const initialWidth = gridWidth + axisLabelSize + extraLeftMargin;
-    // 使用总宽度而不是单元格大小来计算比例，确保字体在大尺寸图片上也足够大
-    const titleBarScale = Math.max(1.0, Math.min(2.0, initialWidth / 1000)); // 更激进的缩放策略
-    const titleBarHeight = Math.floor(baseTitleBarHeight * titleBarScale);
-    
-    // 计算标题文字大小 - 与总体宽度相关而不是单元格大小
-    const titleFontSize = Math.max(28, Math.floor(28 * titleBarScale)); // 最小28px，确保可读性
-    
-    // 计算二维码大小
-    const qrSize = Math.floor(titleBarHeight * 0.85); // 增大二维码比例
+
+    // 标题区域高度（只用于显示文字，无条幅）
+    const titleBarHeight = 80; // 适应56px字体
+
+    // 计算二维码大小（不再使用）
+    // const qrSize = Math.floor(titleBarHeight * 0.85);
     
     // 计算统计区域的大小
     if (includeStats && colorCounts) {
@@ -347,113 +334,21 @@ export async function downloadImage({
     // 设置背景色
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, downloadWidth, downloadHeight);
-  
-    // 重新设计的现代简洁标题栏
-    // 1. 主背景 - 纯净的深色，专业感
-    ctx.fillStyle = '#1F2937'; // 深灰色，既有专业感又不抢夺主要内容
-    ctx.fillRect(0, 0, downloadWidth, titleBarHeight);
-    
-    // 2. 左侧品牌色块 - 作为Logo载体
-    const brandBlockWidth = titleBarHeight * 0.8;
-    const brandGradient = ctx.createLinearGradient(0, 0, brandBlockWidth, titleBarHeight);
-    brandGradient.addColorStop(0, '#6366F1'); // 现代蓝色
-    brandGradient.addColorStop(1, '#8B5CF6'); // 现代紫色
-    
-    ctx.fillStyle = brandGradient;
-    ctx.fillRect(0, 0, brandBlockWidth, titleBarHeight);
-    
-    // 3. 绘制西瓜Logo
-    const logoSize = titleBarHeight * 0.5;
-    const logoX = brandBlockWidth / 2;
-    const logoY = titleBarHeight / 2;
-    
-    // 绘制西瓜外皮（绿色圆形）
-    ctx.fillStyle = '#22C55E'; // 绿色
-    ctx.beginPath();
-    ctx.arc(logoX, logoY, logoSize * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 绘制西瓜果肉（红色圆形，稍小）
-    ctx.fillStyle = '#EF4444'; // 红色
-    ctx.beginPath();
-    ctx.arc(logoX, logoY, logoSize * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 绘制西瓜籽（黑色小椭圆）
-    ctx.fillStyle = '#000000';
-    const seedPositions = [
-      { x: logoX - logoSize * 0.15, y: logoY - logoSize * 0.1 },
-      { x: logoX + logoSize * 0.1, y: logoY - logoSize * 0.15 },
-      { x: logoX, y: logoY + logoSize * 0.1 },
-    ];
-    seedPositions.forEach(pos => {
-      ctx.beginPath();
-      ctx.ellipse(pos.x, pos.y, logoSize * 0.05, logoSize * 0.08, Math.PI / 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    
-    // 4. 主标题 - 现代字体，清晰层次
-    const mainTitleFontSize = Math.max(20, Math.floor(titleFontSize * 0.8));
-    const subTitleFontSize = Math.max(12, Math.floor(titleFontSize * 0.45));
-    
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = `600 ${mainTitleFontSize}px system-ui, -apple-system, sans-serif`; // 现代字体栈
+
+    // 在左上角绘制简单文字（无条幅）
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 56px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    
-    // 主标题位置
-    const titleStartX = brandBlockWidth + titleBarHeight * 0.3;
-    const mainTitleY = titleBarHeight * 0.4;
-    
-    ctx.fillText('小瓜拼豆生成器', titleStartX, mainTitleY);
-    
-    // 5. 副标题 - 功能说明
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = `400 ${subTitleFontSize}px system-ui, -apple-system, sans-serif`;
-    const subTitleY = titleBarHeight * 0.65;
-    
-    ctx.fillText('拼豆图纸生成工具', titleStartX, subTitleY);
-    
-    
-    
-    // 7. 优雅的分割线
-    const separatorY = titleBarHeight - 1;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, separatorY);
-    ctx.lineTo(downloadWidth, separatorY);
-    ctx.stroke();
-    
-    // 8. 二维码区域 - 重新设计
-    const qrX = downloadWidth - qrSize - titleBarHeight * 0.15;
-    const qrY = (titleBarHeight - qrSize) / 2;
-    
-    // 二维码背景 - 圆角，更现代
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.roundRect(qrX, qrY, qrSize, qrSize, qrSize * 0.08);
-    ctx.fill();
-    
-    // 绘制二维码图片或占位符
-    if (qrCodeImage.complete && qrCodeImage.naturalWidth !== 0) {
-      // 使用裁剪区域绘制圆角二维码
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(qrX, qrY, qrSize, qrSize, qrSize * 0.08);
-      ctx.clip();
-      ctx.drawImage(qrCodeImage, qrX, qrY, qrSize, qrSize);
-      ctx.restore();
-    } else {
-      // 占位符设计
-      ctx.fillStyle = '#6366F1';
-      const qrPlaceholderFontSize = Math.max(10, Math.floor(14 * titleBarScale));
-      ctx.font = `500 ${qrPlaceholderFontSize}px system-ui, -apple-system, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('扫码访问', qrX + qrSize / 2, qrY + qrSize / 2);
-    }
-  
+    ctx.textBaseline = 'bottom';
+
+    // 绘制基础标题，如果有作者署名则添加分隔符和署名，后面显示色板颜色数量
+    const baseTitle = '🍉小瓜拼豆生成器';
+    const separator = options.authorName ? ' | ' : '';
+    const authorPart = options.authorName;
+    const colorCountPart = activeBeadPalette.length > 0 ? ` | ${activeBeadPalette.length}色` : '';
+    const fullTitle = baseTitle + separator + authorPart + colorCountPart;
+    ctx.fillText(fullTitle, extraLeftMargin + axisLabelSize, titleBarHeight + extraTopMargin - 2);
+
     console.log(`Generating download grid image: ${downloadWidth}x${downloadHeight}`);
     const fontSize = Math.max(8, Math.floor(downloadCellSize * 0.4));
     
@@ -619,11 +514,51 @@ export async function downloadImage({
     ctx.strokeStyle = '#000000'; // 黑色边框
     ctx.lineWidth = 1.5;
     ctx.strokeRect(
-      extraLeftMargin + axisLabelSize + 0.5, 
-      titleBarHeight + extraTopMargin + axisLabelSize + 0.5, 
-      N * downloadCellSize, 
+      extraLeftMargin + axisLabelSize + 0.5,
+      titleBarHeight + extraTopMargin + axisLabelSize + 0.5,
+      N * downloadCellSize,
       M * downloadCellSize
     );
+
+    // 绘制禁止使用水印（位置在底部坐标轴上方）
+    if (options.enableWatermark && options.watermarkOptions) {
+      const { commercial, repost, reprint, modify } = options.watermarkOptions;
+
+      // 收集所有启用的选项名称
+      const enabledOptions: string[] = [];
+      if (commercial) enabledOptions.push('商用');
+      if (repost) enabledOptions.push('二传');
+      if (reprint) enabledOptions.push('转载');
+      if (modify) enabledOptions.push('二改');
+
+      // 如果有启用的选项，绘制水印
+      if (enabledOptions.length > 0) {
+        // 水印文字：禁止 商用/二传/转载/二改
+        const watermarkText = '禁止 ' + enabledOptions.join('/');
+
+        // 设置水印样式：红色半透明，大字体（72px），从上往下斜（45度）
+        ctx.save();
+        ctx.globalAlpha = 0.5; // 半透明
+        ctx.fillStyle = '#FF0000'; // 红色
+        ctx.font = 'bold 72px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // 水印位置：底部坐标轴上方（网格底部往上50px的位置）
+        const watermarkX = extraLeftMargin + axisLabelSize + (gridWidth / 2);
+        const watermarkY = titleBarHeight + extraTopMargin + axisLabelSize + gridHeight - 50;
+
+        // 旋转水印文字（从上往下斜，45度）
+        ctx.translate(watermarkX, watermarkY);
+        ctx.rotate(Math.PI / 4); // 45度，从上往下斜
+
+        // 绘制水印文字
+        ctx.fillText(watermarkText, 0, 0);
+
+        ctx.restore();
+      }
+    }
+
 
     // 绘制统计信息
     if (includeStats && colorCounts) {
@@ -669,7 +604,7 @@ export async function downloadImage({
         const rowY = statsY + titleHeight + (rowIndex * statsRowHeight) + (swatchSize / 2);
         
         const cellData = colorCounts[key];
-        const colorKey = getColorKeyByHex(key, selectedColorSystem);
+        const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
         
         // 色块位置
         const swatchX = itemX;
@@ -708,49 +643,13 @@ export async function downloadImage({
       
       // 计算实际需要的行数
       const numRows = Math.ceil(colorKeys.length / renderNumColumns);
-      
+
       // 绘制总量
       const totalY = statsY + titleHeight + (numRows * statsRowHeight) + 10;
       ctx.font = `bold ${statsFontSize}px sans-serif`;
       ctx.textAlign = 'right';
       ctx.fillText(`总计: ${totalBeadCount} 颗`, downloadWidth - statsPadding, totalY);
-      
-      // 统计区域水印 - 第三重保护，清晰明显
-      const statsWatermarkFontSize = Math.max(10, Math.floor(statsFontSize * 0.7));
-      const statsWatermarkText = '图纸来源：@小瓜拼豆生成器';
-      
-      ctx.font = `500 ${statsWatermarkFontSize}px system-ui, -apple-system, sans-serif`;
-      const statsTextMetrics = ctx.measureText(statsWatermarkText);
-      const statsTextWidth = statsTextMetrics.width;
-      const statsTextHeight = statsWatermarkFontSize;
-      
-      const statsWatermarkX = statsPadding;
-      const statsWatermarkY = totalY + 20;
-      
-      // 统计区域水印背景
-      const statsBgPadding = 5;
-      ctx.fillStyle = 'rgba(248, 250, 252, 0.9)'; // 浅灰背景，更柔和
-      ctx.beginPath();
-      ctx.roundRect(
-        statsWatermarkX - statsBgPadding,
-        statsWatermarkY - statsTextHeight - statsBgPadding,
-        statsTextWidth + statsBgPadding * 2,
-        statsTextHeight + statsBgPadding * 2,
-        3
-      );
-      ctx.fill();
-      
-      // 统计区域水印边框
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      
-      // 统计区域水印文字
-      ctx.fillStyle = '#64748B'; // 清晰的深灰色
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(statsWatermarkText, statsWatermarkX, statsWatermarkY);
-      
+
       // 更新统计区域高度的计算 - 需要包含新增的顶部间距
       const footerHeight = 30; // 总计部分高度
       statsHeight = titleHeight + (numRows * statsRowHeight) + footerHeight + (statsPadding * 2) + statsTopMargin;
@@ -790,9 +689,8 @@ export async function downloadImage({
       // 统一使用 dataURL 方式下载（iOS和安卓一致，百度浏览器可直接保存到相册）
       const dataURL = downloadCanvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = showCellNumbers
-        ? `bead-grid-${N}x${M}-keys-palette_${selectedColorSystem}.png`
-        : `bead-grid-${N}x${M}-pixel-palette_${selectedColorSystem}.png`;
+      // 文件名格式：色号-尺寸
+      link.download = `${selectedColorSystem}-${N}x${M}.png`;
       link.href = dataURL;
       document.body.appendChild(link);
       link.click();
@@ -811,16 +709,10 @@ export async function downloadImage({
       console.error("下载图纸失败:", e);
     }
   };
-  
-  // 图片加载后处理，或在加载失败时使用占位符
-  if (qrCodeImage.complete) {
+
+  // 异步执行下载，确保UI能及时更新（弹窗能关闭）
+  setTimeout(() => {
     processDownload();
-  } else {
-    qrCodeImage.onload = processDownload;
-    qrCodeImage.onerror = () => {
-      console.warn("二维码图片加载失败，将使用占位符");
-      processDownload();
-    };
-  }
-} 
+  }, 0);
+}
 // cache bust: 1773860766

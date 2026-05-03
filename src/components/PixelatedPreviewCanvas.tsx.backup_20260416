@@ -64,8 +64,6 @@ interface PixelatedPreviewCanvasProps {
   isTextMode?: boolean;
   // 点击颜色回调（拖拽模式下点击格子时触发）
   onColorClick?: (colorHex: string) => void;
-  // 锁定画布（禁止拖拽、缩放等操作）
-  isLocked?: boolean;
 }
 
 // 只绘制像素颜色的函数（用于离屏canvas缓存）
@@ -680,7 +678,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   showCoordinates = false,
   isTextMode = false,
   onColorClick,
-  isLocked = false,
 }) => {
   const [darkModeState, setDarkModeState] = useState<boolean | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -1177,8 +1174,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   }, [gridDimensions, canvasRef]);
   
   const handleMouseMove = (event: MouseEvent<HTMLCanvasElement>) => {
-    // 锁定时禁止鼠标移动
-    if (isLocked) return;
     if (isDragging && dragStartRef.current) {
       const dx = event.clientX - dragStartRef.current.x;
       const dy = event.clientY - dragStartRef.current.y;
@@ -1218,8 +1213,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   };
 
   const handleMouseDown = (event: MouseEvent<HTMLCanvasElement>) => {
-    // 锁定时禁止鼠标操作
-    if (isLocked) return;
     if (event.button === 0) {
       // 文字模式或手动编辑模式下触发交互
       if (isManualColoringMode) {
@@ -1291,8 +1284,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // --- Wheel zoom ---
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    // 锁定时禁止缩放
-    if (isLocked) return;
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
     const containerWidth = rect.width;
@@ -1347,8 +1338,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
 
   // --- Touch event handlers ---
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    // 锁定时禁止触摸操作
-    if (isLocked) return;
     // 始终阻止默认行为，防止页面滚动和其他干扰
     event.preventDefault();
     event.stopPropagation();
@@ -1390,8 +1379,6 @@ const PixelatedPreviewCanvas: React.FC<PixelatedPreviewCanvasProps> = ({
   };
 
   const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    // 锁定时禁止触摸移动
-    if (isLocked) return;
     // 始终阻止默认行为
     event.preventDefault();
     event.stopPropagation();

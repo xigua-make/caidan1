@@ -95,17 +95,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 获取每个激活码的使用记录统计
+    // 获取每个激活码的使用记录统计和首次激活时间
     const codesWithStats = await Promise.all(
       (data || []).map(async (code) => {
+        // 获取使用次数
         const { count } = await client
           .from('activation_records')
           .select('*', { count: 'exact', head: true })
           .eq('code_id', code.id);
 
+        // 获取首次激活时间
+        const { data: firstRecord } = await client
+          .from('activation_records')
+          .select('activated_at')
+          .eq('code_id', code.id)
+          .order('activated_at', { ascending: true })
+          .limit(1);
+
         return {
           ...code,
           totalActivations: count || 0,
+          firstActivatedAt: firstRecord && firstRecord.length > 0 ? firstRecord[0].activated_at : null,
         };
       })
     );

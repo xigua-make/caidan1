@@ -12,6 +12,7 @@ interface ActivationCode {
   created_at: string;
   expires_at: string | null;
   totalActivations: number;
+  firstActivatedAt: string | null; // 首次激活时间
 }
 
 interface CodeBatch {
@@ -250,7 +251,7 @@ export default function AdminPage() {
       if (successCount === selectedIds.length) {
         showToast(`成功删除 ${successCount} 个激活码`, 'success');
       } else {
-        showToast(`成功删除 ${successCount} 个，失败 ${selectedIds.length - successCount} 个`, 'warning');
+        showToast(`成功删除 ${successCount} 个，失败 ${selectedIds.length - successCount} 个`, 'error');
       }
       
       setSelectedIds([]);
@@ -262,21 +263,38 @@ export default function AdminPage() {
     }
   };
 
-  // 删除所有已禁用的激活码
+  // 删除所有已禁用的激活码（is_active=false）
   const handleDeleteAllInactive = async () => {
-    const inactiveCodes = codes.filter(c => !c.is_active);
-    if (inactiveCodes.length === 0) {
-      showToast('没有已禁用的激活码', 'error');
-      return;
-    }
-    if (!confirm(`确定要删除所有 ${inactiveCodes.length} 个已禁用的激活码吗？此操作不可恢复。`)) {
-      return;
-    }
-    
+    // 刷新数据确保最新
     setLoading(true);
     try {
+      const res = await fetch('/api/admin/codes', {
+        headers: { Authorization: `Bearer ${password}` },
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showToast('获取数据失败', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      const latestCodes = data.data;
+      // 已禁用：is_active=false
+      const inactiveCodes = latestCodes.filter((c: ActivationCode) => !c.is_active);
+      
+      if (inactiveCodes.length === 0) {
+        showToast('没有已禁用的激活码', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      if (!confirm(`确定要删除所有 ${inactiveCodes.length} 个已禁用的激活码吗？此操作不可恢复。`)) {
+        setLoading(false);
+        return;
+      }
+      
       const results = await Promise.all(
-        inactiveCodes.map(code => 
+        inactiveCodes.map((code: ActivationCode) => 
           fetch(`/api/admin/codes?id=${code.id}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${password}` },
@@ -284,8 +302,57 @@ export default function AdminPage() {
         )
       );
       
-      const successCount = results.filter(r => r.ok).length;
+      const successCount = results.filter((r: Response) => r.ok).length;
       showToast(`成功删除 ${successCount} 个已禁用的激活码`, 'success');
+      fetchCodes();
+    } catch (error) {
+      showToast('删除失败', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 删除所有时间耗尽的激活码
+  const handleDeleteAllExpired = async () => {
+    // 刷新数据确保最新
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/codes', {
+        headers: { Authorization: `Bearer ${password}` },
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showToast('获取数据失败', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      const latestCodes = data.data;
+      // 时间耗尽：is_active=true 但时间已过期
+      const expiredCodes = latestCodes.filter((c: ActivationCode) => isCodeExhausted(c));
+      
+      if (expiredCodes.length === 0) {
+        showToast('没有已耗尽的激活码', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      if (!confirm(`确定要删除所有 ${expiredCodes.length} 个已耗尽的激活码吗？此操作不可恢复。`)) {
+        setLoading(false);
+        return;
+      }
+      
+      const results = await Promise.all(
+        expiredCodes.map((code: ActivationCode) => 
+          fetch(`/api/admin/codes?id=${code.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${password}` },
+          })
+        )
+      );
+      
+      const successCount = results.filter((r: Response) => r.ok).length;
+      showToast(`成功删除 ${successCount} 个已耗尽的激活码`, 'success');
       fetchCodes();
     } catch (error) {
       showToast('删除失败', 'error');
@@ -383,24 +450,87 @@ export default function AdminPage() {
     setSelectedIds(allSelected ? [] : allIds);
   };
 
+  // 根据激活码类型和首次激活时间计算到期时间
+  const calculateExpiresAt = (code: ActivationCode): Date | null => {
+    if (!code.firstActivatedAt) return null;
+    const firstTime = new Date(code.firstActivatedAt);
+    
+    switch (code.duration_type) {
+      case '30s':
+        return new Date(firstTime.getTime() + 30 * 1000);
+      case '1d':
+        return new Date(firstTime.getTime() + 24 * 60 * 60 * 1000);
+      case '7d':
+        return new Date(firstTime.getTime() + 7 * 24 * 60 * 60 * 1000);
+      case 'permanent':
+        return null; // 永久不会过期
+      default:
+        return null;
+    }
+  };
+
+  // 判断激活码是否已耗尽（基于时间）
+  const isCodeExhausted = (code: ActivationCode) => {
+    // 永久类型不会耗尽
+    if (code.duration_type === 'permanent') return false;
+    
+    // 没有首次激活记录的不会耗尽
+    if (!code.firstActivatedAt) return false;
+    
+    const expiresAt = calculateExpiresAt(code);
+    if (!expiresAt) return false;
+    
+    return new Date() > expiresAt;
+  };
+
   // 统计数据
   const stats = {
     total: codes.length,
-    active: codes.filter(c => c.is_active).length,
+    // 已启用：is_active=true 且未耗尽
+    active: codes.filter(c => c.is_active && !isCodeExhausted(c)).length,
+    // 已禁用：is_active=false
     inactive: codes.filter(c => !c.is_active).length,
     totalActivations: codes.reduce((sum, c) => sum + c.totalActivations, 0),
     type1d: codes.filter(c => c.duration_type === '1d').length,
     type7d: codes.filter(c => c.duration_type === '7d').length,
     typePermanent: codes.filter(c => c.duration_type === 'permanent').length,
+    // 时间耗尽：根据时间计算（30秒/1天/7天从首次激活开始计时），永久不受影响
+    exhausted: codes.filter(c => isCodeExhausted(c)).length,
+    // 次数用尽：使用次数达到上限
+    usedUp: codes.filter(c => c.max_uses !== -1 && c.used_count >= c.max_uses).length,
+  };
+
+  // 判断激活码是否已到期（兼容旧的expires_at逻辑）
+  const isCodeExpired = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    return new Date(expiresAt) <= new Date();
+  };
+
+  // 获取激活码的实际状态（基于is_active和耗尽状态）
+  const getCodeStatus = (code: ActivationCode) => {
+    // 优先根据 is_active 判断启用/禁用状态
+    if (!code.is_active) {
+      return { label: '已禁用', color: 'bg-red-100 text-red-700' };
+    }
+    // 已启用状态下：
+    // - 如果时间已耗尽，显示"已耗尽"（但可以通过启用来重置）
+    // - 如果未耗尽，显示"已启用"
+    if (isCodeExhausted(code)) {
+      return { label: '已耗尽', color: 'bg-gray-200 text-gray-600' };
+    }
+    return { label: '已启用', color: 'bg-green-100 text-green-700' };
   };
 
   // 筛选后的激活码列表
   const filteredCodes = codes.filter(code => {
     const matchSearch = code.code.includes(searchQuery);
     const matchType = filterType === 'all' || code.duration_type === filterType;
+    // 已耗尽：基于时间计算
+    const codeIsExhausted = isCodeExhausted(code);
     const matchStatus = filterStatus === 'all' || 
-      (filterStatus === 'active' && code.is_active) ||
-      (filterStatus === 'inactive' && !code.is_active);
+      (filterStatus === 'active' && code.is_active && !codeIsExhausted) ||
+      (filterStatus === 'inactive' && !code.is_active) ||
+      (filterStatus === 'exhausted' && codeIsExhausted);
     return matchSearch && matchType && matchStatus;
   });
 
@@ -589,14 +719,14 @@ export default function AdminPage() {
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 flex items-center gap-3 md:gap-5">
-                <div className="w-10 md:w-12 h-10 md:h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                  <svg className="w-5 md:w-6 h-5 md:h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="w-10 md:w-12 h-10 md:h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0">
+                  <svg className="w-5 md:w-6 h-5 md:h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xs md:text-sm text-gray-500 mb-1">已禁用</h3>
-                  <p className="text-xl md:text-2xl font-bold text-gray-800">{stats.inactive}</p>
+                  <h3 className="text-xs md:text-sm text-gray-500 mb-1">已耗尽</h3>
+                  <p className="text-xl md:text-2xl font-bold text-gray-800">{stats.exhausted}</p>
                 </div>
               </div>
 
@@ -645,7 +775,18 @@ export default function AdminPage() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>删除已用尽</span>
+                <span>删除已用尽 ({stats.usedUp})</span>
+              </button>
+
+              <button
+                onClick={handleDeleteAllExpired}
+                disabled={stats.exhausted === 0 || loading}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>新耗尽 ({stats.exhausted})</span>
               </button>
               
               <div className="flex-1"></div>
@@ -690,6 +831,7 @@ export default function AdminPage() {
                     <option value="all">全部状态</option>
                     <option value="active">已启用</option>
                     <option value="inactive">已禁用</option>
+                    <option value="exhausted">已耗尽</option>
                   </select>
                 </div>
                 <span className="text-sm text-gray-500">共 {filteredCodes.length} 条记录</span>
@@ -776,13 +918,25 @@ export default function AdminPage() {
                                 <span className="text-sm">{editIsActive ? '启用' : '禁用'}</span>
                               </label>
                             ) : (
-                              <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${
-                                code.is_active 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-red-100 text-red-700'
-                              }`}>
-                                {code.is_active ? '启用' : '禁用'}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                {((): { label: string; color: string } => {
+                                  const status = getCodeStatus(code);
+                                  return (
+                                    <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
+                                      {status.label}
+                                    </span>
+                                  );
+                                })()}
+                                <button
+                                  onClick={() => startEdit(code)}
+                                  className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                                  title="编辑"
+                                >
+                                  <svg className="w-3 md:w-4 h-3 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                              </div>
                             )}
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-500 hidden md:table-cell">{formatDate(code.created_at)}</td>

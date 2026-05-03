@@ -46,12 +46,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查是否过期
-    if (activationCode.expires_at) {
-      const expiresAt = new Date(activationCode.expires_at);
-      if (expiresAt < new Date()) {
+    // 获取首次激活记录，用于判断是否已耗尽
+    const { data: firstRecord } = await client
+      .from('activation_records')
+      .select('activated_at')
+      .eq('code_id', activationCode.id)
+      .order('activated_at', { ascending: true })
+      .limit(1);
+
+    // 计算是否已耗尽（基于首次激活时间）
+    const calculateExhausted = (firstActivatedAt: string | null): boolean => {
+      if (!firstActivatedAt) return false;
+      
+      const firstTime = new Date(firstActivatedAt);
+      const now = new Date();
+      
+      switch (activationCode.duration_type) {
+        case '30s':
+          return now.getTime() > firstTime.getTime() + 30 * 1000;
+        case '1d':
+          return now.getTime() > firstTime.getTime() + 24 * 60 * 60 * 1000;
+        case '7d':
+          return now.getTime() > firstTime.getTime() + 7 * 24 * 60 * 60 * 1000;
+        case 'permanent':
+          return false; // 永久不会耗尽
+        default:
+          return false;
+      }
+    };
+
+    // 如果是30秒/1天/7天类型，检查是否已耗尽
+    if (activationCode.duration_type !== 'permanent') {
+      const firstActivatedAt = firstRecord && firstRecord.length > 0 ? firstRecord[0].activated_at : null;
+      if (calculateExhausted(firstActivatedAt)) {
         return NextResponse.json(
-          { success: false, error: '激活码已过期' },
+          { success: false, error: '激活码已耗尽，请重新购买' },
           { status: 403 }
         );
       }
@@ -65,38 +94,13 @@ export async function POST(request: NextRequest) {
       .eq('device_id', deviceId)
       .single();
 
-    // 计算过期时间
-    let recordExpiresAt: string | null = null;
-    if (activationCode.duration_type === '30s') {
-      // 测试码：30秒
-      recordExpiresAt = new Date(Date.now() + 30 * 1000).toISOString();
-    } else if (activationCode.duration_type === '1d') {
-      recordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    } else if (activationCode.duration_type === '7d') {
-      recordExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    }
-    // permanent 类型不设置过期时间
-
-    // 如果该设备已经激活过，直接返回成功（更新过期时间）
+    // 如果该设备已经激活过，不更新时间，直接返回（以第一次为准）
     if (existingRecord) {
-      const { error: updateError } = await client
-        .from('activation_records')
-        .update({ expires_at: recordExpiresAt })
-        .eq('id', existingRecord.id);
-
-      if (updateError) {
-        console.error('更新激活记录失败:', updateError);
-        return NextResponse.json(
-          { success: false, error: '激活失败，请稍后重试' },
-          { status: 500 }
-        );
-      }
-
       return NextResponse.json({
         success: true,
-        message: '激活成功',
+        message: '激活成功（时间以首次激活为准）',
         codeId: activationCode.id,
-        expiresAt: recordExpiresAt,
+        expiresAt: existingRecord.expires_at,
         durationType: activationCode.duration_type,
       });
     }
@@ -107,6 +111,23 @@ export async function POST(request: NextRequest) {
         { success: false, error: '激活码使用次数已达上限' },
         { status: 403 }
       );
+    }
+
+    // 计算过期时间（永久类型不设置过期时间）
+    let recordExpiresAt: string | null = null;
+    if (activationCode.duration_type !== 'permanent') {
+      const baseTime = firstRecord && firstRecord.length > 0 ? new Date(firstRecord[0].activated_at) : new Date();
+      switch (activationCode.duration_type) {
+        case '30s':
+          recordExpiresAt = new Date(baseTime.getTime() + 30 * 1000).toISOString();
+          break;
+        case '1d':
+          recordExpiresAt = new Date(baseTime.getTime() + 24 * 60 * 60 * 1000).toISOString();
+          break;
+        case '7d':
+          recordExpiresAt = new Date(baseTime.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          break;
+      }
     }
 
     // 并行执行：增加使用次数 + 创建激活记录

@@ -250,228 +250,270 @@ const CustomPaletteEditor: React.FC<CustomPaletteEditorProps> = ({
   };
   
   return (
-    <div className="flex flex-col h-full max-h-[calc(90vh-80px)]">
-      {/* 头部 */}
-      <div className="flex justify-between items-center border-b dark:border-gray-700 pb-3 mb-3">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
-          </svg>
-          色板管理中心 <span className="ml-2 text-sm text-blue-500 dark:text-blue-400">({selectedCount} 色)</span>
-        </h2>
-        <button 
-          onClick={onClose}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      
-      {/* 搜索框 */}
-      <div className="mb-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="搜索色号..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 pl-9 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
+    <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 rounded-xl overflow-hidden" style={{ height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column' }}>
+      {/* 头部 - 现代化毛玻璃效果，固定在顶部 */}
+      <div className="relative flex-shrink-0" style={{ flexShrink: '0' }}>
+        {/* 背景装饰 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm"></div>
+
+        {/* 头部内容 - 增加内边距确保完整显示 */}
+        <div className="relative flex justify-between items-center px-4 py-3.5 sm:px-6 sm:py-5 z-10">
+          <h2 className="text-base sm:text-lg sm:text-xl font-bold text-white flex items-center tracking-wide">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 sm:h-6 sm:w-6 mr-1.5 sm:mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
+            </svg>
+            <span className="flex-shrink-0 text-sm sm:text-base">色板中心</span>
+            <span className="ml-1.5 sm:ml-2 px-2 py-0.5 text-[10px] sm:text-xs font-semibold bg-white/20 backdrop-blur-sm rounded-full text-white border border-white/30 flex-shrink-0">
+              {selectedCount} 色
+            </span>
+          </h2>
+          <button
+            onClick={onClose}
+            className="group relative w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 flex items-center justify-center border border-white/20 hover:border-white/40 flex-shrink-0 z-20"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-white group-hover:scale-110 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
-      
-      {/* 色号系统选择 */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">色号系统</label>
-        <div className="flex flex-wrap gap-2">
-          {(['MARD', 'COCO', '漫漫', '盼盼', '咪小窝'] as ColorSystem[]).map((system) => (
-            <button
-              key={system}
-              onClick={() => {
-                onColorSystemChange(system);
-                setSelectedPresetName(null); // 切换色号系统时清除预设选中状态
-                saveSelectedPresetName(null);
-              }}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                selectedColorSystem === system
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {system}
-            </button>
-          ))}
+
+      {/* 搜索框 - 现代化设计，固定不滚动 */}
+      <div className="flex-shrink-0 p-3 sm:p-4 pt-0" style={{ flexShrink: '0' }}>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="搜索色号..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-9 sm:pl-11 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md"
+          />
+          <div className="absolute inset-y-0 left-0 pl-3 sm:pl-3.5 flex items-center pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
         </div>
       </div>
-      
-      {/* MARD预设色板选择 - 只在MARD系统下显示 */}
-      {selectedColorSystem === 'MARD' && (
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">预设色板</label>
-          <div className="flex flex-wrap gap-2">
-            {MARD_PRESET_PALETTES.map((preset) => (
+
+      {/* 色号系统选择 - 卡片式设计，固定不滚动 */}
+      <div className="flex-shrink-0 px-3 sm:px-4 pb-4" style={{ flexShrink: '0' }}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+          <label className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2.5 sm:mb-3 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+            色号系统
+          </label>
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+            {(['MARD', 'COCO', '漫漫', '盼盼', '咪小窝'] as ColorSystem[]).map((system) => (
               <button
-                key={preset.name}
-                onClick={() => applyMardPreset(preset)}
-                className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  selectedPresetName === preset.name
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                key={system}
+                onClick={() => {
+                  onColorSystemChange(system);
+                  setSelectedPresetName(null);
+                  saveSelectedPresetName(null);
+                }}
+                className={`px-1 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-semibold rounded-lg sm:rounded-xl transition-all duration-300 leading-tight ${
+                  selectedColorSystem === system
+                    ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30 scale-105'
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
                 }`}
               >
-                {preset.name}
+                {system}
               </button>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* MARD预设色板选择 - 只在MARD系统下显示，固定不滚动 */}
+      {selectedColorSystem === 'MARD' && (
+        <div className="flex-shrink-0 px-3 sm:px-4 pb-4" style={{ flexShrink: '0' }}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2.5 sm:mb-3 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              预设色板
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              {MARD_PRESET_PALETTES.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => applyMardPreset(preset)}
+                  className={`px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-semibold rounded-lg sm:rounded-xl transition-all duration-300 leading-tight ${
+                    selectedPresetName === preset.name
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 scale-105'
+                      : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
-      
-      {/* 说明文本 */}
-      <div className="mb-4 text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md border border-blue-100 dark:border-blue-800/30">
-        <p className="flex items-start">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          在此选择要使用的拼豆色系。您可以选择预设色板，然后根据需要手动添加或删除特定色号。完成后点击底部的&quot;保存并应用&quot;按钮。
-        </p>
+
+      {/* 说明文本 - 现代化提示框，固定不滚动 */}
+      <div className="flex-shrink-0 px-3 sm:px-4 pb-4" style={{ flexShrink: '0' }}>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-3 sm:p-4 rounded-2xl border border-blue-100 dark:border-blue-800/30">
+          <p className="flex items-start text-[10px] sm:text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            在此选择要使用的拼豆色系。您可以选择预设色板，然后根据需要手动添加或删除特定色号。完成后点击底部的"保存并应用"按钮。
+          </p>
+        </div>
       </div>
-      
-      {/* 快捷操作按钮 */}
-      <div className="flex flex-wrap gap-2 mb-4 items-center">
-        <button
-          onClick={() => toggleAllColors(true)}
-          className="px-3 py-1.5 text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-md hover:bg-green-200 dark:hover:bg-green-900/50"
-        >
-          全选
-        </button>
-        <button
-          onClick={() => toggleAllColors(false)}
-          className="px-3 py-1.5 text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50"
-        >
-          全不选
-        </button>
-        <button
-          onClick={onImportCustomPalette}
-          className="px-3 py-1.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 flex items-center gap-1"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          导入配置
-        </button>
-        <button
-          onClick={onExportCustomPalette}
-          className="px-3 py-1.5 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/50 flex items-center gap-1"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          导出配置
-        </button>
+
+      {/* 快捷操作按钮 - 现代化按钮组，固定不滚动 */}
+      <div className="flex-shrink-0 px-3 sm:px-4 pb-3 sm:pb-4" style={{ flexShrink: '0' }}>
+        <div className="flex gap-2">
+          <button
+            onClick={() => toggleAllColors(true)}
+            className="flex-1 px-2.5 py-2 text-[10px] sm:text-xs font-semibold bg-gradient-to-r from-green-400 to-emerald-500 text-white rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all duration-300 flex items-center justify-center gap-1 sm:gap-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            全选
+          </button>
+          <button
+            onClick={() => toggleAllColors(false)}
+            className="flex-1 px-2.5 py-2 text-[10px] sm:text-xs font-semibold bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-lg hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 flex items-center justify-center gap-1 sm:gap-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            全不选
+          </button>
+        </div>
       </div>
-      
-      {/* 颜色列表 */}
-      <div className="flex-1 overflow-y-auto pr-1">
-        {Object.keys(colorGroups).sort().map(prefix => (
-          <div key={prefix} className="mb-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            {/* 组标题 */}
-            <div 
-              className="flex justify-between items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750"
-              onClick={() => toggleGroup(prefix)}
-            >
-              <div className="flex items-center">
-                <span className="font-medium text-gray-800 dark:text-gray-200">{prefix} 系列</span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  ({colorGroups[prefix].length} 色)
+
+      {/* 颜色列表 - 只有这个区域可以滚动 */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4" style={{ minHeight: '0', flex: '1 1 0%' }}>
+        {/* 系列导航 - 紧凑一行 */}
+        <div className="mb-3">
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(colorGroups).sort().map(prefix => (
+              <button
+                key={prefix}
+                onClick={() => toggleGroup(prefix)}
+                className={`group relative px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 border-2 ${
+                  expandedGroups[prefix]
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-blue-500 shadow-lg shadow-blue-500/30'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span>{prefix}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    expandedGroups[prefix]
+                      ? 'bg-white/30 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}>
+                    {colorGroups[prefix].length}
+                  </span>
                 </span>
+                {expandedGroups[prefix] && (
+                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-full"></div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 展开的系列内容 */}
+        <div className="space-y-3">
+          {Object.keys(colorGroups).sort().filter(prefix => expandedGroups[prefix]).map(prefix => (
+            <div key={prefix} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 border-blue-200 dark:border-blue-800 overflow-hidden">
+              {/* 操作栏 */}
+              <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-blue-100 dark:border-blue-800/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/30"></div>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{prefix} 系列详情</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGroupColors(prefix, true);
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
+                  >
+                    全选
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGroupColors(prefix, false);
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 rounded-lg shadow-sm transition-all duration-200 hover:shadow-md"
+                  >
+                    全不选
+                  </button>
+                  <button
+                    onClick={() => toggleGroup(prefix)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              
-              <div className="flex items-center">
-                {/* 组操作按钮 */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleGroupColors(prefix, true);
-                  }}
-                  className="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 mr-2"
-                >
-                  全选
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleGroupColors(prefix, false);
-                  }}
-                  className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 mr-2"
-                >
-                  全不选
-                </button>
-                
-                {/* 展开/收起图标 */}
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 text-gray-500 dark:text-gray-400 transform transition-transform ${expandedGroups[prefix] ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+
+              {/* 色号列表 */}
+              <div className="p-3 sm:p-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {colorGroups[prefix].map(color => (
+                    <label
+                      key={color.key}
+                      className="group flex flex-col items-center gap-1.5 p-2 bg-gray-50 dark:bg-gray-700/50 hover:bg-white dark:hover:bg-gray-700 rounded-xl cursor-pointer transition-all duration-200 border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!currentSelections[color.hex.toUpperCase()]}
+                        onChange={(e) => {
+                          setSelectedPresetName(null);
+                          saveSelectedPresetName(null);
+                          onSelectionChange(color.hex.toUpperCase(), e.target.checked);
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
+                      />
+                      <div
+                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg border-2 border-gray-200 dark:border-gray-600 flex-shrink-0 shadow-sm"
+                        style={{ backgroundColor: color.hex }}
+                      />
+                      <span className="text-[11px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate w-full text-center">{getDisplayColorKey(color.hex, selectedColorSystem)}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
-            
-            {/* 组内容 */}
-            {expandedGroups[prefix] && (
-              <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {colorGroups[prefix].map(color => (
-                  <label 
-                    key={color.key} 
-                    className="flex items-center space-x-2 p-1.5 hover:bg-gray-50 dark:hover:bg-gray-750 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!currentSelections[color.hex.toUpperCase()]}
-                      onChange={(e) => {
-                        setSelectedPresetName(null); // 手动修改时清除预设选中状态
-                        saveSelectedPresetName(null);
-                        onSelectionChange(color.hex.toUpperCase(), e.target.checked);
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800"
-                    />
-                    <div
-                      className="w-6 h-6 rounded-sm border border-gray-300 dark:border-gray-600 flex-shrink-0"
-                      style={{ backgroundColor: color.hex }}
-                    />
-                    <span className="text-sm text-gray-800 dark:text-gray-200">{getDisplayColorKey(color.hex, selectedColorSystem)}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      
-      {/* 底部按钮 */}
-      <div className="mt-4 pt-3 border-t dark:border-gray-700 flex justify-between">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-        >
-          取消
-        </button>
-        <button
-          onClick={onSaveCustomPalette}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          保存并应用
-        </button>
+
+      {/* 底部按钮 - 现代化设计，固定在底部 */}
+      <div className="flex-shrink-0 p-3 sm:p-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700" style={{ flexShrink: '0' }}>
+        <div className="flex gap-2 sm:gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 text-xs sm:text-sm font-semibold transition-all duration-300"
+          >
+            取消
+          </button>
+          <button
+            onClick={onSaveCustomPalette}
+            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 text-xs sm:text-sm font-semibold transition-all duration-300 hover:scale-[1.02]"
+          >
+            保存并应用
+          </button>
+        </div>
       </div>
     </div>
   );

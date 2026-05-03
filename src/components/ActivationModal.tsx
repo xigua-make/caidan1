@@ -18,10 +18,16 @@ function formatExpiresAt(expiresAt: string | null, durationType: string): string
   const date = new Date(expiresAt);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+  
+  // 已过期
+  if (diffMs <= 0) {
+    return '已到期';
+  }
+  
+  const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  const diffHours = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+  const diffMinutes = Math.max(0, Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)));
+  const diffSeconds = Math.max(0, Math.floor((diffMs % (1000 * 60)) / 1000));
   
   // 显示具体日期
   const dateStr = date.toLocaleString('zh-CN', {
@@ -42,7 +48,21 @@ function formatExpiresAt(expiresAt: string | null, durationType: string): string
     return `${dateStr}（剩余 ${diffSeconds}秒）`;
   }
   
-  return `${dateStr}（剩余 ${diffDays}天${diffHours > 0 ? diffHours + '小时' : ''}）`;
+  if (diffDays > 0) {
+    return `${dateStr}（剩余 ${diffDays}天${diffHours > 0 ? diffHours + '小时' : ''}）`;
+  } else if (diffHours > 0) {
+    return `${dateStr}（剩余 ${diffHours}小时${diffMinutes > 0 ? diffMinutes + '分钟' : ''}）`;
+  } else {
+    return `${dateStr}（剩余 ${diffMinutes}分钟）`;
+  }
+}
+
+// 判断是否已过期
+function isExpired(expiresAt: string | null): boolean {
+  if (!expiresAt) return false;
+  const date = new Date(expiresAt);
+  const now = new Date();
+  return date.getTime() <= now.getTime();
 }
 
 // 获取有效期类型标签
@@ -70,6 +90,8 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
     expiresAt: string | null;
     durationType: string;
   } | null>(null);
+  // 新增：激活码已耗尽/过期状态
+  const [isExpiredCode, setIsExpiredCode] = useState(false);
 
   if (!isOpen) return null;
 
@@ -83,6 +105,7 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
 
     setLoading(true);
     setError('');
+    setIsExpiredCode(false);
 
     try {
       const result = await onActivate(code);
@@ -95,7 +118,15 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
         });
         setCode('');
       } else {
-        setError(result.message);
+        // 检查是否是已耗尽/过期错误
+        const expiredKeywords = ['已耗尽', '已过期', '已到期', '已被禁用'];
+        const isExpired = expiredKeywords.some(keyword => result.message.includes(keyword));
+        
+        if (isExpired) {
+          setIsExpiredCode(true);
+        } else {
+          setError(result.message);
+        }
       }
     } catch (err) {
       setError('验证失败，请稍后重试');
@@ -109,6 +140,7 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
     setError('');
     setSuccess(false);
     setSuccessInfo(null);
+    setIsExpiredCode(false);
     onClose();
   };
 
@@ -136,13 +168,27 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
           <div className="px-5 py-6">
             {/* 成功图标和提示 */}
             <div className="flex flex-col items-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h4 className="text-lg font-bold text-gray-800 mb-1">验证成功</h4>
-              <p className="text-sm text-gray-500">您的卡密已成功激活</p>
+              {isExpired(successInfo.expiresAt) ? (
+                <>
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-1">卡密已到期</h4>
+                  <p className="text-sm text-gray-500 text-center">您的卡密已过期，请续费后继续使用</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-1">验证成功</h4>
+                  <p className="text-sm text-gray-500">您的卡密已成功激活</p>
+                </>
+              )}
             </div>
 
             {/* 到期时间信息 */}
@@ -163,13 +209,48 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
               </div>
             </div>
 
-            {/* 确认按钮 */}
-            <button
-              onClick={handleClose}
-              className="w-full py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            {/* 确认/购买按钮 */}
+            {isExpired(successInfo.expiresAt) ? (
+              <a
+                href="https://afdian.net/a/jianer290"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 text-center bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-colors font-medium"
+              >
+                前往购买续费
+              </a>
+            ) : (
+              <button
+                onClick={handleClose}
+                className="w-full py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                开始使用
+              </button>
+            )}
+          </div>
+        ) : isExpiredCode ? (
+          /* 验证失败：卡密已耗尽/过期 - 显示卡片提示 */
+          <div className="px-5 py-6">
+            {/* 失败图标和提示 */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h4 className="text-lg font-bold text-gray-800 mb-1">卡密已到期</h4>
+              <p className="text-sm text-gray-500 text-center">您的卡密已耗尽，请重新购买后继续使用</p>
+            </div>
+
+            {/* 购买按钮 - 橙色渐变样式 */}
+            <a
+              href="https://xhslink.com/m/H5QFiv6GUJ"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-3 text-center bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:from-orange-600 hover:to-amber-600 transition-colors font-medium"
             >
-              开始使用
-            </button>
+              购买卡密
+            </a>
           </div>
         ) : (
           <>
@@ -217,13 +298,14 @@ export default function ActivationModal({ isOpen, onClose, onActivate, expiredMe
 
               {/* 按钮组 */}
               <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+                <a
+                  href="https://xhslink.com/m/H5QFiv6GUJ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2.5 text-sm text-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                 >
                   购买卡密
-                </button>
+                </a>
                 <button
                   type="submit"
                   disabled={loading}

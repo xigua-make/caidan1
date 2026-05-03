@@ -190,7 +190,15 @@ export default function Home() {
     showCellNumbers: true,
     gridLineColor: gridLineColorOptions[0].value,
     includeStats: true, // 默认包含统计信息
-    exportCsv: false // 默认不导出CSV
+    exportCsv: false, // 默认不导出CSV
+    authorName: '', // 作者署名
+    enableWatermark: false, // 是否启用水印
+    watermarkOptions: {
+      commercial: false, // 禁止商用
+      repost: false, // 禁止二传
+      reprint: false, // 禁止转载
+      modify: false // 禁止二改
+    }
   });
 
   // 新增：高亮相关状态
@@ -2129,7 +2137,7 @@ export default function Home() {
             {/* 自定义色板编辑器弹窗 - 这是新增的部分 */}
             {isCustomPaletteEditorOpen && (
               <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col" style={{ height: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                    {/* 添加隐藏的文件输入框 */}
                    <input
                     type="file"
@@ -2138,19 +2146,17 @@ export default function Home() {
                     onChange={handleImportPaletteFile}
                     className="hidden"
                   />
-                  <div className="p-4 sm:p-6 flex-1 overflow-y-auto"> {/* 让内容区域可滚动 */}
-                    <CustomPaletteEditor
-                      allColors={fullBeadPalette}
-                      currentSelections={customPaletteSelections}
-                      onSelectionChange={handleSelectionChange}
-                      onSaveCustomPalette={handleSaveCustomPalette}
-                      onClose={() => setIsCustomPaletteEditorOpen(false)}
-                      onExportCustomPalette={handleExportCustomPalette}
-                      onImportCustomPalette={triggerImportPalette}
-                      selectedColorSystem={selectedColorSystem}
-                      onColorSystemChange={setSelectedColorSystem}
-                    />
-                  </div>
+                  <CustomPaletteEditor
+                    allColors={fullBeadPalette}
+                    currentSelections={customPaletteSelections}
+                    onSelectionChange={handleSelectionChange}
+                    onSaveCustomPalette={handleSaveCustomPalette}
+                    onClose={() => setIsCustomPaletteEditorOpen(false)}
+                    onExportCustomPalette={handleExportCustomPalette}
+                    onImportCustomPalette={triggerImportPalette}
+                    selectedColorSystem={selectedColorSystem}
+                    onColorSystemChange={setSelectedColorSystem}
+                  />
                 </div>
               </div>
             )}

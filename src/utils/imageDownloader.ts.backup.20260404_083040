@@ -289,26 +289,26 @@ export async function downloadImage({
     // 计算统计区域的大小
     if (includeStats && colorCounts) {
       const colorKeys = Object.keys(colorCounts);
-
+      
       // 统计区域顶部额外间距
       const statsTopMargin = 24; // 与下方渲染时保持一致
-
-      // 根据色块大小选择列数
-      const numColumns = options.statsBlockSize === 'large' ? 8 : 16;
-
+      
+      // 固定8列
+      const numColumns = 8;
+      
       // 使用更大的色块尺寸
       const swatchSize = Math.floor(preCalcAvailableWidth / numColumns * 0.7);
-
+      
       // 计算实际需要的行数
       const numRows = Math.ceil(colorKeys.length / numColumns);
-
+      
       // 计算单行高度
       const statsRowHeight = swatchSize + 8;
-
+      
       // 标题和页脚高度
       const titleHeight = 10; // 简化后的标题区域
       const footerHeight = 40; // 总计部分的高度
-
+      
       // 计算统计区域的总高度 - 需要包含顶部间距
       statsHeight = titleHeight + (numRows * statsRowHeight) + footerHeight + (statsPadding * 2) + statsTopMargin;
     }
@@ -563,54 +563,54 @@ export async function downloadImage({
     // 绘制统计信息
     if (includeStats && colorCounts) {
       const colorKeys = Object.keys(colorCounts).sort(sortColorKeys);
-
+      
       // 增加额外的间距，防止标题文字侵入画布
       const statsTopMargin = 24; // 增加间距，防止文字侵入画布
       const statsY = titleBarHeight + extraTopMargin + M * downloadCellSize + (axisLabelSize * 2) + statsPadding + statsTopMargin;
-
+      
       // 计算统计区域的可用宽度
       const availableStatsWidth = downloadWidth - (statsPadding * 2);
-
-      // 根据色块大小选择列数
-      const renderNumColumns = options.statsBlockSize === 'large' ? 8 : 16;
-
+      
+      // 固定8列
+      const renderNumColumns = 8;
+      
       // 计算每个项目所占的宽度
       const itemWidth = Math.floor(availableStatsWidth / renderNumColumns);
-
+      
       // 色块大小 - 占项目宽度的40%，确保紧凑
       const swatchSize = Math.floor(itemWidth * 0.3);
-
+      
       // 标题区域高度
       const titleHeight = 8;
-
+      
       // 行高 - 色块 + 较大间距
       const statsRowHeight = swatchSize + 20;
-
+      
       // 色号字体大小 - 占色块的35%
       const colorKeyFontSize = Math.max(6, Math.floor(swatchSize * 0.35));
       // 数量字体大小 - 比色号稍大
       const countFontSize = Math.max(8, Math.floor(swatchSize * 0.4));
-
+      
       // 绘制每行统计信息
       colorKeys.forEach((key, index) => {
         // 计算当前项目应该在哪一行和哪一列
         const rowIndex = Math.floor(index / renderNumColumns);
         const colIndex = index % renderNumColumns;
-
+        
         // 计算当前项目的X起始位置
         const itemX = statsPadding + (colIndex * itemWidth);
-
+        
         // 计算当前行的Y位置
         const rowY = statsY + titleHeight + (rowIndex * statsRowHeight) + (swatchSize / 2);
-
+        
         const cellData = colorCounts[key];
-        const colorKey = getColorKeyByHex(cellData.color, selectedColorSystem);
-
+        const colorKey = getColorKeyByHex(key, selectedColorSystem);
+        
         // 色块位置
         const swatchX = itemX;
         const swatchY = rowY - (swatchSize / 2);
         const cornerRadius = Math.max(3, Math.floor(swatchSize * 0.2)); // 大圆角
-
+        
         // 1. 先绘制阴影（底部和右侧的柔和投影）
         ctx.save();
         ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
@@ -622,7 +622,7 @@ export async function downloadImage({
         ctx.roundRect(swatchX, swatchY, swatchSize, swatchSize, cornerRadius);
         ctx.fill();
         ctx.restore();
-
+        
         // 2. 在色块内绘制色号（根据背景色决定文字颜色）
         const rgb = hexToRgb(cellData.color);
         const isLightColor = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 > 128 : false;
@@ -631,7 +631,7 @@ export async function downloadImage({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(colorKey, swatchX + swatchSize / 2, rowY);
-
+        
         // 3. 绘制数量 - 紧靠色块右侧
         ctx.fillStyle = '#333333';
         ctx.font = `${countFontSize}px sans-serif`;
@@ -640,7 +640,7 @@ export async function downloadImage({
         const countText = `x${cellData.count}`;
         ctx.fillText(countText, swatchX + swatchSize + 2, rowY);
       });
-
+      
       // 计算实际需要的行数
       const numRows = Math.ceil(colorKeys.length / renderNumColumns);
 
